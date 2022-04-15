@@ -1,0 +1,2 @@
+# myecho
+golang blog
