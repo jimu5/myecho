@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/Kimiato/myecho/model"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -8,12 +9,12 @@ import (
 var Database *gorm.DB
 
 // 连接数据库
-func Connect() error {
+func ConnectDB() error {
 	var err error
 	Database, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
-	Database.AutoMigrate()
+	Database.AutoMigrate(&model.User{})
 	return nil
 }

@@ -7,6 +7,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+
+	"github.com/Kimiato/myecho/config"
+	"github.com/Kimiato/myecho/router"
 )
 
 var (
@@ -22,5 +25,7 @@ func main() {
 	app.Use(recover.New())
 	app.Use(logger.New())
 	app.Static("/", "./static")
+	config.ConnectDB()
+	router.SetupApiRouter(app)
 	log.Fatal(app.Listen(*port))
 }
