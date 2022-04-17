@@ -14,12 +14,12 @@ const (
 
 type User struct {
 	gorm.Model
-	Name           string `json:"name"`
-	Email          string `json:"email"`
+	Name           string `json:"name" gorm:"size:64"`
+	Email          string `json:"email" gorm:"size:64"`
 	LastLogin      time.Time
 	PermissionType int8   `gorm:"default:1" json:"permission_type"`
-	Password       string `json:"password"`
-	Token          string `json:"token"`
+	Password       string `json:"password" gorm:"size:128"`
+	Token          string `json:"token" gorm:"size:32"`
 }
 
 // 生成随机字符串
@@ -36,4 +36,9 @@ func (u *User) GenerateToken() {
 	if u.Token == "" {
 		u.Token = GenerateRandomString(32)
 	}
+}
+
+func (u *User) BeforeSave(tx *gorm.DB) error {
+	u.GenerateToken()
+	return nil
 }

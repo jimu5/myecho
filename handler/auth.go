@@ -56,11 +56,6 @@ func Login(c *fiber.Ctx) error {
 	if user.Password != EncryptPassword(l.Password) {
 		return LoginErrorResponse(c, LoginErrorMsg)
 	}
-	// 生成token,并保存到数据库
-	// TODO: 这里有重复的逻辑
-	if user.Token == "" {
-		user.GenerateToken()
-	}
 	user.LastLogin = time.Now()
 	config.Database.Save(&user)
 	return c.Status(200).JSON(structAssign(&LoginResponse{}, &user))
