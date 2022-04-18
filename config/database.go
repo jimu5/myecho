@@ -15,6 +15,11 @@ func ConnectDB() error {
 	if err != nil {
 		panic(err)
 	}
-	Database.AutoMigrate(&model.User{})
+	Database.AutoMigrate(
+		&model.User{},
+		&model.ArticleDetail{},
+		&model.Category{},
+		&model.Article{},
+	)
 	return nil
 }

@@ -19,6 +19,7 @@ func SetupApiRouter(app *fiber.App) {
 			noNeedAuth := api.Group("")
 			noNeedAuth.Post("/login", handler.Login)
 			noNeedAuth.Post("/register", handler.Register)
+			noNeedAuth.Get("/articles", handler.ListArticle)
 		}
 	}
 }
