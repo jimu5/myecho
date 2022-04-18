@@ -14,18 +14,18 @@ type Category struct {
 // 文章
 type Article struct {
 	gorm.Model
-	Author         User     `json:"author"`
-	Title          string   `json:"title" gorm:"size:128"`
-	Summary        string   `json:"summary" gorm:"size:256"`
-	ReadCount      uint     `json:"read_count" gorm:"default:0"`
-	LikeCount      int      `json:"like_count" gorm:"default:0"`
-	IsAllowComment bool     `json:"is_allow_comment" gorm:"default:true"`
-	CommentCount   uint     `json:"comment_count" gorm:"default:0"`
-	Category       Category `json:"category"`
+	Author         User          `json:"author"`
+	Title          string        `json:"title" gorm:"size:128"`
+	Summary        string        `json:"summary" gorm:"size:256"`
+	ReadCount      uint          `json:"read_count" gorm:"default:0"`
+	LikeCount      int           `json:"like_count" gorm:"default:0"`
+	IsAllowComment bool          `json:"is_allow_comment" gorm:"default:true"`
+	CommentCount   uint          `json:"comment_count" gorm:"default:0"`
+	Category       Category      `json:"category"`
+	Detail         ArticleDetail `json:"detail"`
 }
 
 // 文章详情
 type ArticleDetail struct {
-	Article Article `json:"article"`
-	Content string  `json:"content" gorm:"type:longtext"`
+	Content string `json:"content" gorm:"type:longtext"`
 }
