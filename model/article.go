@@ -1,6 +1,8 @@
 package model
 
 import (
+	"time"
+
 	"gorm.io/gorm"
 )
 
@@ -20,17 +22,18 @@ type ArticleDetail struct {
 
 // 文章
 type Article struct {
-	gorm.Model
-	AuthorID       int64         `json:"author_id" gorm:"default:null"`
-	Author         User          `json:"author"`
-	Title          string        `json:"title" gorm:"size:128"`
-	Summary        string        `json:"summary" gorm:"size:256"`
-	ReadCount      uint          `json:"read_count" gorm:"default:0"`
-	LikeCount      int           `json:"like_count" gorm:"default:0"`
-	IsAllowComment bool          `json:"is_allow_comment" gorm:"default:true"`
-	CommentCount   uint          `json:"comment_count" gorm:"default:0"`
-	CategoryID     int64         `json:"category_id" gorm:"default:null"`
-	Category       Category      `json:"category"`
-	DetailID       int64         `json:"detail_id" gorm:"default:null"`
-	Detail         ArticleDetail `json:"detail"`
+	BaseModel
+	AuthorID       uint           `json:"author_id" gorm:"default:null"`
+	Author         *User          `json:"author"`
+	Title          string         `json:"title" gorm:"size:128"`
+	Summary        string         `json:"summary" gorm:"size:256"`
+	ReadCount      uint           `json:"read_count" gorm:"default:0"`
+	LikeCount      int            `json:"like_count" gorm:"default:0"`
+	IsAllowComment *bool          `json:"is_allow_comment" gorm:"default:true"`
+	CommentCount   uint           `json:"comment_count" gorm:"default:0"`
+	CategoryID     uint           `json:"category_id" gorm:"default:null"`
+	Category       *Category      `json:"category"`
+	DetailID       uint           `json:"detail_id" gorm:"default:null"`
+	Detail         *ArticleDetail `json:"detail"`
+	PostTime       time.Time      `json:"post_time"`
 }

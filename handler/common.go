@@ -42,3 +42,16 @@ func Paginate(c *fiber.Ctx) func(db *gorm.DB) *gorm.DB {
 func PaginateData(c *fiber.Ctx, total int64, data interface{}) error {
 	return c.Status(200).JSON(Pagination{Total: total, Data: data})
 }
+
+func ValidateID(c *fiber.Ctx, model interface{}) error {
+	id := c.Params("id")
+	id_int, err := strconv.Atoi(id)
+	if err != nil || id_int <= 0 {
+		return ErrorIDNotFound
+	}
+	result := config.Database.First(&model, id_int)
+	if result.Error != nil {
+		return ErrorIDNotFound
+	}
+	return nil
+}

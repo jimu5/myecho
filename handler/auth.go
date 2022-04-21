@@ -16,24 +16,30 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
+type RegisterRequest struct {
+	Email          string `json:"email"`
+	Name           string `json:"name"`
+	Password       string `json:"password"`
+	NickName       string `json:"nick_name"`
+	PermissionType int8   `json:"-"`
+}
+
 type LoginResponse struct {
 	Email          string    `json:"email"`
 	Name           string    `json:"name"`
+	NickName       string    `json:"nick_name"`
 	LastLogin      time.Time `json:"last_login"`
 	PermissionType int8      `json:"permission_type"`
 	Token          string    `json:"token"`
 }
 
 type RegisterResponse struct {
-	Email          string    `json:"email"`
-	Name           string    `json:"name"`
-	LastLogin      time.Time `json:"last_login"`
-	PermissionType int8      `json:"permission_type"`
-	Token          string    `json:"token"`
+	LoginResponse
 }
 
 func Login(c *fiber.Ctx) error {
 	var user model.User
+	var res LoginResponse
 	l := new(LoginRequest)
 	if err := c.BodyParser(l); err != nil {
 		return nil
@@ -57,27 +63,29 @@ func Login(c *fiber.Ctx) error {
 		return LoginErrorResponse(c, LoginErrorMsg)
 	}
 	user.LastLogin = time.Now()
-	config.Database.Save(&user)
-	return c.Status(200).JSON(structAssign(&LoginResponse{}, &user))
+	config.Database.Save(&user).Scan(&res)
+	return c.Status(200).JSON(res)
 }
 
 // 注册
 func Register(c *fiber.Ctx) error {
-	var user model.User
-	if err := c.BodyParser(&user); err != nil {
+	var r RegisterRequest
+	var res RegisterResponse
+	if err := c.BodyParser(&r); err != nil {
 		return nil
 	}
-	if err := validateRegisterRequest(&user); err != nil {
+	if err := validateRegisterRequest(&r); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
+	var user model.User
+	structAssign(&user, &r)
 	user.Password = EncryptPassword(user.Password)
-	user.GenerateToken()
 	// 第一个注册的用户默认为管理员
 	if config.Database.First(&model.User{}).RowsAffected == 0 {
 		user.PermissionType = model.Admin
 	}
-	config.Database.Create(&user)
-	return c.Status(200).JSON(structAssign(&RegisterResponse{}, &user))
+	config.Database.Model(&model.User{}).Create(&user).Scan(&res)
+	return c.Status(200).JSON(res)
 }
 
 // sha256加密密码
@@ -100,9 +108,12 @@ func validateLoginRequest(l *LoginRequest) error {
 	return nil
 }
 
-func validateRegisterRequest(u *model.User) error {
+func validateRegisterRequest(u *RegisterRequest) error {
 	if u.Name == "" {
 		return ErrNameEmpty
+	}
+	if u.NickName == "" {
+		u.NickName = u.Name
 	}
 	if u.Email == "" {
 		return ErrEmailEmpty
@@ -110,7 +121,7 @@ func validateRegisterRequest(u *model.User) error {
 	if u.Password == "" {
 		return ErrPasswordEmpty
 	}
-	result := config.Database.Where("email = ?", u.Email).Or("name = ?", u.Name).First(&model.User{})
+	result := config.Database.Where("email = ?", u.Email).Or("name = ?", u.Name).Limit(1).Find(&model.User{})
 	if result.RowsAffected > 0 {
 		return ErrUserExisted
 	}

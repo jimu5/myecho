@@ -19,6 +19,6 @@ func Authentication(c *fiber.Ctx) (err error) {
 	}
 
 	// 将用户信息保存下来
-	c.Locals("user", user)
+	c.Locals("user", &user)
 	return c.Next()
 }
