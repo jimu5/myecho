@@ -16,6 +16,8 @@ type ArticleRequest struct {
 	CategoryID     uint      `json:"category_id"`
 	IsAllowComment *bool     `json:"is_allow_comment"`
 	PostTime       time.Time `json:"post_time"`
+	Status         *int8     `json:"status"`
+	Password       string    `json:"password"`
 }
 
 type User struct {
@@ -43,6 +45,7 @@ type ArticleResponse struct {
 	LikeCount      int                  `json:"like_count"`
 	CommentCount   uint                 `json:"comment_count"`
 	PostTime       time.Time            `json:"post_time"`
+	Status         *int8                `json:"status"`
 }
 
 func ArticleList(c *fiber.Ctx) error {

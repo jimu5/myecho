@@ -36,4 +36,6 @@ type Article struct {
 	DetailID       uint           `json:"detail_id" gorm:"default:null"`
 	Detail         *ArticleDetail `json:"detail"`
 	PostTime       time.Time      `json:"post_time"`
+	Status         *int8          `json:"status" gorm:"default:0"` // 0: 已发布 1: 置顶 2: 草稿 3: 等待复审 4: 仅自己可见 5: 回收站
+	Password       string         `json:"-" gorm:"default:null"`
 }
