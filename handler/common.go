@@ -3,7 +3,9 @@ package handler
 import (
 	"strconv"
 
-	"github.com/Kimiato/myecho/config"
+	"myecho/config"
+	"myecho/handler/errors"
+
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
@@ -47,11 +49,11 @@ func ValidateID(c *fiber.Ctx, model interface{}) error {
 	id := c.Params("id")
 	id_int, err := strconv.Atoi(id)
 	if err != nil || id_int <= 0 {
-		return ErrorIDNotFound
+		return errors.ErrorIDNotFound
 	}
 	result := config.Database.First(&model, id_int)
 	if result.Error != nil {
-		return ErrorIDNotFound
+		return errors.ErrorIDNotFound
 	}
 	return nil
 }

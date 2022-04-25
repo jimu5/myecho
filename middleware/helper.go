@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"github.com/Kimiato/myecho/config"
-	"github.com/Kimiato/myecho/model"
+	"myecho/config"
+	"myecho/model"
 )
 
 // 通过token获取用户

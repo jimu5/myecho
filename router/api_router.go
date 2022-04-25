@@ -1,8 +1,9 @@
 package router
 
 import (
-	"github.com/Kimiato/myecho/handler"
-	"github.com/Kimiato/myecho/middleware"
+	"myecho/handler"
+	"myecho/middleware"
+
 	"github.com/gofiber/fiber/v2"
 )
 

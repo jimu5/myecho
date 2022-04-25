@@ -1,4 +1,4 @@
-module github.com/Kimiato/myecho
+module myecho
 
 go 1.18
 

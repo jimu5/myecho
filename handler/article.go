@@ -1,55 +1,17 @@
 package handler
 
 import (
-	"time"
+	"myecho/config"
+	"myecho/handler/rtype"
+	"myecho/handler/validator"
+	"myecho/model"
 
-	"github.com/Kimiato/myecho/config"
-	"github.com/Kimiato/myecho/model"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm/clause"
 )
 
-type ArticleRequest struct {
-	Title          string    `json:"title"`
-	Summary        string    `json:"summary"`
-	Content        string    `json:"content"`
-	CategoryID     uint      `json:"category_id"`
-	IsAllowComment *bool     `json:"is_allow_comment"`
-	PostTime       time.Time `json:"post_time"`
-	Status         *int8     `json:"status"`
-	Password       string    `json:"password"`
-}
-
-type User struct {
-	ID       uint   `json:"id"`
-	NickName string `json:"nick_name"`
-}
-
-type Category struct {
-	ID   int64  `json:"id"`
-	Name string `json:"name"`
-}
-
-type ArticleResponse struct {
-	model.BaseModel
-	AuthorID       uint                 `json:"-"`
-	Author         *User                `json:"author" gorm:"foreignkey:author_id"`
-	Title          string               `json:"title"`
-	Summary        string               `json:"summary"`
-	DetailID       uint                 `json:"-"`
-	Detail         *model.ArticleDetail `json:"detail"`
-	CategoryID     uint                 `json:"-"`
-	Category       *Category            `json:"category"`
-	IsAllowComment *bool                `json:"is_allow_comment"`
-	ReadCount      uint                 `json:"read_count"`
-	LikeCount      int                  `json:"like_count"`
-	CommentCount   uint                 `json:"comment_count"`
-	PostTime       time.Time            `json:"post_time"`
-	Status         *int8                `json:"status"`
-}
-
 func ArticleList(c *fiber.Ctx) error {
-	var articlesRes []ArticleResponse
+	var articlesRes []rtype.ArticleResponse
 	var total int64
 	// 总数
 	config.Database.Find(&[]model.Article{}).Count(&total)
@@ -63,7 +25,7 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 	if err := ValidateID(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
-	var res ArticleResponse
+	var res rtype.ArticleResponse
 	res.ID = article.ID
 	// TODO: 这里可以优化，减少一次sql查询
 	config.Database.Table("articles").Preload(clause.Associations).Find(&res)
@@ -73,13 +35,13 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 func ArticleCreate(c *fiber.Ctx) error {
 	var article model.Article
 	var detail model.ArticleDetail
-	var res ArticleResponse
-	var r ArticleRequest
+	var res rtype.ArticleResponse
+	var r rtype.ArticleRequest
 	if err := c.BodyParser(&r); err != nil {
 		return ParseErrorResponse(c, err.Error())
 	}
 	// 校验
-	err := validateArticleRequest(&r)
+	err := validator.ValidateArticleRequest(&r)
 	if err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
@@ -89,13 +51,13 @@ func ArticleCreate(c *fiber.Ctx) error {
 	article.AuthorID = c.Locals("user").(*model.User).ID
 	article.Author = c.Locals("user").(*model.User)
 	config.Database.Create(&article).Scan(&res)
-	return c.Status(201).JSON(res)
+	return c.Status(fiber.StatusCreated).JSON(res)
 }
 
 // 更新文章
 func ArticleUpdate(c *fiber.Ctx) error {
 	var article model.Article
-	var r ArticleRequest
+	var r rtype.ArticleRequest
 	if err := c.BodyParser(&r); err != nil {
 		return ParseErrorResponse(c, err.Error())
 	}
@@ -103,7 +65,7 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	if err := ValidateID(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
-	if err := validateArticleRequest(&r); err != nil {
+	if err := validator.ValidateArticleRequest(&r); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 
@@ -118,9 +80,9 @@ func ArticleUpdate(c *fiber.Ctx) error {
 
 	config.Database.Model(&article).Omit("User").Updates(structAssign(&article, &r))
 
-	var res ArticleResponse
+	var res rtype.ArticleResponse
 	config.Database.Table("articles").Preload(clause.Associations).Find(&res, article.ID)
-	return c.JSON(&res)
+	return c.Status(fiber.StatusOK).JSON(&res)
 }
 
 // 删除文章
@@ -130,32 +92,5 @@ func ArticleDelete(c *fiber.Ctx) error {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	config.Database.Select("Detail").Delete(&article)
-	return c.SendStatus(204)
-}
-
-func validateCategoryID(categoryID uint) error {
-	if categoryID == 0 {
-		return nil
-	}
-	err := config.Database.Where("id = ?", categoryID).First(&model.Category{}).Error
-	if err != nil {
-		return ErrCategoryNotFound
-	}
-	return nil
-}
-
-func validateArticleRequest(articleRequest *ArticleRequest) error {
-	if len(articleRequest.Title) == 0 {
-		return ErrTitleEmpty
-	}
-	if len(articleRequest.Content) == 0 {
-		return ErrContentEmpty
-	}
-	if articleRequest.PostTime.IsZero() {
-		articleRequest.PostTime = time.Now()
-	}
-	if err := validateCategoryID(articleRequest.CategoryID); err != nil {
-		return err
-	}
-	return nil
+	return c.SendStatus(fiber.StatusNoContent)
 }

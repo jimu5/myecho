@@ -1,7 +1,8 @@
 package config
 
 import (
-	"github.com/Kimiato/myecho/model"
+	"myecho/model"
+
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

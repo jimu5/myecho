@@ -3,7 +3,8 @@ package middleware
 import (
 	"strings"
 
-	"github.com/Kimiato/myecho/handler"
+	"myecho/handler"
+
 	"github.com/gofiber/fiber/v2"
 )
 
