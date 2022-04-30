@@ -16,6 +16,8 @@ func SetupApiRouter(app *fiber.App) {
 			needAuth.Post("/article", middleware.Authentication, handler.ArticleCreate)
 			needAuth.Patch("/articles/:id", middleware.Authentication, handler.ArticleUpdate)
 			needAuth.Delete("/articles/:id", middleware.Authentication, handler.ArticleDelete)
+
+			needAuth.Patch("/comments/:id", middleware.Authentication, handler.CommentUpdate)
 		}
 		// 不需要权限的
 		{
@@ -25,6 +27,8 @@ func SetupApiRouter(app *fiber.App) {
 
 			noNeedAuth.Get("/articles", handler.ArticleList)
 			noNeedAuth.Get("/articles/:id", handler.ArticleRetrieve)
+			noNeedAuth.Get("/articles/:id/comments", handler.ArticleCommentList)
+			noNeedAuth.Post("/articles/:id/comments", handler.CommentCreate)
 		}
 	}
 }

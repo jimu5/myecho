@@ -21,8 +21,8 @@ func ArticleList(c *fiber.Ctx) error {
 }
 
 func ArticleRetrieve(c *fiber.Ctx) error {
-	var article model.Article
-	if err := ValidateID(c, &article); err != nil {
+	var article *model.Article
+	if err := DetailPreHandle(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	var res rtype.ArticleResponse
@@ -62,7 +62,7 @@ func ArticleUpdate(c *fiber.Ctx) error {
 		return ParseErrorResponse(c, err.Error())
 	}
 	// 校验
-	if err := ValidateID(c, &article); err != nil {
+	if err := DetailPreHandle(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	if err := validator.ValidateArticleRequest(&r); err != nil {
@@ -88,7 +88,7 @@ func ArticleUpdate(c *fiber.Ctx) error {
 // 删除文章
 func ArticleDelete(c *fiber.Ctx) error {
 	var article model.Article
-	if err := ValidateID(c, &article); err != nil {
+	if err := DetailPreHandle(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	config.Database.Select("Detail").Delete(&article)

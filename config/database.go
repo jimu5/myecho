@@ -22,6 +22,7 @@ func ConnectDB() error {
 		&model.ArticleDetail{},
 		&model.Category{},
 		&model.Article{},
+		&model.Comment{},
 	)
 	return nil
 }

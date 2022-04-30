@@ -18,11 +18,7 @@ func ValidateCommentRequest(l *rtype.CommentRequest) error {
 	if l.Content == "" {
 		return errors.ErrCommentContentEmpty
 	}
-	err := ValidateArticleID(l.ArticleID)
-	if err != nil {
-		return err
-	}
-	err = ValidateParentCommentID(l.ParentID)
+	err := ValidateParentCommentID(l.ParentID)
 	if err != nil {
 		return err
 	}

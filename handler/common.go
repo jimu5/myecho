@@ -4,7 +4,7 @@ import (
 	"strconv"
 
 	"myecho/config"
-	"myecho/handler/errors"
+	"myecho/handler/validator"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
@@ -45,15 +45,7 @@ func PaginateData(c *fiber.Ctx, total int64, data interface{}) error {
 	return c.Status(200).JSON(Pagination{Total: total, Data: data})
 }
 
-func ValidateID(c *fiber.Ctx, model interface{}) error {
-	id := c.Params("id")
-	id_int, err := strconv.Atoi(id)
-	if err != nil || id_int <= 0 {
-		return errors.ErrorIDNotFound
-	}
-	result := config.Database.First(&model, id_int)
-	if result.Error != nil {
-		return errors.ErrorIDNotFound
-	}
-	return nil
+func DetailPreHandle[T any](c *fiber.Ctx, model *T) error {
+	// model 实际上是一个模型的指针
+	return validator.ValidateID(c, model)
 }
