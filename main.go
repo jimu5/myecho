@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	port = flag.String("port", ":3000", "Port Listen on")
+	port = flag.String("port", ":2999", "Port Listen on")
 	prod = flag.Bool("prod", false, "Enable perfork in Production")
 )
 
