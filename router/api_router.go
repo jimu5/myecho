@@ -13,7 +13,7 @@ func SetupApiRouter(app *fiber.App) {
 		// 需要权限的, TODO: 改造
 		{
 			needAuth := api.Group("")
-			needAuth.Post("/article", middleware.Authentication, handler.ArticleCreate)
+			needAuth.Post("/articles", middleware.Authentication, handler.ArticleCreate)
 			needAuth.Patch("/articles/:id", middleware.Authentication, handler.ArticleUpdate)
 			needAuth.Delete("/articles/:id", middleware.Authentication, handler.ArticleDelete)
 
