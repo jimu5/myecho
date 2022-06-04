@@ -51,7 +51,7 @@ func ArticleCreate(c *fiber.Ctx) error {
 	article.AuthorID = c.Locals("user").(*model.User).ID
 	article.Author = c.Locals("user").(*model.User)
 	config.Database.Create(&article).Scan(&res)
-	return c.Status(fiber.StatusCreated).JSON(res)
+	return c.Status(fiber.StatusCreated).JSON(&res)
 }
 
 // 更新文章

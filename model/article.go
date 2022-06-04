@@ -10,7 +10,7 @@ import (
 type Category struct {
 	gorm.Model
 	Name     string    `json:"name" gorm:"size:64"`
-	FatherID int64     `json:"father_id" gorm:"default:null"`
+	FatherID *uint     `json:"father_id" gorm:"default:null"`
 	Father   *Category `json:"father"`
 }
 

@@ -3,22 +3,9 @@ package validator
 import (
 	"time"
 
-	"myecho/config"
 	"myecho/handler/errors"
 	"myecho/handler/rtype"
-	"myecho/model"
 )
-
-func ValidateCategoryID(categoryID uint) error {
-	if categoryID == 0 {
-		return nil
-	}
-	err := config.Database.Where("id = ?", categoryID).First(&model.Category{}).Error
-	if err != nil {
-		return errors.ErrCategoryNotFound
-	}
-	return nil
-}
 
 func ValidateArticleRequest(articleRequest *rtype.ArticleRequest) error {
 	if len(articleRequest.Title) == 0 {

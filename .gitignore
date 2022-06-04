@@ -24,3 +24,5 @@
 # tmp
 /tmp
 test.db
+
+/static

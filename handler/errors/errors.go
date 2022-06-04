@@ -1,6 +1,6 @@
 package errors
 
-import errs "errors"
+import errs "github.com/pkg/errors"
 
 var (
 	// Common
@@ -12,7 +12,6 @@ var (
 	ErrNameEmpty             = errs.New("用户名为空")
 	ErrEmailEmpty            = errs.New("邮箱为空")
 	ErrUserExisted           = errs.New("账号已存在")
-	ErrCategoryNotFound      = errs.New("分类不存在")
 
 	// Article
 	ErrTitleEmpty   = errs.New("标题为空")
@@ -25,4 +24,8 @@ var (
 	ErrCommentArticleIDEmpty   = errs.New("文章ID为空")
 	ErrArticleID               = errs.New("文章ID不存在")
 	ErrParentCommentID         = errs.New("父级评论ID错误")
+
+	// Category
+	ErrCategoryNameEmpty = errs.New("category name 为空")
+	ErrCategoryNotFound  = errs.New("分类不存在")
 )
