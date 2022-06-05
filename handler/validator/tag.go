@@ -8,6 +8,9 @@ import (
 )
 
 func ValidateTagIDs(tagIDs []uint) error {
+	if len(tagIDs) == 0 {
+		return nil
+	}
 	var tags []model.Tag
 	config.Database.Where("id in (?)", tagIDs).Find(&tags)
 	if len(tags) != len(tagIDs) {

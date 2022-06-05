@@ -50,6 +50,9 @@ func ArticleCreate(c *fiber.Ctx) error {
 	article.Detail = &detail
 	article.AuthorID = c.Locals("user").(*model.User).ID
 	article.Author = c.Locals("user").(*model.User)
+
+	article.Tags = getTags(r.TagIDs)
+
 	config.Database.Create(&article).Scan(&res)
 	return c.Status(fiber.StatusCreated).JSON(&res)
 }
@@ -77,8 +80,11 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	if result := config.Database.Save(&detail); result.Error != nil {
 		return InternalErrorResponse(c, InternalSQLError, result.Error.Error())
 	}
+	structAssign(&article, &r)
 
-	config.Database.Model(&article).Omit("User").Updates(structAssign(&article, &r))
+	tags := getTags(r.TagIDs)
+	article.Tags = tags
+	config.Database.Model(&article).Omit("User").Updates(&article)
 
 	var res rtype.ArticleResponse
 	config.Database.Table("articles").Preload(clause.Associations).Find(&res, article.ID)
@@ -93,4 +99,13 @@ func ArticleDelete(c *fiber.Ctx) error {
 	}
 	config.Database.Select("Detail").Delete(&article)
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func getTags(tagIDs []uint) (tags []model.Tag) {
+	tags = make([]model.Tag, len(tagIDs))
+	for i, id := range tagIDs {
+		tags[i].ID = id
+	}
+	FindTags(&tags)
+	return
 }

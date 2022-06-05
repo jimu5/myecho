@@ -54,3 +54,7 @@ func TagDelete(c *fiber.Ctx) error {
 func deleteAlterDelete(tag *model.Tag) {
 	config.Database.Table("articles").Association("Tags").Delete(tag)
 }
+
+func FindTags(tags *[]model.Tag) {
+	config.Database.Table("tags").Where("id in (?)", tags).Find(&tags)
+}

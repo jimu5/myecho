@@ -20,5 +20,8 @@ func ValidateArticleRequest(articleRequest *rtype.ArticleRequest) error {
 	if err := ValidateCategoryID(articleRequest.CategoryID); err != nil {
 		return err
 	}
+	if err := ValidateTagIDs(articleRequest.TagIDs); err != nil {
+		return err
+	}
 	return nil
 }
