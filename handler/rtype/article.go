@@ -14,6 +14,7 @@ type ArticleRequest struct {
 	PostTime       time.Time `json:"post_time"`
 	Status         *int8     `json:"status"`
 	Password       string    `json:"password"`
+	TagIDs         []uint    `json:"tag_ids"`
 }
 
 type User struct {
@@ -29,7 +30,7 @@ type Category struct {
 type ArticleResponse struct {
 	model.BaseModel
 	AuthorID       uint                 `json:"-"`
-	Author         *User                `json:"author" gorm:"foreignkey:author_id"`
+	Author         *User                `json:"author"`
 	Title          string               `json:"title"`
 	Summary        string               `json:"summary"`
 	DetailID       uint                 `json:"-"`
@@ -42,4 +43,5 @@ type ArticleResponse struct {
 	CommentCount   uint                 `json:"comment_count"`
 	PostTime       time.Time            `json:"post_time"`
 	Status         *int8                `json:"status"`
+	Tags           []model.Tag          `json:"tags" gorm:"many2many:article_tags;joinForeignKey:ArticleID"`
 }

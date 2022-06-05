@@ -28,4 +28,8 @@ var (
 	// Category
 	ErrCategoryNameEmpty = errs.New("category name 为空")
 	ErrCategoryNotFound  = errs.New("分类不存在")
+
+	// Tag
+	ErrTagNotFound  = errs.New("tag 不存在")
+	ErrTagNameEmpty = errs.New("tag name 为空")
 )

@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/gofiber/fiber/v2 v2.32.0
+	github.com/pkg/errors v0.9.1
 	gorm.io/driver/sqlite v1.3.1
 	gorm.io/gorm v1.23.4
 )
@@ -14,7 +15,6 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
 	github.com/mattn/go-sqlite3 v1.14.9 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.35.0 // indirect
 	github.com/valyala/tcplisten v1.0.0 // indirect
