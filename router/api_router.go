@@ -22,6 +22,10 @@ func SetupApiRouter(app *fiber.App) {
 			needAuth.Post("/articles/categories", handler.CategoryCreate)
 			needAuth.Patch("/articles/categories/:id", handler.CategoryUpdate)
 			needAuth.Delete("/articles/categories/:id", handler.CategoryDelete)
+
+			needAuth.Post("/tags", handler.TagCreate)
+			needAuth.Patch("/tags/:id", handler.TagUpdate)
+			needAuth.Delete("/tags/:id", handler.TagDelete)
 		}
 		// 不需要权限的
 		{
@@ -37,6 +41,8 @@ func SetupApiRouter(app *fiber.App) {
 			noNeedAuth.Post("/articles/:id/comments", handler.CommentCreate)
 
 			noNeedAuth.Get("/articles/categories/all", handler.CategoryAll)
+
+			noNeedAuth.Get("/tags/all", handler.TagListAll)
 		}
 	}
 }

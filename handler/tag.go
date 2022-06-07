@@ -9,6 +9,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+func TagListAll(c *fiber.Ctx) error {
+	var tags []model.Tag
+	config.Database.Table("tags").Find(&tags)
+	return c.JSON(&tags)
+}
+
 func TagCreate(c *fiber.Ctx) error {
 	var req rtype.TagRequest
 	if err := c.BodyParser(&req); err != nil {
