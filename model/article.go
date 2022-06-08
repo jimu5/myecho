@@ -12,6 +12,7 @@ type Category struct {
 	Name     string    `json:"name" gorm:"size:64"`
 	FatherID *uint     `json:"father_id" gorm:"default:null"`
 	Father   *Category `json:"father"`
+	Count    uint      `json:"count"`
 }
 
 // 文章详情
@@ -39,4 +40,28 @@ type Article struct {
 	Status         *int8          `json:"status" gorm:"default:0"` // 0: 已发布 1: 置顶 2: 草稿 3: 等待复审 4: 仅自己可见 5: 回收站
 	Password       string         `json:"-" gorm:"default:null"`
 	Tags           []Tag          `gorm:"many2many:article_tags;"`
+}
+
+func (article *Article) AfterCreate(tx *gorm.DB) {
+	if article.CategoryID != 0 {
+		tx.Model(&Category{}).Where("id = ?", article.CategoryID).Update("count", gorm.Expr("count + 1"))
+	}
+}
+
+func (article *Article) BeforeUpdate(tx *gorm.DB) {
+	if article.CategoryID != 0 {
+		tx.Model(&Category{}).Where("id = ?", article.CategoryID).Update("count", gorm.Expr("count - 1"))
+	}
+}
+
+func (article *Article) AfterUpdate(tx *gorm.DB) {
+	if article.CategoryID != 0 {
+		tx.Model(&Category{}).Where("id = ?", article.CategoryID).Update("count", gorm.Expr("count + 1"))
+	}
+}
+
+func (article *Article) AfterDelete(tx *gorm.DB) {
+	if article.CategoryID != 0 {
+		tx.Model(&Category{}).Where("id = ?", article.CategoryID).Update("count", gorm.Expr("count - 1"))
+	}
 }
