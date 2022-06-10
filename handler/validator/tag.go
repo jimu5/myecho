@@ -23,5 +23,11 @@ func ValidateTagRequest(tagRequest *rtype.TagRequest) error {
 	if len(tagRequest.Name) == 0 {
 		return errors.ErrTagNameEmpty
 	}
+	// 查看是否有重复的
+	var tag model.Tag
+	config.Database.Where("name = ?", tagRequest.Name).First(&tag)
+	if tag.ID != 0 {
+		return errors.ErrTagNameExist
+	}
 	return nil
 }

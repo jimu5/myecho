@@ -32,4 +32,5 @@ var (
 	// Tag
 	ErrTagNotFound  = errs.New("tag 不存在")
 	ErrTagNameEmpty = errs.New("tag name 为空")
+	ErrTagNameExist = errs.New("tag name 已存在")
 )
