@@ -53,7 +53,7 @@ func ArticleCreate(c *fiber.Ctx) error {
 
 	article.Tags = getTags(r.TagIDs)
 
-	config.Database.Create(&article).Scan(&res)
+	config.Database.Preload(clause.Associations).Create(&article).Scan(&res)
 	return c.Status(fiber.StatusCreated).JSON(&res)
 }
 

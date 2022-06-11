@@ -8,7 +8,7 @@ import (
 
 // 分类
 type Category struct {
-	gorm.Model
+	BaseModel
 	Name     string    `json:"name" gorm:"size:64"`
 	FatherID *uint     `json:"father_id" gorm:"default:null"`
 	Father   *Category `json:"father"`
