@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
 	"myecho/config"
+	"myecho/middleware"
 	"myecho/router"
 )
 
@@ -27,5 +28,6 @@ func main() {
 	app.Static("/", "./static")
 	config.ConnectDB()
 	router.SetupApiRouter(app)
+	app.Use(middleware.Custom404ErrorHandler)
 	log.Fatal(app.Listen(*port))
 }
