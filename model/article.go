@@ -42,26 +42,30 @@ type Article struct {
 	Tags           []Tag          `gorm:"many2many:article_tags;"`
 }
 
-func (article *Article) AfterCreate(tx *gorm.DB) {
+func (article *Article) AfterCreate(tx *gorm.DB) error {
 	if article.CategoryID != 0 {
 		tx.Model(&Category{}).Where("id = ?", article.CategoryID).Update("count", gorm.Expr("count + 1"))
 	}
+	return nil
 }
 
-func (article *Article) BeforeUpdate(tx *gorm.DB) {
+func (article *Article) BeforeUpdate(tx *gorm.DB) error {
 	if article.CategoryID != 0 {
 		tx.Model(&Category{}).Where("id = ?", article.CategoryID).Update("count", gorm.Expr("count - 1"))
 	}
+	return nil
 }
 
-func (article *Article) AfterUpdate(tx *gorm.DB) {
+func (article *Article) AfterUpdate(tx *gorm.DB) error {
 	if article.CategoryID != 0 {
 		tx.Model(&Category{}).Where("id = ?", article.CategoryID).Update("count", gorm.Expr("count + 1"))
 	}
+	return nil
 }
 
-func (article *Article) AfterDelete(tx *gorm.DB) {
+func (article *Article) AfterDelete(tx *gorm.DB) error {
 	if article.CategoryID != 0 {
 		tx.Model(&Category{}).Where("id = ?", article.CategoryID).Update("count", gorm.Expr("count - 1"))
 	}
+	return nil
 }
