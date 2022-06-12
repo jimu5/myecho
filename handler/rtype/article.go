@@ -35,7 +35,7 @@ type ArticleResponse struct {
 	Summary        string               `json:"summary"`
 	DetailID       uint                 `json:"-"`
 	Detail         *model.ArticleDetail `json:"detail"`
-	CategoryID     uint                 `json:"-"`
+	CategoryID     uint                 `json:"category_id"`
 	Category       *Category            `json:"category"`
 	IsAllowComment *bool                `json:"is_allow_comment"`
 	ReadCount      uint                 `json:"read_count"`
