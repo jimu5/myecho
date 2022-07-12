@@ -16,7 +16,7 @@ func ArticleList(c *fiber.Ctx) error {
 	// 总数
 	config.Database.Find(&[]model.Article{}).Count(&total)
 	// 分页查询
-	config.Database.Table("articles").Scopes(Paginate(c)).Preload(clause.Associations).Find(&articlesRes)
+	config.Database.Model(&model.Article{}).Scopes(Paginate(c)).Preload(clause.Associations).Order("post_time desc").Find(&articlesRes)
 	return PaginateData(c, total, &articlesRes)
 }
 
