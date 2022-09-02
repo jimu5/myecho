@@ -12,20 +12,19 @@ func SetupApiRouter(app *fiber.App) {
 	{
 		// 需要权限的, TODO: 改造
 		{
-			needAuth := api.Group("")
-			needAuth.Post("/articles", middleware.Authentication, handler.ArticleCreate)
-			needAuth.Patch("/articles/:id", middleware.Authentication, handler.ArticleUpdate)
-			needAuth.Delete("/articles/:id", middleware.Authentication, handler.ArticleDelete)
+			api.Post("/articles", middleware.Authentication, handler.ArticleCreate)
+			api.Patch("/articles/:id", middleware.Authentication, handler.ArticleUpdate)
+			api.Delete("/articles/:id", middleware.Authentication, handler.ArticleDelete)
 
-			needAuth.Patch("/comments/:id", middleware.Authentication, handler.CommentUpdate)
+			api.Patch("/comments/:id", middleware.Authentication, handler.CommentUpdate)
 
-			needAuth.Post("/articles/categories", handler.CategoryCreate)
-			needAuth.Patch("/articles/categories/:id", handler.CategoryUpdate)
-			needAuth.Delete("/articles/categories/:id", handler.CategoryDelete)
+			api.Post("/articles/categories", middleware.Authentication, handler.CategoryCreate)
+			api.Patch("/articles/categories/:id", middleware.Authentication, handler.CategoryUpdate)
+			api.Delete("/articles/categories/:id", middleware.Authentication, handler.CategoryDelete)
 
-			needAuth.Post("/tags", handler.TagCreate)
-			needAuth.Patch("/tags/:id", handler.TagUpdate)
-			needAuth.Delete("/tags/:id", handler.TagDelete)
+			api.Post("/tags", middleware.Authentication, handler.TagCreate)
+			api.Patch("/tags/:id", middleware.Authentication, handler.TagUpdate)
+			api.Delete("/tags/:id", middleware.Authentication, handler.TagDelete)
 		}
 		// 不需要权限的
 		{
