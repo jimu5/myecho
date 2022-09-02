@@ -12,13 +12,18 @@ import (
 )
 
 func ArticleList(c *fiber.Ctx) error {
-	var articlesRes []rtype.ArticleResponse
-	var total int64
-	// 总数
-	config.Database.Find(&[]model.Article{}).Count(&total)
+	total := dal.MySqlDB.Article.CountAll()
 	// 分页查询
-	config.Database.Model(&model.Article{}).Scopes(Paginate(c)).Preload(clause.Associations).Order("post_time desc").Find(&articlesRes)
-	return PaginateData(c, total, &articlesRes)
+	pageFindParam, err := ParsePageFindParam(c)
+	if err != nil {
+		return err
+	}
+	articles, err := dal.MySqlDB.Article.PageFindAll(&pageFindParam)
+	if err != nil {
+		return err
+	}
+	res := rtype.MultiModelToArticleResponse(articles)
+	return PaginateData(c, total, res)
 }
 
 func ArticleRetrieve(c *fiber.Ctx) error {
@@ -58,7 +63,7 @@ func ArticleCreate(c *fiber.Ctx) error {
 		return err
 	}
 	res := rtype.ModelToArticleResponse(&article)
-	return c.Status(fiber.StatusCreated).JSON(&res)
+	return c.Status(fiber.StatusCreated).JSON(res)
 }
 
 // 更新文章

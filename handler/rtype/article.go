@@ -47,6 +47,9 @@ type ArticleResponse struct {
 }
 
 func ModelToUser(user *model.User) *User {
+	if user == nil {
+		return nil
+	}
 	return &User{
 		ID:       user.ID,
 		NickName: user.NickName,
@@ -54,6 +57,9 @@ func ModelToUser(user *model.User) *User {
 }
 
 func ModelToCategory(category *model.Category) *Category {
+	if category == nil {
+		return nil
+	}
 	return &Category{
 		ID:   category.ID,
 		Name: category.Name,
@@ -61,6 +67,9 @@ func ModelToCategory(category *model.Category) *Category {
 }
 
 func ModelToArticleResponse(article *model.Article) *ArticleResponse {
+	if article == nil {
+		return nil
+	}
 	return &ArticleResponse{
 		BaseModel:      article.BaseModel,
 		AuthorID:       article.AuthorID,
@@ -79,4 +88,13 @@ func ModelToArticleResponse(article *model.Article) *ArticleResponse {
 		Status:         article.Status,
 		Tags:           article.Tags,
 	}
+}
+
+func MultiModelToArticleResponse(articles []*model.Article) []*ArticleResponse {
+	result := make([]*ArticleResponse, 0, len(articles))
+	for _, article := range articles {
+		res := ModelToArticleResponse(article)
+		result = append(result, res)
+	}
+	return result
 }

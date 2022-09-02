@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"myecho/dal/mysql"
 	"strconv"
 
 	"myecho/config"
@@ -48,4 +49,10 @@ func PaginateData(c *fiber.Ctx, total int64, data interface{}) error {
 func DetailPreHandle[T any](c *fiber.Ctx, model *T) error {
 	// model 实际上是一个模型的指针
 	return validator.ValidateID(c, model)
+}
+
+func ParsePageFindParam(c *fiber.Ctx) (mysql.PageFindParam, error) {
+	var pageFindParam mysql.PageFindParam
+	err := c.QueryParser(&pageFindParam)
+	return pageFindParam, err
 }
