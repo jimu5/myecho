@@ -23,7 +23,7 @@ type User struct {
 }
 
 type Category struct {
-	ID   int64  `json:"id"`
+	ID   uint   `json:"id"`
 	Name string `json:"name"`
 }
 
@@ -44,4 +44,39 @@ type ArticleResponse struct {
 	PostTime       time.Time            `json:"post_time"`
 	Status         *int8                `json:"status"`
 	Tags           []model.Tag          `json:"tags" gorm:"many2many:article_tags;joinForeignKey:ArticleID"`
+}
+
+func ModelToUser(user *model.User) *User {
+	return &User{
+		ID:       user.ID,
+		NickName: user.NickName,
+	}
+}
+
+func ModelToCategory(category *model.Category) *Category {
+	return &Category{
+		ID:   category.ID,
+		Name: category.Name,
+	}
+}
+
+func ModelToArticleResponse(article *model.Article) *ArticleResponse {
+	return &ArticleResponse{
+		BaseModel:      article.BaseModel,
+		AuthorID:       article.AuthorID,
+		Author:         ModelToUser(article.Author),
+		Title:          article.Title,
+		Summary:        article.Summary,
+		DetailID:       article.DetailID,
+		Detail:         article.Detail,
+		CategoryID:     article.CategoryID,
+		Category:       ModelToCategory(article.Category),
+		IsAllowComment: article.IsAllowComment,
+		ReadCount:      article.ReadCount,
+		LikeCount:      article.LikeCount,
+		CommentCount:   article.CommentCount,
+		PostTime:       article.PostTime,
+		Status:         article.Status,
+		Tags:           article.Tags,
+	}
 }

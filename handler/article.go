@@ -2,6 +2,7 @@ package handler
 
 import (
 	"myecho/config"
+	"myecho/dal"
 	"myecho/handler/rtype"
 	"myecho/handler/validator"
 	"myecho/model"
@@ -35,7 +36,6 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 func ArticleCreate(c *fiber.Ctx) error {
 	var article model.Article
 	var detail model.ArticleDetail
-	var res rtype.ArticleResponse
 	var r rtype.ArticleRequest
 	if err := c.BodyParser(&r); err != nil {
 		return ParseErrorResponse(c, err.Error())
@@ -53,7 +53,11 @@ func ArticleCreate(c *fiber.Ctx) error {
 
 	article.Tags = getTags(r.TagIDs)
 
-	config.Database.Preload(clause.Associations).Create(&article).Scan(&res)
+	err = dal.MySqlDB.Article.Create(&article)
+	if err != nil {
+		return err
+	}
+	res := rtype.ModelToArticleResponse(&article)
 	return c.Status(fiber.StatusCreated).JSON(&res)
 }
 
