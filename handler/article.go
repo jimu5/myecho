@@ -107,13 +107,16 @@ func ArticleDelete(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func getTags(tagIDs []uint) (tags []*model.Tag) {
-	tags = make([]*model.Tag, len(tagIDs))
+func getTags(tagIDs []uint) []*model.Tag {
+	if len(tagIDs) == 0 {
+		return nil
+	}
+	tags := make([]*model.Tag, len(tagIDs))
 	for i, id := range tagIDs {
 		tag := &model.Tag{}
 		tag.ID = id
 		tags[i] = tag
 	}
 	FindTags(tags)
-	return
+	return tags
 }

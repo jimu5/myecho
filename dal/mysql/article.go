@@ -27,11 +27,12 @@ func (a *ArticleDBRepo) CountAll() (int64, error) {
 }
 
 func (a *ArticleDBRepo) Update(article *ArticleModel) error {
-	err := db.Model(article).Association("Tags").Replace(article.Tags)
-	if err != nil {
-		return err
+	if article.Tags != nil {
+		if err := db.Model(article).Association("Tags").Replace(article.Tags); err != nil {
+			return err
+		}
 	}
-	err = db.Model(article).Omit("User", "Tags").Updates(article).Error
+	err := db.Model(article).Omit("User", "Tags").Updates(article).Error
 	return err
 }
 
