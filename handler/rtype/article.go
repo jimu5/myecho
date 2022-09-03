@@ -43,7 +43,7 @@ type ArticleResponse struct {
 	CommentCount   uint                 `json:"comment_count"`
 	PostTime       time.Time            `json:"post_time"`
 	Status         *int8                `json:"status"`
-	Tags           []model.Tag          `json:"tags" gorm:"many2many:article_tags;joinForeignKey:ArticleID"`
+	Tags           []*model.Tag         `json:"tags" gorm:"many2many:article_tags;joinForeignKey:ArticleID"`
 }
 
 func ModelToUser(user *model.User) *User {

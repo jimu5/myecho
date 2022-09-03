@@ -1,13 +1,12 @@
 package handler
 
 import (
+	"github.com/gofiber/fiber/v2"
 	"myecho/config"
 	"myecho/dal"
 	"myecho/handler/rtype"
 	"myecho/handler/validator"
 	"myecho/model"
-
-	"github.com/gofiber/fiber/v2"
 )
 
 func ArticleList(c *fiber.Ctx) error {
@@ -82,13 +81,14 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	}
 
 	structAssign(&article, &r)
-	article.Detail.Content = r.Content
+	article.Detail = &model.ArticleDetail{Content: r.Content}
 	tags := getTags(r.TagIDs)
 	article.Tags = tags
 
 	if err := dal.MySqlDB.Article.Update(&article); err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
+	//config.Database.Debug().Model(&article).Omit("User").Updates(&article)
 	article, err := dal.MySqlDB.Article.FindByID(article.ID)
 	if err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
@@ -107,11 +107,13 @@ func ArticleDelete(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func getTags(tagIDs []uint) (tags []model.Tag) {
-	tags = make([]model.Tag, len(tagIDs))
+func getTags(tagIDs []uint) (tags []*model.Tag) {
+	tags = make([]*model.Tag, len(tagIDs))
 	for i, id := range tagIDs {
-		tags[i].ID = id
+		tag := &model.Tag{}
+		tag.ID = id
+		tags[i] = tag
 	}
-	FindTags(&tags)
+	FindTags(tags)
 	return
 }

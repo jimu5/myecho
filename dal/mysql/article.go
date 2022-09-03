@@ -11,7 +11,7 @@ type ArticleDBRepo struct {
 type ArticleModel = model.Article
 
 func (a *ArticleDBRepo) Create(article *model.Article) error {
-	return db.Model(&ArticleModel{}).Preload(clause.Associations).Create(&article).Error
+	return db.Model(&ArticleModel{}).Preload(clause.Associations).Create(article).Error
 }
 
 func (a *ArticleDBRepo) PageFindAll(param *PageFindParam) ([]*ArticleModel, error) {
@@ -27,7 +27,12 @@ func (a *ArticleDBRepo) CountAll() (int64, error) {
 }
 
 func (a *ArticleDBRepo) Update(article *ArticleModel) error {
-	return db.Model(&ArticleModel{}).Omit("User").Updates(&article).Error
+	err := db.Model(article).Association("Tags").Replace(article.Tags)
+	if err != nil {
+		return err
+	}
+	err = db.Model(article).Omit("User", "Tags").Updates(article).Error
+	return err
 }
 
 func (a *ArticleDBRepo) FindByID(id uint) (ArticleModel, error) {
