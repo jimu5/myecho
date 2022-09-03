@@ -1,6 +1,7 @@
 package model
 
 import (
+	"myecho/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -18,6 +19,7 @@ type Category struct {
 // 文章详情
 type ArticleDetail struct {
 	ID      uint   `gorm:"primarykey"`
+	UUID    string `json:"uuid" gorm:"size:16"`
 	Content string `json:"content" gorm:"type:longtext"`
 }
 
@@ -40,6 +42,13 @@ type Article struct {
 	Status         *int8          `json:"status" gorm:"default:0"` // 0: 已发布 1: 置顶 2: 草稿 3: 等待复审 4: 仅自己可见 5: 回收站
 	Password       string         `json:"-" gorm:"default:null"`
 	Tags           []Tag          `gorm:"many2many:article_tags;"`
+}
+
+func (articleDetail *ArticleDetail) BeforeCreate(tx *gorm.DB) error {
+	if len(articleDetail.UUID) == 0 {
+		articleDetail.UUID = utils.GenUUID16()
+	}
+	return nil
 }
 
 func (article *Article) AfterCreate(tx *gorm.DB) error {

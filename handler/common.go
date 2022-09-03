@@ -2,6 +2,8 @@ package handler
 
 import (
 	"myecho/dal/mysql"
+	"myecho/handler/errors"
+	"myecho/model"
 	"strconv"
 
 	"myecho/config"
@@ -47,12 +49,31 @@ func PaginateData(c *fiber.Ctx, total int64, data interface{}) error {
 }
 
 func DetailPreHandle[T any](c *fiber.Ctx, model *T) error {
+	id := c.Params("id")
+	idInt, err := strconv.Atoi(id)
+	if err != nil || idInt <= 0 {
+		return errors.ErrorIDNotFound
+	}
 	// model 实际上是一个模型的指针
-	return validator.ValidateID(c, model)
+	return validator.ValidateID(idInt, model)
 }
 
 func ParsePageFindParam(c *fiber.Ctx) (mysql.PageFindParam, error) {
 	var pageFindParam mysql.PageFindParam
 	err := c.QueryParser(&pageFindParam)
 	return pageFindParam, err
+}
+
+func PageFind[T any](c *fiber.Ctx, findFunc func(*mysql.PageFindParam) (T, error)) (T, error) {
+	var result T
+	param, err := ParsePageFindParam(c)
+	if err != nil {
+		return result, err
+	}
+	return findFunc(&param)
+}
+
+func GetUserFromCtx(c *fiber.Ctx) model.User {
+	user := c.Locals("user").(model.User)
+	return user
 }

@@ -8,17 +8,15 @@ import (
 	"myecho/model"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm/clause"
 )
 
 func ArticleList(c *fiber.Ctx) error {
-	total := dal.MySqlDB.Article.CountAll()
-	// 分页查询
-	pageFindParam, err := ParsePageFindParam(c)
+	total, err := dal.MySqlDB.Article.CountAll()
 	if err != nil {
 		return err
 	}
-	articles, err := dal.MySqlDB.Article.PageFindAll(&pageFindParam)
+	articles, err := PageFind(c, dal.MySqlDB.Article.PageFindAll)
+	// 分页查询
 	if err != nil {
 		return err
 	}
@@ -27,14 +25,15 @@ func ArticleList(c *fiber.Ctx) error {
 }
 
 func ArticleRetrieve(c *fiber.Ctx) error {
-	var article *model.Article
+	var article model.Article
 	if err := DetailPreHandle(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
-	var res rtype.ArticleResponse
-	res.ID = article.ID
-	// TODO: 这里可以优化，减少一次sql查询
-	config.Database.Table("articles").Preload(clause.Associations).Find(&res)
+	afterArticle, err := dal.MySqlDB.Article.FindByID(article.ID)
+	if err != nil {
+		return err
+	}
+	res := rtype.ModelToArticleResponse(&afterArticle)
 	return c.JSON(&res)
 }
 
@@ -53,8 +52,9 @@ func ArticleCreate(c *fiber.Ctx) error {
 	detail.Content = r.Content
 	structAssign(&article, &r)
 	article.Detail = &detail
-	article.AuthorID = c.Locals("user").(*model.User).ID
-	article.Author = c.Locals("user").(*model.User)
+	user := GetUserFromCtx(c)
+	article.AuthorID = user.ID
+	article.Author = &user
 
 	article.Tags = getTags(r.TagIDs)
 
@@ -81,22 +81,19 @@ func ArticleUpdate(c *fiber.Ctx) error {
 		return ValidateErrorResponse(c, err.Error())
 	}
 
-	var detail model.ArticleDetail
-	if result := config.Database.Where("id = ?", article.DetailID).First(&detail); result.Error != nil {
-		return InternalErrorResponse(c, InternalSQLError, result.Error.Error())
-	}
-	detail.Content = r.Content
-	if result := config.Database.Save(&detail); result.Error != nil {
-		return InternalErrorResponse(c, InternalSQLError, result.Error.Error())
-	}
 	structAssign(&article, &r)
-
+	article.Detail.Content = r.Content
 	tags := getTags(r.TagIDs)
 	article.Tags = tags
-	config.Database.Model(&article).Omit("User").Updates(&article)
 
-	var res rtype.ArticleResponse
-	config.Database.Table("articles").Preload(clause.Associations).Find(&res, article.ID)
+	if err := dal.MySqlDB.Article.Update(&article); err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
+	article, err := dal.MySqlDB.Article.FindByID(article.ID)
+	if err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
+	res := rtype.ModelToArticleResponse(&article)
 	return c.Status(fiber.StatusOK).JSON(&res)
 }
 

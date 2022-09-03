@@ -5,9 +5,9 @@ import (
 )
 
 type PageFindParam struct {
-	Page     int  `json:"page"`
-	PageSize int  `json:"page_size"`
-	NoPage   bool `json:"no_page"`
+	Page     int  `json:"page" query:"page"`
+	PageSize int  `json:"page_size" query:"page_size"`
+	NoPage   bool `json:"no_page" query:"no_page"`
 }
 
 func Paginate(param *PageFindParam) func(db *gorm.DB) *gorm.DB {
