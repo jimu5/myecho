@@ -41,3 +41,7 @@ func (a *ArticleDBRepo) FindByID(id uint) (ArticleModel, error) {
 	err := db.Model(&ArticleModel{}).Preload(clause.Associations).First(&result, id).Error
 	return result, err
 }
+
+func (a *ArticleDBRepo) DeleteByID(id uint) error {
+	return db.Model(&ArticleModel{}).Select("Detail").Delete(&ArticleModel{}, id).Error
+}

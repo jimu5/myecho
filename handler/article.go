@@ -2,7 +2,6 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"myecho/config"
 	"myecho/dal"
 	"myecho/handler/rtype"
 	"myecho/handler/validator"
@@ -103,7 +102,9 @@ func ArticleDelete(c *fiber.Ctx) error {
 	if err := DetailPreHandle(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
-	config.Database.Select("Detail").Delete(&article)
+	if err := dal.MySqlDB.Article.DeleteByID(article.ID); err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
