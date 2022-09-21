@@ -2,6 +2,7 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"log"
 	"myecho/dal"
 	"myecho/handler/rtype"
 	"myecho/handler/validator"
@@ -22,6 +23,10 @@ func ArticleList(c *fiber.Ctx) error {
 	return PaginateData(c, total, res)
 }
 
+type ArticleRetrieveQueryParam struct {
+	NoRead bool `json:"read"`
+}
+
 func ArticleRetrieve(c *fiber.Ctx) error {
 	var article model.Article
 	if err := DetailPreHandle(c, &article); err != nil {
@@ -32,6 +37,17 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 		return err
 	}
 	res := rtype.ModelToArticleResponse(&afterArticle)
+	queryParam := ArticleRetrieveQueryParam{}
+	if err = c.QueryParser(&queryParam); err != nil {
+		return err
+	}
+	if !queryParam.NoRead {
+		go func() {
+			if err := dal.MySqlDB.Article.AddReadCountByID(article.ID, 1); err != nil {
+				log.Println(err)
+			}
+		}()
+	}
 	return c.JSON(&res)
 }
 

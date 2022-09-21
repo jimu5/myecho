@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"myecho/model"
 )
@@ -44,4 +45,17 @@ func (a *ArticleDBRepo) FindByID(id uint) (ArticleModel, error) {
 
 func (a *ArticleDBRepo) DeleteByID(id uint) error {
 	return db.Model(&ArticleModel{}).Select("Detail").Delete(&ArticleModel{}, id).Error
+}
+
+func (a *ArticleDBRepo) AddReadCountByID(id uint, addCount uint) error {
+	article := &ArticleModel{}
+	err := db.Transaction(func(tx *gorm.DB) error {
+		err := tx.Model(&ArticleModel{}).Select("read_count").First(article, id).Error
+		if err != nil {
+			return err
+		}
+		err = tx.Model(&ArticleModel{}).Where("id = ?", id).Update("read_count", article.ReadCount+addCount).Error
+		return err
+	})
+	return err
 }

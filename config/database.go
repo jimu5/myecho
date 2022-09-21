@@ -10,14 +10,13 @@ import (
 var Database *gorm.DB
 
 // 连接数据库
-func ConnectDB() error {
-	var err error
-	Database, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+func ConnectDB() {
+	Database, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
 		DisableForeignKeyConstraintWhenMigrating: true})
 	if err != nil {
 		panic(err)
 	}
-	Database.AutoMigrate(
+	err = Database.AutoMigrate(
 		&model.User{},
 		&model.ArticleDetail{},
 		&model.Category{},
@@ -25,5 +24,7 @@ func ConnectDB() error {
 		&model.Comment{},
 		&model.Tag{},
 	)
-	return nil
+	if err != nil {
+		panic(err)
+	}
 }

@@ -2,13 +2,12 @@ package main
 
 import (
 	"flag"
-	"log"
-	"myecho/config"
-	"myecho/dal/mysql"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
+	"log"
+	"myecho/config"
+	"myecho/dal/mysql"
 
 	"myecho/middleware"
 	"myecho/router"
@@ -26,7 +25,9 @@ func main() {
 	})
 	config.ConnectDB()
 	mysql.InitDB()
-	app.Use(recover.New())
+	app.Use(recover.New(recover.Config{
+		EnableStackTrace: true,
+	}))
 	app.Use(logger.New())
 	app.Static("/", "./static")
 	router.SetupApiRouter(app)
