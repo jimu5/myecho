@@ -4,27 +4,34 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"log"
 	"myecho/dal"
+	"myecho/dal/mysql"
 	"myecho/handler/rtype"
 	"myecho/handler/validator"
 	"myecho/model"
 )
 
-func ArticleList(c *fiber.Ctx) error {
+func ArticleDisplayList(c *fiber.Ctx) error {
 	total, err := dal.MySqlDB.Article.CountAll()
 	if err != nil {
 		return err
 	}
-	articles, err := PageFind(c, dal.MySqlDB.Article.PageFindAll)
-	// 分页查询
+	topArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByVisibility, mysql.VISIBILITY_TOP)
 	if err != nil {
 		return err
 	}
+	pageParam.PageSize = pageParam.PageSize - len(topArticles)
+	restArticles, err := dal.MySqlDB.Article.PageFindByNotVisibility(&pageParam, mysql.VISIBILITY_TOP)
+	if err != nil {
+		return err
+	}
+	articles := topArticles
+	articles = append(articles, restArticles...)
 	res := rtype.MultiModelToArticleResponse(articles)
 	return PaginateData(c, total, res)
 }
 
 type ArticleRetrieveQueryParam struct {
-	NoRead bool `json:"read"`
+	NoRead bool `query:"no_read"`
 }
 
 func ArticleRetrieve(c *fiber.Ctx) error {

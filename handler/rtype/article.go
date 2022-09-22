@@ -12,7 +12,8 @@ type ArticleRequest struct {
 	CategoryID     uint      `json:"category_id"`
 	IsAllowComment *bool     `json:"is_allow_comment"`
 	PostTime       time.Time `json:"post_time"`
-	Status         *int8     `json:"status"`
+	Status         int8      `json:"status"`
+	Visibility     int8      `json:"visibility"`
 	Password       string    `json:"password"`
 	TagIDs         []uint    `json:"tag_ids"`
 }
@@ -42,7 +43,8 @@ type ArticleResponse struct {
 	LikeCount      int                  `json:"like_count"`
 	CommentCount   uint                 `json:"comment_count"`
 	PostTime       time.Time            `json:"post_time"`
-	Status         *int8                `json:"status"`
+	Status         int8                 `json:"status"`
+	Visibility     int8                 `json:"visibility"` // 1: 置顶 2: 公开 3: 私密
 	Tags           []*model.Tag         `json:"tags" gorm:"many2many:article_tags;joinForeignKey:ArticleID"`
 }
 
@@ -86,6 +88,7 @@ func ModelToArticleResponse(article *model.Article) *ArticleResponse {
 		CommentCount:   article.CommentCount,
 		PostTime:       article.PostTime,
 		Status:         article.Status,
+		Visibility:     article.Visibility,
 		Tags:           article.Tags,
 	}
 }

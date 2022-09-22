@@ -64,13 +64,14 @@ func ParsePageFindParam(c *fiber.Ctx) (mysql.PageFindParam, error) {
 	return pageFindParam, err
 }
 
-func PageFind[T any](c *fiber.Ctx, findFunc func(*mysql.PageFindParam) (T, error)) (T, error) {
+func PageFind[T any, P any](c *fiber.Ctx, findFunc func(*mysql.PageFindParam, P) (T, error), extraParam P) (T, mysql.PageFindParam, error) {
 	var result T
 	param, err := ParsePageFindParam(c)
 	if err != nil {
-		return result, err
+		return result, param, err
 	}
-	return findFunc(&param)
+	result, err = findFunc(&param, extraParam)
+	return result, param, err
 }
 
 func GetUserFromCtx(c *fiber.Ctx) model.User {

@@ -11,13 +11,33 @@ type ArticleDBRepo struct {
 
 type ArticleModel = model.Article
 
+type VISIBILITY int8
+
+const (
+	VISIBILITY_NORMAL VISIBILITY = iota + 1
+	VISIBILITY_TOP
+	VISIBILITY_PRIVATE
+)
+
 func (a *ArticleDBRepo) Create(article *model.Article) error {
 	return db.Model(&ArticleModel{}).Preload(clause.Associations).Create(article).Error
 }
 
-func (a *ArticleDBRepo) PageFindAll(param *PageFindParam) ([]*ArticleModel, error) {
+func (a *ArticleDBRepo) PageFindAll(param *PageFindParam, _ *struct{}) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
 	err := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations).Order("post_time desc").Find(&result).Error
+	return result, err
+}
+
+func (a *ArticleDBRepo) PageFindByVisibility(param *PageFindParam, visibility VISIBILITY) ([]*ArticleModel, error) {
+	result := make([]*ArticleModel, 0)
+	err := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations).Where("visibility = ?", visibility).Order("post_time desc").Find(&result).Error
+	return result, err
+}
+
+func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, visibility VISIBILITY) ([]*ArticleModel, error) {
+	result := make([]*ArticleModel, 0)
+	err := db.Debug().Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations).Where("visibility is null OR visibility <> ? ", visibility).Order("post_time desc").Find(&result).Error
 	return result, err
 }
 
