@@ -16,7 +16,7 @@ func getRandomString(n int) string {
 	return string(result)
 }
 
-func GenUUID16() string {
+func GenUID16() string {
 	t := time.Now().UnixMicro() // ms 13位
 	tStr := strconv.FormatInt(t, 10)
 	return tStr + getRandomString(3)

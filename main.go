@@ -6,11 +6,10 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"log"
-	"myecho/config"
+	"myecho/dal/connect"
 	"myecho/dal/mysql"
 
 	"myecho/middleware"
-	"myecho/router"
 )
 
 var (
@@ -23,14 +22,14 @@ func main() {
 	app := fiber.New(fiber.Config{
 		Prefork: *prod,
 	})
-	config.ConnectDB()
+	connect.ConnectDB()
 	mysql.InitDB()
 	app.Use(recover.New(recover.Config{
 		EnableStackTrace: true,
 	}))
 	app.Use(logger.New())
 	app.Static("/", "./static")
-	router.SetupApiRouter(app)
+	SetupApiRouter(app)
 	app.Use(middleware.Custom404ErrorHandler)
 	log.Fatal(app.Listen(*port))
 }

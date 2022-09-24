@@ -1,7 +1,7 @@
 package validator
 
 import (
-	"myecho/config"
+	"myecho/dal/connect"
 	"myecho/handler/errors"
 	"myecho/handler/rtype"
 	"myecho/model"
@@ -12,7 +12,7 @@ func ValidateTagIDs(tagIDs []uint) error {
 		return nil
 	}
 	var tags []model.Tag
-	config.Database.Where("id in (?)", tagIDs).Find(&tags)
+	connect.Database.Where("id in (?)", tagIDs).Find(&tags)
 	if len(tags) != len(tagIDs) {
 		return errors.ErrTagNotFound
 	}
@@ -25,7 +25,7 @@ func ValidateTagRequest(tagRequest *rtype.TagRequest) error {
 	}
 	// 查看是否有重复的
 	var tag model.Tag
-	config.Database.Where("name = ?", tagRequest.Name).First(&tag)
+	connect.Database.Where("name = ?", tagRequest.Name).First(&tag)
 	if tag.ID != 0 {
 		return errors.ErrTagNameExist
 	}

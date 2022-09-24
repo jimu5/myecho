@@ -8,10 +8,12 @@ var (
 
 type MysqlDBRepo struct {
 	Article *mysql.ArticleDBRepo
+	File    *mysql.FileRepo
 }
 
 func NewMysqlDBRepo() *MysqlDBRepo {
 	return &MysqlDBRepo{
 		Article: &mysql.ArticleDBRepo{},
+		File:    &mysql.FileRepo{},
 	}
 }

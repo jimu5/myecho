@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"myecho/config"
+	"myecho/dal/connect"
 	"myecho/handler/rtype"
 	"myecho/handler/validator"
 	"myecho/model"
@@ -30,7 +30,7 @@ func CommentCreate(c *fiber.Ctx) error {
 		comment.AuthorName = c.Locals("user").(*model.User).NickName
 		comment.AuthorEmail = c.Locals("user").(*model.User).Email
 	}
-	config.Database.Save(&comment)
+	connect.Database.Save(&comment)
 	return c.Status(fiber.StatusCreated).JSON(res)
 }
 
@@ -47,7 +47,7 @@ func CommentUpdate(c *fiber.Ctx) error {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	structAssign(&comment, &r)
-	config.Database.Updates(&comment)
+	connect.Database.Updates(&comment)
 	return c.Status(fiber.StatusOK).JSON(comment)
 }
 
@@ -59,6 +59,6 @@ func ArticleCommentList(c *fiber.Ctx) error {
 	if err := DetailPreHandle(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
-	config.Database.Table("comments").Where("article_id = ?", article.ID).Find(&comments)
+	connect.Database.Table("comments").Where("article_id = ?", article.ID).Find(&comments)
 	return c.Status(fiber.StatusOK).JSON(comments)
 }

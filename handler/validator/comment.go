@@ -1,7 +1,7 @@
 package validator
 
 import (
-	"myecho/config"
+	"myecho/dal/connect"
 	"myecho/handler/errors"
 	"myecho/handler/rtype"
 	"myecho/model"
@@ -29,7 +29,7 @@ func ValidateArticleID(id uint) error {
 	if id == 0 {
 		return errors.ErrArticleID
 	}
-	result := config.Database.First(&model.Article{}, id)
+	result := connect.Database.First(&model.Article{}, id)
 	if result.Error != nil {
 		return errors.ErrArticleID
 	}
@@ -40,7 +40,7 @@ func ValidateParentCommentID(id uint) error {
 	if id == 0 {
 		return nil
 	}
-	result := config.Database.First(&model.Comment{}, id)
+	result := connect.Database.First(&model.Comment{}, id)
 	if result.Error != nil {
 		return errors.ErrParentCommentID
 	}

@@ -1,4 +1,4 @@
-package config
+package connect
 
 import (
 	"myecho/model"
@@ -24,6 +24,7 @@ func ConnectDB() {
 		&model.Article{},
 		&model.Comment{},
 		&model.Tag{},
+		&model.File{},
 	)
 	if err != nil {
 		panic(err)

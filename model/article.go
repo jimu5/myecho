@@ -29,7 +29,7 @@ type Article struct {
 	AuthorID       uint           `json:"author_id" gorm:"default:null"`
 	Author         *User          `json:"author"`
 	Title          string         `json:"title" gorm:"size:128"`
-	Summary        string         `json:"summary" gorm:"size:256"`
+	Summary        string         `json:"summary" gorm:"size:255"`
 	ReadCount      uint           `json:"read_count" gorm:"default:0"`
 	LikeCount      int            `json:"like_count" gorm:"default:0"`
 	IsAllowComment *bool          `json:"is_allow_comment" gorm:"default:true"`
@@ -47,7 +47,7 @@ type Article struct {
 
 func (articleDetail *ArticleDetail) BeforeCreate(tx *gorm.DB) error {
 	if len(articleDetail.UUID) == 0 {
-		articleDetail.UUID = utils.GenUUID16()
+		articleDetail.UUID = utils.GenUID16()
 	}
 	return nil
 }

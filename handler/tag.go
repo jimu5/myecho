@@ -1,7 +1,7 @@
 package handler
 
 import (
-	"myecho/config"
+	"myecho/dal/connect"
 	"myecho/handler/rtype"
 	"myecho/handler/validator"
 	"myecho/model"
@@ -11,7 +11,7 @@ import (
 
 func TagListAll(c *fiber.Ctx) error {
 	var tags []model.Tag
-	config.Database.Table("tags").Find(&tags)
+	connect.Database.Table("tags").Find(&tags)
 	return c.JSON(&tags)
 }
 
@@ -26,7 +26,7 @@ func TagCreate(c *fiber.Ctx) error {
 	res := model.Tag{
 		Name: req.Name,
 	}
-	config.Database.Table("tags").Create(&res)
+	connect.Database.Table("tags").Create(&res)
 	return c.Status(fiber.StatusCreated).JSON(&res)
 }
 
@@ -43,7 +43,7 @@ func TagUpdate(c *fiber.Ctx) error {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	tag.Name = req.Name
-	config.Database.Table("tags").Save(&tag)
+	connect.Database.Table("tags").Save(&tag)
 	return c.JSON(&tag)
 }
 
@@ -52,15 +52,15 @@ func TagDelete(c *fiber.Ctx) error {
 	if err := DetailPreHandle(c, &tag); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
-	config.Database.Table("tags").Delete(&tag)
+	connect.Database.Table("tags").Delete(&tag)
 	deleteAlterDelete(&tag)
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func deleteAlterDelete(tag *model.Tag) {
-	config.Database.Table("articles").Association("Tags").Delete(tag)
+	connect.Database.Table("articles").Association("Tags").Delete(tag)
 }
 
 func FindTags(tags []*model.Tag) {
-	config.Database.Table("tags").Find(&tags)
+	connect.Database.Table("tags").Find(&tags)
 }

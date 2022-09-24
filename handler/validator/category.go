@@ -1,7 +1,7 @@
 package validator
 
 import (
-	"myecho/config"
+	"myecho/dal/connect"
 	"myecho/handler/errors"
 	"myecho/handler/rtype"
 	"myecho/model"
@@ -11,7 +11,7 @@ func ValidateCategoryID(categoryID uint) error {
 	if categoryID == 0 {
 		return nil
 	}
-	err := config.Database.Where("id = ?", categoryID).First(&model.Category{}).Error
+	err := connect.Database.Where("id = ?", categoryID).First(&model.Category{}).Error
 	if err != nil {
 		return errors.ErrCategoryNotFound
 	}

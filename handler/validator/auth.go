@@ -1,7 +1,7 @@
 package validator
 
 import (
-	"myecho/config"
+	"myecho/dal/connect"
 	"myecho/handler/errors"
 	"myecho/handler/rtype"
 	"myecho/model"
@@ -31,7 +31,7 @@ func ValidateRegisterRequest(u *rtype.RegisterRequest) error {
 	if u.Password == "" {
 		return errors.ErrPasswordEmpty
 	}
-	result := config.Database.Where("email = ?", u.Email).Or("name = ?", u.Name).Limit(1).Find(&model.User{})
+	result := connect.Database.Where("email = ?", u.Email).Or("name = ?", u.Name).Limit(1).Find(&model.User{})
 	if result.RowsAffected > 0 {
 		return errors.ErrUserExisted
 	}

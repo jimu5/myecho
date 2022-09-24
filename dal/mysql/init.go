@@ -2,11 +2,11 @@ package mysql
 
 import (
 	"gorm.io/gorm"
-	"myecho/config"
+	"myecho/dal/connect"
 )
 
 var db *gorm.DB
 
 func InitDB() {
-	db = config.Database
+	db = connect.Database
 }

@@ -1,12 +1,12 @@
 package handler
 
 import (
+	"myecho/config"
 	"myecho/dal/mysql"
 	"myecho/handler/errors"
 	"myecho/model"
 	"strconv"
 
-	"myecho/config"
 	"myecho/handler/validator"
 
 	"github.com/gofiber/fiber/v2"
