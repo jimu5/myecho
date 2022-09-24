@@ -52,9 +52,9 @@ func UploadFile(c *fiber.Ctx) error {
 			successFileMap[file.Filename] = fileModel.GetUrlPath()
 		}
 	}
-	res := &rtype.UploadFileResponse{
+	resp := &rtype.UploadFileResponse{
 		ErrFiles: failedFileName,
 		SuccMap:  successFileMap,
 	}
-	return c.JSON(&res)
+	return c.JSON(GetSuccessCommonResp(resp))
 }

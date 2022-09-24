@@ -24,7 +24,7 @@ func (f *File) BeforeCreate(tx *gorm.DB) error {
 }
 
 func (f *File) GetUrlPath() string {
-	uPath := filepath.Join(f.Path, f.UUID)
+	uPath := filepath.Join(config.StorageRootUrl, f.Path, f.UUID)
 	return uPath + f.ExtensionName
 }
 

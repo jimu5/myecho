@@ -37,7 +37,7 @@ func (a *ArticleDBRepo) PageFindByVisibility(param *PageFindParam, visibility VI
 
 func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, visibility VISIBILITY) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
-	err := db.Debug().Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations).Where("visibility is null OR visibility <> ? ", visibility).Order("post_time desc").Find(&result).Error
+	err := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations).Where("visibility is null OR visibility <> ? ", visibility).Order("post_time desc").Find(&result).Error
 	return result, err
 }
 

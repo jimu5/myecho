@@ -1,6 +1,7 @@
 package main
 
 import (
+	"myecho/config"
 	"myecho/handler"
 	mw "myecho/middleware"
 
@@ -9,7 +10,7 @@ import (
 
 func SetupApiRouter(app *fiber.App) {
 	api := app.Group("/api")
-	mos := api.Group("/mos")
+	mos := app.Group(config.StorageRootUrl)
 	{
 		// 需要权限的, TODO: 改造
 		{

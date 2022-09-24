@@ -4,6 +4,7 @@ import (
 	"myecho/config"
 	"myecho/dal/mysql"
 	"myecho/handler/errors"
+	"myecho/handler/rtype"
 	"myecho/model"
 	"strconv"
 
@@ -77,4 +78,10 @@ func PageFind[T any, P any](c *fiber.Ctx, findFunc func(*mysql.PageFindParam, P)
 func GetUserFromCtx(c *fiber.Ctx) model.User {
 	user := c.Locals("user").(model.User)
 	return user
+}
+
+func GetSuccessCommonResp[T any](data T) *rtype.CommonResp[T] {
+	return &rtype.CommonResp[T]{
+		Data: data,
+	}
 }

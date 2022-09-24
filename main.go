@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"log"
+	"myecho/config"
 	"myecho/dal/connect"
 	"myecho/dal/mysql"
 
@@ -29,6 +30,7 @@ func main() {
 	}))
 	app.Use(logger.New())
 	app.Static("/", "./static")
+	app.Static("/mos", config.StorageRootPath)
 	SetupApiRouter(app)
 	app.Use(middleware.Custom404ErrorHandler)
 	log.Fatal(app.Listen(*port))
