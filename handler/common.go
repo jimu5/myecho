@@ -75,8 +75,8 @@ func PageFind[T any, P any](c *fiber.Ctx, findFunc func(*mysql.PageFindParam, P)
 	return result, param, err
 }
 
-func GetUserFromCtx(c *fiber.Ctx) model.User {
-	user := c.Locals("user").(model.User)
+func GetUserFromCtx(c *fiber.Ctx) *model.User {
+	user := c.Locals("user").(*model.User)
 	return user
 }
 

@@ -75,7 +75,7 @@ func ArticleCreate(c *fiber.Ctx) error {
 	article.Detail = &detail
 	user := GetUserFromCtx(c)
 	article.AuthorID = user.ID
-	article.Author = &user
+	article.Author = user
 
 	article.Tags = getTags(r.TagIDs)
 
