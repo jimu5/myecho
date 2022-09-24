@@ -6,6 +6,7 @@ import (
 	"myecho/config"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type File struct {
@@ -25,6 +26,9 @@ func (f *File) BeforeCreate(tx *gorm.DB) error {
 
 func (f *File) GetUrlPath() string {
 	uPath := filepath.Join(config.StorageRootUrl, f.Path, f.UUID)
+	if config.OSName == config.WINDOWS {
+		uPath = strings.Replace(uPath, "\\", "/", -1)
+	}
 	return uPath + f.ExtensionName
 }
 
