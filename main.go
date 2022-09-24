@@ -21,7 +21,8 @@ var (
 func main() {
 	flag.Parse()
 	app := fiber.New(fiber.Config{
-		Prefork: *prod,
+		Prefork:   *prod,
+		BodyLimit: 1024 * 1024 * 1024,
 	})
 	connect.ConnectDB()
 	mysql.InitDB()
