@@ -80,8 +80,8 @@ func GetUserFromCtx(c *fiber.Ctx) *model.User {
 	return user
 }
 
-func GetSuccessCommonResp[T any](data T) *rtype.CommonResp[T] {
-	return &rtype.CommonResp[T]{
+func GetSuccessCommonResp[T any](data *T) rtype.CommonResp[T] {
+	return rtype.CommonResp[T]{
 		Data: data,
 	}
 }

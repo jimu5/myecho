@@ -19,6 +19,26 @@ const (
 	VISIBILITY_PRIVATE
 )
 
+type ArticleCommonQueryParam struct {
+	CategoryID *uint
+}
+
+type PageFindArticleVisibilityParam struct {
+	ArticleCommonQueryParam
+	Visibility VISIBILITY
+}
+
+func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryParam) *gorm.DB {
+	SqlPrefix := make([]string, 0)
+	SqlValue := make([]interface{}, 0)
+	if param.CategoryID != nil {
+		sql := "category_id = ?"
+		SqlPrefix = append(SqlPrefix, sql)
+		SqlValue = append(SqlValue, *param.CategoryID)
+	}
+	return db.Where(SqlPrefix, SqlValue...)
+}
+
 func (a *ArticleDBRepo) Create(article *model.Article) error {
 	return db.Model(&ArticleModel{}).Preload(clause.Associations).Create(article).Error
 }
@@ -29,21 +49,27 @@ func (a *ArticleDBRepo) PageFindAll(param *PageFindParam, _ *struct{}) ([]*Artic
 	return result, err
 }
 
-func (a *ArticleDBRepo) PageFindByVisibility(param *PageFindParam, visibility VISIBILITY) ([]*ArticleModel, error) {
+func (a *ArticleDBRepo) PageFindByVisibility(param *PageFindParam, queryParam PageFindArticleVisibilityParam) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
-	err := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations).Where("visibility = ?", visibility).Order("post_time desc").Find(&result).Error
+	d := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations)
+	querySqlDB := a.preCreateQuerySQL(d, queryParam.ArticleCommonQueryParam)
+	err := querySqlDB.Where("visibility = ?", queryParam.Visibility).Order("post_time desc").Find(&result).Error
 	return result, err
 }
 
-func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, visibility VISIBILITY) ([]*ArticleModel, error) {
+func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, queryParam PageFindArticleVisibilityParam) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
-	err := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations).Where("visibility is null OR visibility <> ? ", visibility).Order("post_time desc").Find(&result).Error
+	d := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations)
+	querySqlDB := a.preCreateQuerySQL(d, queryParam.ArticleCommonQueryParam)
+	err := querySqlDB.Where("visibility is null OR visibility <> ?", queryParam.Visibility).Order("post_time desc").Find(&result).Error
 	return result, err
 }
 
-func (a *ArticleDBRepo) CountAll() (int64, error) {
+func (a *ArticleDBRepo) CountAll(queryParam ArticleCommonQueryParam) (int64, error) {
 	var total int64
-	err := db.Model(&ArticleModel{}).Count(&total).Error
+	d := db.Model(&ArticleModel{})
+	querySqlDB := a.preCreateQuerySQL(d, queryParam)
+	err := querySqlDB.Count(&total).Error
 	return total, err
 }
 

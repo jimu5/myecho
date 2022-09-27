@@ -10,17 +10,32 @@ import (
 	"myecho/model"
 )
 
+type ArticleDisplayListQueryParam struct {
+	CategoryID *uint `query:"category_id"`
+}
+
 func ArticleDisplayList(c *fiber.Ctx) error {
-	total, err := dal.MySqlDB.Article.CountAll()
+	queryParam := ArticleDisplayListQueryParam{}
+	if err := c.QueryParser(&queryParam); err != nil {
+		return err
+	}
+	sqlCommonParam := mysql.ArticleCommonQueryParam{
+		CategoryID: queryParam.CategoryID,
+	}
+	total, err := dal.MySqlDB.Article.CountAll(sqlCommonParam)
 	if err != nil {
 		return err
 	}
-	topArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByVisibility, mysql.VISIBILITY_TOP)
+	sqlParam := mysql.PageFindArticleVisibilityParam{
+		ArticleCommonQueryParam: sqlCommonParam,
+		Visibility:              mysql.VISIBILITY_TOP,
+	}
+	topArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByVisibility, sqlParam)
 	if err != nil {
 		return err
 	}
 	pageParam.PageSize = pageParam.PageSize - len(topArticles)
-	restArticles, err := dal.MySqlDB.Article.PageFindByNotVisibility(&pageParam, mysql.VISIBILITY_TOP)
+	restArticles, err := dal.MySqlDB.Article.PageFindByNotVisibility(&pageParam, sqlParam)
 	if err != nil {
 		return err
 	}
