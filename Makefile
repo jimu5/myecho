@@ -12,11 +12,13 @@ linux:
 .PHONY: win
 win:
 	CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build $(RACE) -o ./bin/${APP}-win64.exe .
+	chmod 777 ./bin/${APP}-win64.exe
 
 ## mac: 编译打包mac
 .PHONY: mac
 mac:
 	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build $(RACE) -o ./bin/${APP}-darwin64 .
+	chmod 777 ./bin/${APP}-darwin64
 
 build:
 	@go build -o ${APP}
