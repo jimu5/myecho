@@ -22,3 +22,9 @@ func (fr *FileRepo) PageQueryByName(param *PageFindParam, name string) ([]*FileM
 	err := db.Model(&FileModel{}).Scopes(Paginate(param)).Where("name like ?", "%"+name+"%").Find(&result).Error
 	return result, err
 }
+
+func (fr *FileRepo) FindFilesByMD5s(md5 []string) ([]*FileModel, error) {
+	result := make([]*FileModel, 0)
+	err := db.Model(&FileModel{}).Where("md5 in (?)", md5).Find(&result).Error
+	return result, err
+}
