@@ -14,6 +14,7 @@ func SetupApiRouter(app *fiber.App) {
 	{
 		// 需要权限的, TODO: 改造
 		{
+			api.Get("/all_articles", mw.Authentication, handler.ArticleAllList)
 			api.Post("/articles", mw.Authentication, handler.ArticleCreate)
 			api.Patch("/articles/:id", mw.Authentication, handler.ArticleUpdate)
 			api.Delete("/articles/:id", mw.Authentication, handler.ArticleDelete)

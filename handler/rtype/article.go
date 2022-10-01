@@ -88,7 +88,6 @@ func ModelToArticleResponse(article *model.Article) *ArticleResponse {
 		CommentCount:   article.CommentCount,
 		PostTime:       article.PostTime,
 		Status:         article.Status,
-		Visibility:     article.Visibility,
 		Tags:           article.Tags,
 	}
 }

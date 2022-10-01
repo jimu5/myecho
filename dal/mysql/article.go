@@ -4,6 +4,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"myecho/model"
+	"strings"
 )
 
 type ArticleDBRepo struct {
@@ -11,32 +12,43 @@ type ArticleDBRepo struct {
 
 type ArticleModel = model.Article
 
-type VISIBILITY int8
+type (
+	STATUS int8
+)
 
 const (
-	VISIBILITY_NORMAL VISIBILITY = iota + 1
-	VISIBILITY_TOP
-	VISIBILITY_PRIVATE
+	ARTILCE_STATUS_PUBLIC STATUS = iota + 1
+	ARTICLE_STATUS_TOP
+	ARTICLE_STATUS_PRIVATE
+	ARTICLE_STATUS_DRAFT
+	ARTICLE_STATUS_WAIT_REVIEW
+	ARTICLE_STATUS_RECYCLE
 )
 
 type ArticleCommonQueryParam struct {
 	CategoryID *uint
+	Status     *STATUS
 }
 
-type PageFindArticleVisibilityParam struct {
+type PageFindArticleByNotStatusParam struct {
 	ArticleCommonQueryParam
-	Visibility VISIBILITY
 }
 
 func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryParam) *gorm.DB {
 	SqlPrefix := make([]string, 0)
 	SqlValue := make([]interface{}, 0)
+	and := " AND "
 	if param.CategoryID != nil {
 		sql := "category_id = ?"
 		SqlPrefix = append(SqlPrefix, sql)
 		SqlValue = append(SqlValue, *param.CategoryID)
 	}
-	return db.Where(SqlPrefix, SqlValue...)
+	if param.Status != nil {
+		sql := "status = ?"
+		SqlPrefix = append(SqlPrefix, sql)
+		SqlValue = append(SqlValue, *param.Status)
+	}
+	return db.Where(strings.Join(SqlPrefix, and), SqlValue...)
 }
 
 func (a *ArticleDBRepo) Create(article *model.Article) error {
@@ -49,19 +61,20 @@ func (a *ArticleDBRepo) PageFindAll(param *PageFindParam, _ *struct{}) ([]*Artic
 	return result, err
 }
 
-func (a *ArticleDBRepo) PageFindByVisibility(param *PageFindParam, queryParam PageFindArticleVisibilityParam) ([]*ArticleModel, error) {
+func (a *ArticleDBRepo) PageFindByCommonParam(param *PageFindParam, queryParam ArticleCommonQueryParam) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
 	d := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations)
-	querySqlDB := a.preCreateQuerySQL(d, queryParam.ArticleCommonQueryParam)
-	err := querySqlDB.Where("visibility = ?", queryParam.Visibility).Order("post_time desc").Find(&result).Error
+	querySqlDB := a.preCreateQuerySQL(d, queryParam)
+	err := querySqlDB.Where("status = ?", queryParam.Status).Order("post_time desc").Find(&result).Error
 	return result, err
 }
 
-func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, queryParam PageFindArticleVisibilityParam) ([]*ArticleModel, error) {
+func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, queryParam PageFindArticleByNotStatusParam) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
 	d := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations)
+	queryParam.ArticleCommonQueryParam.Status = nil
 	querySqlDB := a.preCreateQuerySQL(d, queryParam.ArticleCommonQueryParam)
-	err := querySqlDB.Where("visibility is null OR visibility <> ?", queryParam.Visibility).Order("post_time desc").Find(&result).Error
+	err := querySqlDB.Where("visibility is null OR visibility <> ?", queryParam.Status).Order("post_time desc").Find(&result).Error
 	return result, err
 }
 

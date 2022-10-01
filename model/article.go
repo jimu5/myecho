@@ -39,8 +39,7 @@ type Article struct {
 	DetailID       uint           `json:"detail_id" gorm:"default:null"`
 	Detail         *ArticleDetail `json:"detail"`
 	PostTime       time.Time      `json:"post_time"`
-	Status         int8           `json:"status" gorm:"default:1"`     //  1: 已发布 2: 草稿 3: 等待复审 4: 回收站
-	Visibility     int8           `json:"visibility" gorm:"default:1"` // 1: 公开 2: 置顶 3: 私密
+	Status         int8           `json:"status" gorm:"default:1"` //  1:公开 2: 置顶 3: 私密 4: 草稿 5: 等待复审 6: 回收站
 	Password       string         `json:"-" gorm:"default:null"`
 	Tags           []*Tag         `gorm:"many2many:article_tags;"`
 }

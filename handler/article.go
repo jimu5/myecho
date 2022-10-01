@@ -19,18 +19,50 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 	if err := c.QueryParser(&queryParam); err != nil {
 		return err
 	}
+	status := mysql.ARTICLE_STATUS_TOP
+	sqlParam := mysql.ArticleCommonQueryParam{
+		CategoryID: queryParam.CategoryID,
+		Status:     &status,
+	}
+	total, err := dal.MySqlDB.Article.CountAll(sqlParam)
+	if err != nil {
+		return err
+	}
+	topArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlParam)
+	if err != nil {
+		return err
+	}
+	pageParam.PageSize = pageParam.PageSize - len(topArticles)
+	status = mysql.ARTILCE_STATUS_PUBLIC
+	sqlParam.Status = &status
+	restArticles, err := dal.MySqlDB.Article.PageFindByCommonParam(&pageParam, sqlParam)
+	if err != nil {
+		return err
+	}
+	articles := topArticles
+	articles = append(articles, restArticles...)
+	res := rtype.MultiModelToArticleResponse(articles)
+	return PaginateData(c, total, res)
+}
+
+func ArticleAllList(c *fiber.Ctx) error {
+	queryParam := ArticleDisplayListQueryParam{}
+	if err := c.QueryParser(&queryParam); err != nil {
+		return err
+	}
+	status := mysql.ARTICLE_STATUS_TOP
 	sqlCommonParam := mysql.ArticleCommonQueryParam{
 		CategoryID: queryParam.CategoryID,
+		Status:     &status,
 	}
 	total, err := dal.MySqlDB.Article.CountAll(sqlCommonParam)
 	if err != nil {
 		return err
 	}
-	sqlParam := mysql.PageFindArticleVisibilityParam{
+	sqlParam := mysql.PageFindArticleByNotStatusParam{
 		ArticleCommonQueryParam: sqlCommonParam,
-		Visibility:              mysql.VISIBILITY_TOP,
 	}
-	topArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByVisibility, sqlParam)
+	topArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlCommonParam)
 	if err != nil {
 		return err
 	}
