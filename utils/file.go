@@ -25,6 +25,7 @@ func CreateDirIfNotExist(dirPath string) error {
 		if createErr != nil {
 			return createErr
 		}
+		return nil
 	}
 	return err
 }

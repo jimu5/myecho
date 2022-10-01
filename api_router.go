@@ -30,6 +30,7 @@ func SetupApiRouter(app *fiber.App) {
 			api.Delete("/tags/:id", mw.Authentication, handler.TagDelete)
 
 			mos.Post("upload", mw.Authentication, handler.UploadFile)
+			mos.Post("save_url_file", mw.Authentication, handler.SaveLinkUrlFile)
 		}
 		// 不需要权限的
 		{

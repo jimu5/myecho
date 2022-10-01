@@ -46,6 +46,10 @@ func (f *File) GetTempSavePath() string {
 	if len(f.UUID) == 0 {
 		f.SetUUID()
 	}
+	err := f.CreateTempIfNotExist()
+	if err != nil {
+		panic(err)
+	}
 	tempPath := filepath.Join(config.StorageTempPath, f.UUID)
 	return tempPath + f.ExtensionName
 }
@@ -53,6 +57,10 @@ func (f *File) GetTempSavePath() string {
 func (f *File) GetUrlPath() string {
 	if len(f.UUID) == 0 {
 		f.SetUUID()
+	}
+	err := f.CreateDirIfNotExist()
+	if err != nil {
+		panic(err)
 	}
 	uPath := filepath.Join(config.StorageRootUrl, f.DirPath, f.UUID)
 	if config.OSName == config.WINDOWS {

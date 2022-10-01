@@ -2,15 +2,15 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"io"
 	"log"
 	"mime/multipart"
 	"myecho/dal"
 	"myecho/dal/mysql"
 	"myecho/handler/rtype"
+	"net/http"
 	"os"
 	"path"
-	"strconv"
-	"time"
 )
 
 func UploadFile(c *fiber.Ctx) error {
@@ -19,22 +19,17 @@ func UploadFile(c *fiber.Ctx) error {
 		return err
 	}
 	files := form.File["file[]"]
-	now := time.Now()
 	failedFileName := make([]string, 0)
 	successFileMap := make(map[string]string, len(files))
 	for _, file := range files {
 		extName := path.Ext(file.Filename)
-		fileModel := &mysql.FileModel{
-			Name:          file.Filename[0 : len(file.Filename)-len(extName)],
-			ExtensionName: extName,
-			DirPath:       path.Join(strconv.FormatInt(int64(now.Year()), 10), strconv.FormatInt(int64(now.Month()), 10)),
-		}
+		fileModel := mysql.GenFileModel(file.Filename[0:len(file.Filename)-len(extName)], extName)
 		// 如果后面出现相同的 filename
 		if _, ok := successFileMap[file.Filename]; ok {
 			failedFileName = append(failedFileName, file.Filename)
 			continue
 		}
-		if err := saveFile(c, file, fileModel); err != nil {
+		if err := saveFile(c, file, &fileModel); err != nil {
 			failedFileName = append(failedFileName, file.Filename)
 		} else {
 			successFileMap[file.Filename] = fileModel.GetUrlPath()
@@ -47,20 +42,53 @@ func UploadFile(c *fiber.Ctx) error {
 	return c.JSON(GetSuccessCommonResp(resp))
 }
 
-func SaveLinkImgUrl(c *fiber.Ctx) error {
-	return nil
+// 保存链接的文件
+func SaveLinkUrlFile(c *fiber.Ctx) error {
+	reqBody := new(rtype.SaveLinkFileReqBodyParam)
+	if err := c.BodyParser(reqBody); err != nil {
+		return err
+	}
+	extName := path.Ext(reqBody.Url)
+	filename := path.Base(reqBody.Url)
+	fileModel := mysql.GenFileModel(filename[0:len(filename)-len(extName)], extName)
+	out, err := os.Create(fileModel.GetTempSavePath()) // 保存在临时文件
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	resp, err := http.Get(reqBody.Url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+	out.Close()
+	err = duplicateSaveTempFileModel(&fileModel)
+	if err != nil {
+		return err
+	}
+	res := &rtype.SaveLinkFileResponse{
+		OriginalURL: reqBody.Url,
+		URL:         fileModel.GetUrlPath(),
+	}
+	return c.JSON(GetSuccessCommonResp(res))
 }
 
 func saveFile(c *fiber.Ctx, file *multipart.FileHeader, fileModel *mysql.FileModel) error {
 	// 先保存到 temp 文件夹中
-	err := fileModel.CreateTempIfNotExist()
-	if err != nil {
+	if err := c.SaveFile(file, fileModel.GetTempSavePath()); err != nil {
 		return err
 	}
-	if err = c.SaveFile(file, fileModel.GetTempSavePath()); err != nil {
-		return err
-	}
-	// 查询是否已经有相同 md5 的文件
+	return duplicateSaveTempFileModel(fileModel)
+}
+
+// 将保存在 temp 中的 file 根据 md5 进行去重
+func duplicateSaveTempFileModel(fileModel *mysql.FileModel) error {
+	// 检查文件是否存在以及查询是否已经有相同 md5 的文件
 	fileMD5, err := fileModel.GetTempSaveFileMD5()
 	if err != nil {
 		return err
