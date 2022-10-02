@@ -2,8 +2,8 @@ package validator
 
 import (
 	"myecho/dal/connect"
-	"myecho/handler/errors"
-	"myecho/handler/rtype"
+	"myecho/handler/api/errors"
+	"myecho/handler/api/rtype"
 	"myecho/model"
 )
 

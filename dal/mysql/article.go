@@ -13,11 +13,11 @@ type ArticleDBRepo struct {
 type ArticleModel = model.Article
 
 type (
-	STATUS int8
+	ArticleStatus int8
 )
 
 const (
-	ARTILCE_STATUS_PUBLIC STATUS = iota + 1
+	ARTILCE_STATUS_PUBLIC ArticleStatus = iota + 1
 	ARTICLE_STATUS_TOP
 	ARTICLE_STATUS_PRIVATE
 	ARTICLE_STATUS_DRAFT
@@ -27,7 +27,7 @@ const (
 
 type ArticleCommonQueryParam struct {
 	CategoryID *uint
-	Status     *STATUS
+	Status     *ArticleStatus
 }
 
 type PageFindArticleByNotStatusParam struct {

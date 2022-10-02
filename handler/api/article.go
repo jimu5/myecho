@@ -1,12 +1,12 @@
-package handler
+package api
 
 import (
 	"github.com/gofiber/fiber/v2"
 	"log"
 	"myecho/dal"
 	"myecho/dal/mysql"
-	"myecho/handler/rtype"
-	"myecho/handler/validator"
+	"myecho/handler/api/rtype"
+	"myecho/handler/api/validator"
 	"myecho/model"
 )
 
@@ -45,33 +45,56 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 	return PaginateData(c, total, res)
 }
 
+type ArticleAllListQueryParam struct {
+	CategoryID *uint                `query:"category_id"`
+	Status     *mysql.ArticleStatus `query:"status"`
+}
+
 func ArticleAllList(c *fiber.Ctx) error {
-	queryParam := ArticleDisplayListQueryParam{}
-	if err := c.QueryParser(&queryParam); err != nil {
+	var (
+		err   error
+		total int64
+	)
+	queryParam := ArticleAllListQueryParam{}
+	if err = c.QueryParser(&queryParam); err != nil {
 		return err
 	}
-	status := mysql.ARTICLE_STATUS_TOP
 	sqlCommonParam := mysql.ArticleCommonQueryParam{
 		CategoryID: queryParam.CategoryID,
-		Status:     &status,
 	}
-	total, err := dal.MySqlDB.Article.CountAll(sqlCommonParam)
+
+	if queryParam.Status != nil {
+		sqlCommonParam.Status = queryParam.Status
+		total, err = dal.MySqlDB.Article.CountAll(sqlCommonParam)
+	} else {
+		total, err = dal.MySqlDB.Article.CountAll(sqlCommonParam)
+		status := mysql.ARTICLE_STATUS_TOP
+		sqlCommonParam.Status = &status
+	}
 	if err != nil {
 		return err
 	}
 	sqlParam := mysql.PageFindArticleByNotStatusParam{
 		ArticleCommonQueryParam: sqlCommonParam,
 	}
-	topArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlCommonParam)
+	FirstArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlCommonParam)
 	if err != nil {
 		return err
 	}
-	pageParam.PageSize = pageParam.PageSize - len(topArticles)
+	if queryParam.Status != nil {
+		res := rtype.MultiModelToArticleResponse(FirstArticles)
+		return PaginateData(c, total, res)
+	}
+	pageParam.PageSize = pageParam.PageSize - len(FirstArticles)
+	if pageParam.PageSize == 0 {
+		res := rtype.MultiModelToArticleResponse(FirstArticles)
+		return PaginateData(c, total, res)
+	}
 	restArticles, err := dal.MySqlDB.Article.PageFindByNotVisibility(&pageParam, sqlParam)
 	if err != nil {
 		return err
 	}
-	articles := topArticles
+	articles := FirstArticles
 	articles = append(articles, restArticles...)
 	res := rtype.MultiModelToArticleResponse(articles)
 	return PaginateData(c, total, res)

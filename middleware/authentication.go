@@ -1,9 +1,8 @@
 package middleware
 
 import (
+	"myecho/handler/api"
 	"strings"
-
-	"myecho/handler"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -11,12 +10,12 @@ import (
 func Authentication(c *fiber.Ctx) (err error) {
 	auth := c.Get("Authorization")
 	if auth == "" {
-		return handler.UnauthorizedErrorResponse(c)
+		return api.UnauthorizedErrorResponse(c)
 	}
 	token := strings.Fields(auth)[1]
 	user, err := GetUserByToken(token)
 	if err != nil {
-		return handler.UnauthorizedErrorResponse(c)
+		return api.UnauthorizedErrorResponse(c)
 	}
 
 	// 将用户信息保存下来

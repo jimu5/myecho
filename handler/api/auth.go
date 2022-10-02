@@ -1,13 +1,13 @@
-package handler
+package api
 
 import (
 	"crypto/sha256"
 	"encoding/hex"
 	"myecho/dal/connect"
+	"myecho/handler/api/rtype"
+	"myecho/handler/api/validator"
 	"time"
 
-	"myecho/handler/rtype"
-	"myecho/handler/validator"
 	"myecho/model"
 
 	"github.com/gofiber/fiber/v2"

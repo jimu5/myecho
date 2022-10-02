@@ -1,10 +1,9 @@
 package validator
 
 import (
+	"myecho/handler/api/errors"
+	"myecho/handler/api/rtype"
 	"time"
-
-	"myecho/handler/errors"
-	"myecho/handler/rtype"
 )
 
 func ValidateArticleRequest(articleRequest *rtype.ArticleRequest) error {

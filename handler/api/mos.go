@@ -1,4 +1,4 @@
-package handler
+package api
 
 import (
 	"github.com/gofiber/fiber/v2"
@@ -7,7 +7,7 @@ import (
 	"mime/multipart"
 	"myecho/dal"
 	"myecho/dal/mysql"
-	"myecho/handler/rtype"
+	"myecho/handler/api/rtype"
 	"net/http"
 	"os"
 	"path"

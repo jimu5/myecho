@@ -2,7 +2,7 @@ package validator
 
 import (
 	"myecho/dal/connect"
-	"myecho/handler/errors"
+	"myecho/handler/api/errors"
 )
 
 func ValidateID[T any](id int, model *T) error {

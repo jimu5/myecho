@@ -1,14 +1,13 @@
-package handler
+package api
 
 import (
 	"myecho/config"
 	"myecho/dal/mysql"
-	"myecho/handler/errors"
-	"myecho/handler/rtype"
+	"myecho/handler/api/errors"
+	"myecho/handler/api/rtype"
+	"myecho/handler/api/validator"
 	"myecho/model"
 	"strconv"
-
-	"myecho/handler/validator"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"

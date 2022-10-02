@@ -1,9 +1,9 @@
-package handler
+package api
 
 import (
 	"myecho/dal/connect"
-	"myecho/handler/rtype"
-	"myecho/handler/validator"
+	"myecho/handler/api/rtype"
+	"myecho/handler/api/validator"
 	"myecho/model"
 
 	"github.com/gofiber/fiber/v2"

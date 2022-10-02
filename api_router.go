@@ -2,52 +2,52 @@ package main
 
 import (
 	"myecho/config"
-	"myecho/handler"
+	"myecho/handler/api"
 	mw "myecho/middleware"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func SetupApiRouter(app *fiber.App) {
-	api := app.Group("/api")
+	apiRoute := app.Group("/api")
 	mos := app.Group(config.StorageRootUrl)
 	{
 		// 需要权限的, TODO: 改造
 		{
-			api.Get("/all_articles", mw.Authentication, handler.ArticleAllList)
-			api.Post("/articles", mw.Authentication, handler.ArticleCreate)
-			api.Patch("/articles/:id", mw.Authentication, handler.ArticleUpdate)
-			api.Delete("/articles/:id", mw.Authentication, handler.ArticleDelete)
+			apiRoute.Get("/all_articles", mw.Authentication, api.ArticleAllList)
+			apiRoute.Post("/articles", mw.Authentication, api.ArticleCreate)
+			apiRoute.Patch("/articles/:id", mw.Authentication, api.ArticleUpdate)
+			apiRoute.Delete("/articles/:id", mw.Authentication, api.ArticleDelete)
 
-			api.Patch("/comments/:id", mw.Authentication, handler.CommentUpdate)
+			apiRoute.Patch("/comments/:id", mw.Authentication, api.CommentUpdate)
 
-			api.Post("/articles/categories", mw.Authentication, handler.CategoryCreate)
-			api.Patch("/articles/categories/:id", mw.Authentication, handler.CategoryUpdate)
-			api.Delete("/articles/categories/:id", mw.Authentication, handler.CategoryDelete)
+			apiRoute.Post("/articles/categories", mw.Authentication, api.CategoryCreate)
+			apiRoute.Patch("/articles/categories/:id", mw.Authentication, api.CategoryUpdate)
+			apiRoute.Delete("/articles/categories/:id", mw.Authentication, api.CategoryDelete)
 
-			api.Post("/tags", mw.Authentication, handler.TagCreate)
-			api.Patch("/tags/:id", mw.Authentication, handler.TagUpdate)
-			api.Delete("/tags/:id", mw.Authentication, handler.TagDelete)
+			apiRoute.Post("/tags", mw.Authentication, api.TagCreate)
+			apiRoute.Patch("/tags/:id", mw.Authentication, api.TagUpdate)
+			apiRoute.Delete("/tags/:id", mw.Authentication, api.TagDelete)
 
-			mos.Post("upload", mw.Authentication, handler.UploadFile)
-			mos.Post("save_url_file", mw.Authentication, handler.SaveLinkUrlFile)
+			mos.Post("upload", mw.Authentication, api.UploadFile)
+			mos.Post("save_url_file", mw.Authentication, api.SaveLinkUrlFile)
 		}
 		// 不需要权限的
 		{
 			// 登录相关
-			noNeedAuth := api.Group("")
-			noNeedAuth.Post("/login", handler.Login)
-			noNeedAuth.Post("/register", handler.Register)
+			noNeedAuth := apiRoute.Group("")
+			noNeedAuth.Post("/login", api.Login)
+			noNeedAuth.Post("/register", api.Register)
 
 			// 文章相关
-			noNeedAuth.Get("/articles", handler.ArticleDisplayList)
-			noNeedAuth.Get("/articles/:id", handler.ArticleRetrieve)
-			noNeedAuth.Get("/articles/:id/comments", handler.ArticleCommentList)
-			noNeedAuth.Post("/articles/:id/comments", handler.CommentCreate)
+			noNeedAuth.Get("/articles", api.ArticleDisplayList)
+			noNeedAuth.Get("/articles/:id", api.ArticleRetrieve)
+			noNeedAuth.Get("/articles/:id/comments", api.ArticleCommentList)
+			noNeedAuth.Post("/articles/:id/comments", api.CommentCreate)
 
-			noNeedAuth.Get("/articles/categories/all", handler.CategoryAll)
+			noNeedAuth.Get("/articles/categories/all", api.CategoryAll)
 
-			noNeedAuth.Get("/tags/all", handler.TagListAll)
+			noNeedAuth.Get("/tags/all", api.TagListAll)
 		}
 	}
 }
