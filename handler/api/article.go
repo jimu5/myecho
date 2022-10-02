@@ -5,44 +5,23 @@ import (
 	"log"
 	"myecho/dal"
 	"myecho/dal/mysql"
-	"myecho/handler/api/rtype"
+	"myecho/handler"
 	"myecho/handler/api/validator"
+	"myecho/handler/rtype"
 	"myecho/model"
+	"myecho/service"
 )
 
-type ArticleDisplayListQueryParam struct {
-	CategoryID *uint `query:"category_id"`
-}
-
 func ArticleDisplayList(c *fiber.Ctx) error {
-	queryParam := ArticleDisplayListQueryParam{}
+	queryParam := service.ArticleDisplayListQueryParam{}
 	if err := c.QueryParser(&queryParam); err != nil {
 		return err
 	}
-	status := mysql.ARTICLE_STATUS_TOP
-	sqlParam := mysql.ArticleCommonQueryParam{
-		CategoryID: queryParam.CategoryID,
-		Status:     &status,
-	}
-	total, err := dal.MySqlDB.Article.CountAll(sqlParam)
+	total, res, err := service.S.Article.ArticleDisplayList(&queryParam)
 	if err != nil {
 		return err
 	}
-	topArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlParam)
-	if err != nil {
-		return err
-	}
-	pageParam.PageSize = pageParam.PageSize - len(topArticles)
-	status = mysql.ARTILCE_STATUS_PUBLIC
-	sqlParam.Status = &status
-	restArticles, err := dal.MySqlDB.Article.PageFindByCommonParam(&pageParam, sqlParam)
-	if err != nil {
-		return err
-	}
-	articles := topArticles
-	articles = append(articles, restArticles...)
-	res := rtype.MultiModelToArticleResponse(articles)
-	return PaginateData(c, total, res)
+	return handler.PaginateData(c, total, res)
 }
 
 type ArticleAllListQueryParam struct {
@@ -77,18 +56,18 @@ func ArticleAllList(c *fiber.Ctx) error {
 	sqlParam := mysql.PageFindArticleByNotStatusParam{
 		ArticleCommonQueryParam: sqlCommonParam,
 	}
-	FirstArticles, pageParam, err := PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlCommonParam)
+	FirstArticles, pageParam, err := handler.PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlCommonParam)
 	if err != nil {
 		return err
 	}
 	if queryParam.Status != nil {
 		res := rtype.MultiModelToArticleResponse(FirstArticles)
-		return PaginateData(c, total, res)
+		return handler.PaginateData(c, total, res)
 	}
 	pageParam.PageSize = pageParam.PageSize - len(FirstArticles)
 	if pageParam.PageSize == 0 {
 		res := rtype.MultiModelToArticleResponse(FirstArticles)
-		return PaginateData(c, total, res)
+		return handler.PaginateData(c, total, res)
 	}
 	restArticles, err := dal.MySqlDB.Article.PageFindByNotVisibility(&pageParam, sqlParam)
 	if err != nil {
@@ -97,7 +76,7 @@ func ArticleAllList(c *fiber.Ctx) error {
 	articles := FirstArticles
 	articles = append(articles, restArticles...)
 	res := rtype.MultiModelToArticleResponse(articles)
-	return PaginateData(c, total, res)
+	return handler.PaginateData(c, total, res)
 }
 
 type ArticleRetrieveQueryParam struct {
@@ -106,7 +85,7 @@ type ArticleRetrieveQueryParam struct {
 
 func ArticleRetrieve(c *fiber.Ctx) error {
 	var article model.Article
-	if err := DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandle(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	afterArticle, err := dal.MySqlDB.Article.FindByID(article.ID)
@@ -141,9 +120,10 @@ func ArticleCreate(c *fiber.Ctx) error {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	detail.Content = r.Content
+	r.SetSummary()
 	structAssign(&article, &r)
 	article.Detail = &detail
-	user := GetUserFromCtx(c)
+	user := handler.GetUserFromCtx(c)
 	article.AuthorID = user.ID
 	article.Author = user
 
@@ -165,13 +145,14 @@ func ArticleUpdate(c *fiber.Ctx) error {
 		return ParseErrorResponse(c, err.Error())
 	}
 	// 校验
-	if err := DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandle(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	if err := validator.ValidateArticleRequest(&r); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 
+	r.SetSummary()
 	structAssign(&article, &r)
 	article.Detail = &model.ArticleDetail{Content: r.Content}
 	tags := getTags(r.TagIDs)
@@ -192,7 +173,7 @@ func ArticleUpdate(c *fiber.Ctx) error {
 // 删除文章
 func ArticleDelete(c *fiber.Ctx) error {
 	var article model.Article
-	if err := DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandle(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	if err := dal.MySqlDB.Article.DeleteByID(article.ID); err != nil {

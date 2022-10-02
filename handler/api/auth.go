@@ -4,8 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"myecho/dal/connect"
-	"myecho/handler/api/rtype"
 	"myecho/handler/api/validator"
+	"myecho/handler/rtype"
 	"time"
 
 	"myecho/model"

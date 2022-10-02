@@ -11,8 +11,8 @@ type MysqlDBRepo struct {
 	File    *mysql.FileRepo
 }
 
-func NewMysqlDBRepo() *MysqlDBRepo {
-	return &MysqlDBRepo{
+func NewMysqlDBRepo() MysqlDBRepo {
+	return MysqlDBRepo{
 		Article: &mysql.ArticleDBRepo{},
 		File:    &mysql.FileRepo{},
 	}

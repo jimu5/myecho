@@ -2,8 +2,9 @@ package api
 
 import (
 	"myecho/dal/connect"
-	"myecho/handler/api/rtype"
+	"myecho/handler"
 	"myecho/handler/api/validator"
+	"myecho/handler/rtype"
 	"myecho/model"
 
 	"github.com/gofiber/fiber/v2"
@@ -18,7 +19,7 @@ func CommentCreate(c *fiber.Ctx) error {
 	if err := validator.ValidateCommentRequest(&res); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
-	if err := DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandle(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 
@@ -56,7 +57,7 @@ func ArticleCommentList(c *fiber.Ctx) error {
 	var comments []rtype.CommentResponse
 	var article model.Article
 	// 校验
-	if err := DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandle(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	connect.Database.Table("comments").Where("article_id = ?", article.ID).Find(&comments)

@@ -1,11 +1,11 @@
-package api
+package handler
 
 import (
 	"myecho/config"
 	"myecho/dal/mysql"
 	"myecho/handler/api/errors"
-	"myecho/handler/api/rtype"
 	"myecho/handler/api/validator"
+	"myecho/handler/rtype"
 	"myecho/model"
 	"strconv"
 

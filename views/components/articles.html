@@ -1,0 +1,11 @@
+{{ define "articles" }}
+  {{ range . }}
+    <div class="article-block">
+      <h2>{{ .Title }}</h2>
+      <p>{{ .PostTime }}</p>
+      <div class="article-block-summary">
+        {{ .Summary }}
+      </div>
+    </div>
+  {{ end}}
+{{ end }}

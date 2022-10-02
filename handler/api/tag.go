@@ -2,8 +2,9 @@ package api
 
 import (
 	"myecho/dal/connect"
-	"myecho/handler/api/rtype"
+	"myecho/handler"
 	"myecho/handler/api/validator"
+	"myecho/handler/rtype"
 	"myecho/model"
 
 	"github.com/gofiber/fiber/v2"
@@ -39,7 +40,7 @@ func TagUpdate(c *fiber.Ctx) error {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	var tag model.Tag
-	if err := DetailPreHandle(c, &tag); err != nil {
+	if err := handler.DetailPreHandle(c, &tag); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	tag.Name = req.Name
@@ -49,7 +50,7 @@ func TagUpdate(c *fiber.Ctx) error {
 
 func TagDelete(c *fiber.Ctx) error {
 	var tag model.Tag
-	if err := DetailPreHandle(c, &tag); err != nil {
+	if err := handler.DetailPreHandle(c, &tag); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	connect.Database.Table("tags").Delete(&tag)

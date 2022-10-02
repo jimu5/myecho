@@ -7,7 +7,8 @@ import (
 	"mime/multipart"
 	"myecho/dal"
 	"myecho/dal/mysql"
-	"myecho/handler/api/rtype"
+	"myecho/handler"
+	"myecho/handler/rtype"
 	"net/http"
 	"os"
 	"path"
@@ -39,7 +40,7 @@ func UploadFile(c *fiber.Ctx) error {
 		ErrFiles: failedFileName,
 		SuccMap:  successFileMap,
 	}
-	return c.JSON(GetSuccessCommonResp(resp))
+	return c.JSON(handler.GetSuccessCommonResp(resp))
 }
 
 // 保存链接的文件
@@ -75,7 +76,7 @@ func SaveLinkUrlFile(c *fiber.Ctx) error {
 		OriginalURL: reqBody.Url,
 		URL:         fileModel.GetUrlPath(),
 	}
-	return c.JSON(GetSuccessCommonResp(res))
+	return c.JSON(handler.GetSuccessCommonResp(res))
 }
 
 func saveFile(c *fiber.Ctx, file *multipart.FileHeader, fileModel *mysql.FileModel) error {

@@ -2,7 +2,7 @@ package validator
 
 import (
 	"myecho/handler/api/errors"
-	"myecho/handler/api/rtype"
+	"myecho/handler/rtype"
 	"time"
 )
 

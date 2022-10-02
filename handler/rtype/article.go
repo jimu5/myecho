@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+type ArticleDisplayListQueryParam struct {
+	CategoryID *uint `query:"category_id"`
+}
+
 type ArticleRequest struct {
 	Title          string    `json:"title"`
 	Summary        string    `json:"summary"`
@@ -16,6 +20,16 @@ type ArticleRequest struct {
 	Visibility     int8      `json:"visibility"`
 	Password       string    `json:"password"`
 	TagIDs         []uint    `json:"tag_ids"`
+}
+
+func (a *ArticleRequest) SetSummary() {
+	if len(a.Summary) == 0 {
+		if len(a.Content) > 255 {
+			a.Summary = a.Content[:255]
+		} else {
+			a.Summary = a.Content
+		}
+	}
 }
 
 type User struct {

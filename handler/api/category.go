@@ -3,8 +3,9 @@ package api
 import (
 	"github.com/gofiber/fiber/v2"
 	"myecho/dal/connect"
-	"myecho/handler/api/rtype"
+	"myecho/handler"
 	"myecho/handler/api/validator"
+	"myecho/handler/rtype"
 	"myecho/model"
 )
 
@@ -38,7 +39,7 @@ func CategoryUpdate(c *fiber.Ctx) error {
 	if err := validator.ValidateCategoryUpdate(&req); err != nil {
 		return nil
 	}
-	if err := DetailPreHandle(c, &category); err != nil {
+	if err := handler.DetailPreHandle(c, &category); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	if result := connect.Database.Table("categories").Model(&category).Updates(&req); result.Error != nil {
@@ -49,7 +50,7 @@ func CategoryUpdate(c *fiber.Ctx) error {
 
 func CategoryDelete(c *fiber.Ctx) error {
 	var category model.Category
-	if err := DetailPreHandle(c, &category); err != nil {
+	if err := handler.DetailPreHandle(c, &category); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	if result := connect.Database.Table("categories").Delete(&category); result.Error != nil {
