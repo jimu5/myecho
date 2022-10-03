@@ -2,7 +2,12 @@
   {{ range . }}
     <div class="article-block">
       <h2>{{ .Title }}</h2>
-      <p>{{ .PostTime }}</p>
+      <p>
+        <script>
+          time = dayjs({{ .PostTime }}).format("YYYY-MM-DD HH:mm:ss")
+          document.write(time)
+        </script>
+      </p>
       <div class="article-block-summary">
         {{ .Summary }}
       </div>
