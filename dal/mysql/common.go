@@ -6,9 +6,16 @@ import (
 )
 
 type PageFindParam struct {
-	Page     int  `json:"page" query:"page"`
-	PageSize int  `json:"page_size" query:"page_size"`
-	NoPage   bool `json:"no_page" query:"no_page"`
+	Page        int  `json:"page" query:"page"`
+	PageSize    int  `json:"page_size" query:"page_size"`
+	NoPage      bool `json:"no_page" query:"no_page"`
+	ForceOffset int  // 强制 offset, 当这个属性不等于 0 时, 通过这个属性值来设定 offset
+}
+
+type PageInfo struct {
+	Page     int   `json:"page"`
+	PageSize int   `json:"page_size"`
+	Total    int64 `json:"total"`
 }
 
 func Paginate(param *PageFindParam) func(db *gorm.DB) *gorm.DB {
@@ -23,7 +30,23 @@ func Paginate(param *PageFindParam) func(db *gorm.DB) *gorm.DB {
 		if param.PageSize < 1 {
 			param.PageSize = config.PageSize
 		}
-		offset := (param.Page - 1) * param.PageSize
+		offset := param.ForceOffset
+		if offset == 0 {
+			offset = (param.Page - 1) * param.PageSize
+		}
 		return db.Offset(offset).Limit(param.PageSize)
+	}
+}
+
+func (p *PageInfo) FillInfoFromParam(param *PageFindParam) {
+	if param.Page != 0 {
+		p.Page = param.Page
+	} else {
+		p.Page = 1
+	}
+	if param.PageSize != 0 {
+		p.PageSize = param.PageSize
+	} else {
+		p.PageSize = config.PageSize
 	}
 }

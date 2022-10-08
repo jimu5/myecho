@@ -12,6 +12,7 @@
   {{ template "header" }}
   <div class="index-content">
     {{ template "articles" .Data}}
+    {{ template "pagination" .PageInfo}}
   </div>
   {{ template "footer" }}
 </body>

@@ -86,6 +86,12 @@ func (a *ArticleDBRepo) CountAll(queryParam ArticleCommonQueryParam) (int64, err
 	return total, err
 }
 
+func (a *ArticleDBRepo) CountDisplayable() (int64, error) {
+	var total int64
+	err := db.Model(&ArticleModel{}).Where("status in (?)", []ArticleStatus{ARTICLE_STATUS_TOP, ARTILCE_STATUS_PUBLIC}).Count(&total).Error
+	return total, err
+}
+
 func (a *ArticleDBRepo) Update(article *ArticleModel) error {
 	if article.Tags != nil {
 		if err := db.Model(article).Association("Tags").Replace(article.Tags); err != nil {

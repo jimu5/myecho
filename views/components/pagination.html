@@ -1,0 +1,10 @@
+{{ define "pagination" }}
+<div class="pagination">
+  {{ if .Next }}
+    <a href="{{ .Next }}">下一页</a>
+  {{ end }}
+  {{ if .Pre }}
+    <a href="{{ .Pre }}">上一页</a>
+  {{ end }}
+</div>
+{{ end }}

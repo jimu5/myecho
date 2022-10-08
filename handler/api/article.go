@@ -17,11 +17,11 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 	if err := c.QueryParser(&queryParam); err != nil {
 		return err
 	}
-	total, res, err := service.S.Article.ArticleDisplayList(&queryParam)
+	pageInfo, res, err := service.S.Article.ArticleDisplayList(&queryParam)
 	if err != nil {
 		return err
 	}
-	return handler.PaginateData(c, total, res)
+	return handler.PaginateData(c, pageInfo.Total, res)
 }
 
 type ArticleAllListQueryParam struct {
