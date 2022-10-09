@@ -75,7 +75,7 @@ func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, queryParam
 	originStatus := queryParam.ArticleCommonQueryParam.Status
 	queryParam.ArticleCommonQueryParam.Status = nil
 	querySqlDB := a.preCreateQuerySQL(d, queryParam.ArticleCommonQueryParam)
-	err := querySqlDB.Debug().Where("status is null OR status <> ?", originStatus).Order("post_time desc").Find(&result).Error
+	err := querySqlDB.Where("status is null OR status <> ?", originStatus).Order("post_time desc").Find(&result).Error
 	return result, err
 }
 
