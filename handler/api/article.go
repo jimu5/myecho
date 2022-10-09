@@ -55,24 +55,24 @@ func ArticleAllList(c *fiber.Ctx) error {
 	sqlParam := mysql.PageFindArticleByNotStatusParam{
 		ArticleCommonQueryParam: sqlCommonParam,
 	}
-	FirstArticles, pageParam, err := handler.PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlCommonParam)
+	topArticles, pageParam, err := handler.PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlCommonParam)
 	if err != nil {
 		return err
 	}
 	if queryParam.Status != nil {
-		res := rtype.MultiModelToArticleResponse(FirstArticles)
+		res := rtype.MultiModelToArticleResponse(topArticles)
 		return handler.PaginateData(c, total, res)
 	}
-	pageParam.PageSize = pageParam.PageSize - len(FirstArticles)
+	pageParam.PageSize = pageParam.PageSize - len(topArticles)
 	if pageParam.PageSize == 0 {
-		res := rtype.MultiModelToArticleResponse(FirstArticles)
+		res := rtype.MultiModelToArticleResponse(topArticles)
 		return handler.PaginateData(c, total, res)
 	}
 	restArticles, err := dal.MySqlDB.Article.PageFindByNotVisibility(&pageParam, sqlParam)
 	if err != nil {
 		return err
 	}
-	articles := FirstArticles
+	articles := topArticles
 	articles = append(articles, restArticles...)
 	res := rtype.MultiModelToArticleResponse(articles)
 	return handler.PaginateData(c, total, res)
