@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <link type="text/css" rel="stylesheet" href="/static/css/style.css" />
+
+  <link rel="stylesheet" href="/static/css/lib/vditor@3.8.17.css" />
+  <script src="/static/js/lib/vditor@3.8.17.min.js"></script>
+  <script src="/static/js/lib/dayjs@1.8.21.min.js"></script>
+
+  <!-- <link rel="stylesheet" href="https://unpkg.com/vditor/dist/index.css" />
+  <script src="https://unpkg.com/vditor/dist/index.min.js"></script>
+  <script src="https://unpkg.com/dayjs@1.8.21/dayjs.min.js"></script> -->
+</head>
+
+<body>
+  {{ template "header" }}
+  <div class="article">
+    <h1 class="article-title">
+      {{ .Title }}
+    </h1>
+    <div class="article-content" id="article_content">
+    </div>
+    <script>
+      Vditor.preview(article_content, {{ .Detail.Content }})
+    </script>
+  </div>
+  {{ template "footer" }}
+</body>

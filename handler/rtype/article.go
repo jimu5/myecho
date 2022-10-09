@@ -23,12 +23,12 @@ type ArticleRequest struct {
 }
 
 func (a *ArticleRequest) SetSummary() {
-	if len(a.Summary) == 0 {
-		if len(a.Content) > 255 {
-			a.Summary = a.Content[:255]
-		} else {
-			a.Summary = a.Content
-		}
+	// 转换 rune 类型, 用于处理中文
+	runeStr := []rune(a.Content)
+	if len(runeStr) > 255 {
+		a.Summary = string(runeStr[:255])
+	} else {
+		a.Summary = a.Content
 	}
 }
 

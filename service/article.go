@@ -1,6 +1,7 @@
 package service
 
 import (
+	"log"
 	"myecho/dal"
 	"myecho/dal/mysql"
 	"myecho/handler/rtype"
@@ -12,6 +13,11 @@ type Article struct {
 type ArticleDisplayListQueryParam struct {
 	rtype.ArticleDisplayListQueryParam
 	mysql.PageFindParam
+}
+
+type ArticleRetrieveQueryParam struct {
+	ID     uint `json:"id"`
+	NoRead bool `query:"no_read"`
 }
 
 func (a *Article) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql.PageInfo, []*rtype.ArticleResponse, error) {
@@ -47,4 +53,20 @@ func (a *Article) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql
 	articles = append(articles, restArticles...)
 	res := rtype.MultiModelToArticleResponse(articles)
 	return pageInfo, res, nil
+}
+
+func (a *Article) ArticleRetrieve(param *ArticleRetrieveQueryParam) (rtype.ArticleResponse, error) {
+	article, err := dal.MySqlDB.Article.FindByID(param.ID)
+	if err != nil {
+		return rtype.ArticleResponse{}, err
+	}
+	res := rtype.ModelToArticleResponse(&article)
+	if !param.NoRead {
+		go func() {
+			if err := dal.MySqlDB.Article.AddReadCountByID(article.ID, 1); err != nil {
+				log.Println(err)
+			}
+		}()
+	}
+	return *res, nil
 }

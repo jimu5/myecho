@@ -9,5 +9,6 @@ func SetupViewRouter(app *fiber.App) {
 	ViewRoute := app.Group("")
 	{
 		ViewRoute.Get("", view.ArticleDisplayList)
+		ViewRoute.Get("/articles/:id", view.ArticleRetrieve)
 	}
 }

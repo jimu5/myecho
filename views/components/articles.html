@@ -1,16 +1,29 @@
 {{ define "articles" }}
-  {{ range . }}
-    <div class="article-block">
-      <h2>{{ .Title }}</h2>
-      <p>
-        <script>
-          time = dayjs({{ .PostTime }}).format("YYYY-MM-DD HH:mm:ss")
-          document.write(time)
-        </script>
-      </p>
-      <div class="article-block-summary">
-        {{ .Summary }}
-      </div>
-    </div>
-  {{ end}}
+{{ range . }}
+<div class="article-block">
+  <a href="/articles/{{ .ID }}">
+    <h2>
+      {{ .Title }}
+    </h2>
+  </a>
+
+  <p>
+    <script>
+      time = dayjs({{ .PostTime }}).format("YYYY-MM-DD HH:mm:ss")
+      document.write(time)
+    </script>
+  </p>
+  <div class="article-block-summary">
+    {{ .Summary }}
+    <script>
+      if ({{ .Summary }}.length > 254) {
+        document.write("...")
+      }
+    </script>
+  </div>
+  <div class="article-block-actions">
+    <a href="/articles/{{ .ID }}" style="float:right">阅读全文</a>
+  </div>
+</div>
+{{ end}}
 {{ end }}

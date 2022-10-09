@@ -2,7 +2,6 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"log"
 	"myecho/dal"
 	"myecho/dal/mysql"
 	"myecho/handler"
@@ -79,30 +78,22 @@ func ArticleAllList(c *fiber.Ctx) error {
 	return handler.PaginateData(c, total, res)
 }
 
-type ArticleRetrieveQueryParam struct {
-	NoRead bool `query:"no_read"`
-}
-
 func ArticleRetrieve(c *fiber.Ctx) error {
-	var article model.Article
-	if err := handler.DetailPreHandle(c, &article); err != nil {
-		return NotFoundErrorResponse(c, err.Error())
-	}
-	afterArticle, err := dal.MySqlDB.Article.FindByID(article.ID)
-	if err != nil {
-		return err
-	}
-	res := rtype.ModelToArticleResponse(&afterArticle)
-	queryParam := ArticleRetrieveQueryParam{}
+	var (
+		article model.Article
+		err     error
+	)
+	queryParam := service.ArticleRetrieveQueryParam{}
 	if err = c.QueryParser(&queryParam); err != nil {
 		return err
 	}
-	if !queryParam.NoRead {
-		go func() {
-			if err := dal.MySqlDB.Article.AddReadCountByID(article.ID, 1); err != nil {
-				log.Println(err)
-			}
-		}()
+	if err = handler.DetailPreHandle(c, &article); err != nil {
+		return NotFoundErrorResponse(c, err.Error())
+	}
+	queryParam.ID = article.ID
+	res, err := service.S.Article.ArticleRetrieve(&queryParam)
+	if err != nil {
+		return err
 	}
 	return c.JSON(&res)
 }
