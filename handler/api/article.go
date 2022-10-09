@@ -40,14 +40,13 @@ func ArticleAllList(c *fiber.Ctx) error {
 	sqlCommonParam := mysql.ArticleCommonQueryParam{
 		CategoryID: queryParam.CategoryID,
 	}
-
+	topStatus := mysql.ARTICLE_STATUS_TOP
 	if queryParam.Status != nil {
 		sqlCommonParam.Status = queryParam.Status
 		total, err = dal.MySqlDB.Article.CountAll(sqlCommonParam)
 	} else {
 		total, err = dal.MySqlDB.Article.CountAll(sqlCommonParam)
-		status := mysql.ARTICLE_STATUS_TOP
-		sqlCommonParam.Status = &status
+		sqlCommonParam.Status = &topStatus
 	}
 	if err != nil {
 		return err

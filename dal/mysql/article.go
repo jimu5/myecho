@@ -72,9 +72,10 @@ func (a *ArticleDBRepo) PageFindByCommonParam(param *PageFindParam, queryParam A
 func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, queryParam PageFindArticleByNotStatusParam) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
 	d := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations)
+	originStatus := queryParam.ArticleCommonQueryParam.Status
 	queryParam.ArticleCommonQueryParam.Status = nil
 	querySqlDB := a.preCreateQuerySQL(d, queryParam.ArticleCommonQueryParam)
-	err := querySqlDB.Where("status is null OR status <> ?", queryParam.Status).Order("post_time desc").Find(&result).Error
+	err := querySqlDB.Debug().Where("status is null OR status <> ?", originStatus).Order("post_time desc").Find(&result).Error
 	return result, err
 }
 
