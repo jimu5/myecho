@@ -65,7 +65,7 @@ func (a *ArticleDBRepo) PageFindByCommonParam(param *PageFindParam, queryParam A
 	result := make([]*ArticleModel, 0)
 	d := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations)
 	querySqlDB := a.preCreateQuerySQL(d, queryParam)
-	err := querySqlDB.Where("status = ?", queryParam.Status).Order("post_time desc").Find(&result).Error
+	err := querySqlDB.Order("post_time desc").Find(&result).Error
 	return result, err
 }
 
