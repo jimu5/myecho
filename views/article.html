@@ -3,7 +3,8 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Title</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <title>{{ .Title }}</title>
   <link type="text/css" rel="stylesheet" href="/static/css/style.css" />
 
   <link rel="stylesheet" href="/static/css/lib/vditor@3.8.17.css" />
@@ -17,15 +18,63 @@
 
 <body>
   {{ template "header" }}
-  <div class="article">
+  <div class="article" onmousedown="articleClick(event)">
     <h1 class="article-title">
       {{ .Title }}
     </h1>
-    <div class="article-content" id="article_content">
-    </div>
+    <div class="article-content" id="article_content"></div>
+    <div class="article-outline" id="article_outline"></div>
     <script>
-      Vditor.preview(article_content, {{ .Detail.Content }})
+      Vditor.preview(document.getElementById("article_content"), {{ .Detail.Content }}, {
+        anchor: 1,
+        after: function () {
+          Vditor.outlineRender(document.getElementById("article_content"), document.getElementById("article_outline"));
+          initOutline();
+        }
+      })
     </script>
   </div>
   {{ template "footer" }}
 </body>
+
+<script type="text/javascript">
+  function articleClick(e) {
+    if (e.target.tagName == "IMG") {
+      Vditor.previewImage(e.target)
+    }
+  }
+
+  const initOutline = () => {
+    const headingElements = []
+    Array.from(document.getElementById("article_content").children).forEach((item) => {
+      if (item.tagName.length == 2 && item.tagName !== 'HR' && item.tagName.indexOf('H') === 0) {
+        headingElements.push(item)
+      }
+    })
+    let toc = []
+    window.addEventListener('scroll', () => {
+      const scrollTop = window.scrollY
+      toc = []
+      headingElements.forEach((item) => {
+        toc.push({
+          id: item.id,
+          offsetTop: item.offsetTop,
+        })
+      })
+
+      const currentElement = document.querySelector('.vditor-outline__item--current')
+      for (let i = 0, iMax = toc.length; i < iMax; i++) {
+        if (scrollTop < toc[i].offsetTop - 30) {
+          if (currentElement) {
+            currentElement.classList.remove('vditor-outline__item--current')
+          }
+          let index = i >0 ? i - 1 : 0
+          document.querySelector('span[data-target-id="' + toc[index].id + '"]').classList.add('vditor-outline__item--current')
+          break
+        }
+      }
+    })
+  }
+</script>
+
+</html>

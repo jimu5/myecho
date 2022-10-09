@@ -10,6 +10,11 @@ a {
     text-decoration: none;
 }
 
+hr {
+    height: 1px;
+    background-color: #e9e9e9;
+    border: 0px;
+}
 
 /* index */
 .index-content {
@@ -17,13 +22,15 @@ a {
     max-width: 800px;
 }
 
-/* article */
+
+/* articles */
 .article {
     margin: auto;
     margin-top: -80px;
     padding: 0 20px 20px 20px;
     max-width: 800px;
 }
+
 .article-title {
     margin-top: 60px;
     text-align: center;
@@ -37,13 +44,16 @@ header {
     padding: 0 80px;
     top: 0;
 }
+
 #nav {
     float: right;
 }
+
 #nav ul li {
     float: left;
     list-style: none;
 }
+
 #nav ul li a {
     display: block;
     margin-left: 40px;
@@ -71,8 +81,9 @@ footer {
     display: block;
     max-width: 720px;
     margin: auto;
-    margin-top: 20px;
+    margin-top: 45px;
 }
+
 .article-block h2 {
     font-weight: 600;
     font-size: 22px;
@@ -80,18 +91,39 @@ footer {
     overflow-wrap: break-word;
     color: var(--font-color)
 }
+
 .article-block-summary {
     font-size: 17px;
     line-height: 27px;
-    height: 115px;
+    max-height: 300px;
+    padding-bottom: 20px;
     color: var(--font-color);
 }
+
 .article-block-actions {
     height: 20px;
 }
+
 .article-block-actions a {
-    color: rgb(86,59,218);
+    color: rgb(86, 59, 218);
     font-weight: 600;
+}
+
+.article-outline {
+    display: block;
+    position: fixed;
+    width: 186px;
+    top: 64px;
+    right: 20px;
+    bottom: 20px;
+    overflow: auto;
+    font-size: 12px;
+    border-left: 1px solid var(--border-color);
+    border-right: 0;
+    --border-color: #eee;
+    --toolbar-icon-hover-color: #4285f4;
+    --textarea-text-color: #616161;
+    --hover-background-color: #f6f8fa;
 }
 
 
@@ -99,4 +131,95 @@ footer {
 .pagination {
     text-align: center;
     height: 80px;
+}
+
+
+/* 移动适配 */
+@media screen and (max-width: 720px) {
+
+    /* index */
+    .index-content {
+        padding: 35px;
+        margin-top: -100px;
+        width: auto;
+    }
+
+    /* header */
+    header {
+        padding: 0px;
+        height: 100px;
+    }
+
+    #nav {
+        position: fixed;
+        left: 15px;
+        top: 20px;
+    }
+
+    #nav:before {
+        content: '\2630';
+        font-size: 20px;
+        color: #323232;
+        cursor: pointer;
+    }
+
+    #nav ul {
+        background-color: #404040;
+        width: 100%;
+        text-align: center;
+        margin: 0 auto;
+        padding-left: 0px;
+    }
+
+    #nav ul {
+        display: block;
+        height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: 500ms ease-in-out;
+        -moz-transition: 500ms ease-in-out;
+        -webkit-transition: 500ms ease-in-out;
+        -ms-transition: 500ms ease-in-out;
+        -o-transition: 500ms ease-in-out;
+        transform: perspective(0) rotate3d(0, 0, 0, 0);
+        -moz-transform: perspective(0) rotate3d(1, 0, 0, -90deg);
+        -ms-transform: perspective(0) rotate3d(0, 0, 0, 0);
+        -o-transform: perspective(0) rotate3d(0, 0, 0, 0);
+        -webkit-transform: perspective(0) rotate3d(1, 0, 0, -90deg);
+        transform-origin: 100% 0%;
+        -moz-transform-origin: 100% 0%;
+        -webkit-transform-origin: 100% 0%;
+        -ms-transform-origin: 100% 0%;
+        -o-transform-origin: 100% 0%;
+    }
+
+    #nav.open ul {
+        position: fixed;
+        width: 100%;
+        left: 0px;
+        height: auto;
+        opacity: 1;
+        transform: translateY(8px);
+        -ms-transform: translateY(8px);
+        -o-transform: translateY(8px);
+        -moz-transform: translateY(8px);
+        -webkit-transform: translateY(8px);
+    }
+
+    #nav ul li {
+        float: none;
+    }
+
+    #nav ul li a {
+        line-height: 60px;
+        margin: 0;
+        color: #fff;
+        z-index: 10;
+        height: 60px;
+        transition: 500ms ease;
+        -moz-transition: 500ms ease;
+        -webkit-transition: 500ms ease;
+        -ms-transition: 500ms ease;
+        -o-transition: 500ms ease;
+    }
 }

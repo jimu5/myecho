@@ -1,7 +1,7 @@
 {{ define "header"}}
 <header>
-  <div>
-    <nav id="nav">
+  <div style="height: 100%;">
+    <nav id="nav" onclick="navOnclick(this)">
       <ul>
         <li>
           <a href="/">主页</a>
@@ -13,4 +13,13 @@
     </nav>
   </div>
 </header>
+<script>
+  const navOnclick = (elem) => {
+    if (elem.className == "open") {
+      elem.removeAttribute("class")
+    } else {
+      elem.className = "open"
+    }
+  }
+</script>
 {{ end }}
