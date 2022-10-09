@@ -2,6 +2,7 @@ package view
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"myecho/config"
 	"myecho/dal/mysql"
 	"net/url"
 	"strconv"
@@ -34,8 +35,10 @@ func getPageInfoRespByMysqlPageInfo(c *fiber.Ctx, pageInfoMysql *mysql.PageInfo)
 	if len(rawURL) <= 1 {
 		// 没有参数, 默认的查询
 		values, _ = url.ParseQuery("")
-		values.Set("page", "2")
-		pageInfoResp.Next = genRawUrl(rawURL[0], values.Encode())
+		if pageInfoMysql.Total > config.PageSize {
+			values.Set("page", "2")
+			pageInfoResp.Next = genRawUrl(rawURL[0], values.Encode())
+		}
 		return pageInfoResp
 	}
 	// 有参数的情况
