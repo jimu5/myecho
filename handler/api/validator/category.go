@@ -16,8 +16,19 @@ func ValidateCategoryID(categoryID uint) error {
 		return errors.ErrCategoryNotFound
 	}
 	return nil
-
 }
+
+func ValidateCategoryUUID(uuid string) error {
+	if len(uuid) == 0 {
+		return nil
+	}
+	err := connect.Database.Where("uuid = ?", uuid).First(&model.Category{}).Error
+	if err != nil {
+		return errors.ErrCategoryNotFound
+	}
+	return nil
+}
+
 func ValidateCategoryCreate(req *rtype.CategoryCreateRequest) error {
 	if req.Name == "" {
 		return errors.ErrCategoryNameEmpty

@@ -27,7 +27,7 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 		return err
 	}
 	article := new(mysql.ArticleModel)
-	if err := handler.DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return api.NotFoundErrorResponse(c, err.Error())
 	}
 	queryParam.ID = article.ID

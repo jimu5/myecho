@@ -19,6 +19,21 @@ func ValidateTagIDs(tagIDs []uint) error {
 	return nil
 }
 
+func ValidateTagUUIDs(tagUUIDs []string) error {
+	if len(tagUUIDs) == 0 {
+		return nil
+	}
+	var counts int64
+	err := connect.Database.Model(&model.Tag{}).Where("uuid in (?)", tagUUIDs).Count(&counts).Error
+	if err != nil {
+		return err
+	}
+	if int64(len(tagUUIDs)) != counts {
+		return errors.ErrTagNotFound
+	}
+	return nil
+}
+
 func ValidateTagRequest(tagRequest *rtype.TagRequest) error {
 	if len(tagRequest.Name) == 0 {
 		return errors.ErrTagNameEmpty

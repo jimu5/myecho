@@ -19,12 +19,12 @@ func CommentCreate(c *fiber.Ctx) error {
 	if err := validator.ValidateCommentRequest(&res); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
-	if err := handler.DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 
 	var comment model.Comment
-	comment.ArticleID = article.ID
+	comment.ArticleUUID = article.UUID
 	structAssign(&comment, &res)
 	if c.Locals("user") != nil {
 		comment.UserID = c.Locals("user").(*model.User).ID
@@ -57,7 +57,7 @@ func ArticleCommentList(c *fiber.Ctx) error {
 	var comments []rtype.CommentResponse
 	var article model.Article
 	// 校验
-	if err := handler.DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	connect.Database.Table("comments").Where("article_id = ?", article.ID).Find(&comments)

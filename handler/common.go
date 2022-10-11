@@ -21,7 +21,7 @@ func PaginateData(c *fiber.Ctx, total int64, data interface{}) error {
 	return c.Status(200).JSON(Pagination{Total: total, Data: data})
 }
 
-func DetailPreHandle[T any](c *fiber.Ctx, model *T) error {
+func DetailPreHandleByParam[T any](c *fiber.Ctx, model *T) error {
 	id := c.Params("id")
 	idInt, err := strconv.Atoi(id)
 	if err != nil || idInt <= 0 {

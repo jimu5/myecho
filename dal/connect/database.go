@@ -21,10 +21,10 @@ func ConnectDB() {
 		&model.User{},
 		&model.ArticleDetail{},
 		&model.Category{},
-		&model.Article{},
-		&model.Comment{},
 		&model.Tag{},
+		&model.Comment{},
 		&model.File{},
+		&model.Article{},
 	)
 	if err != nil {
 		panic(err)

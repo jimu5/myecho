@@ -2,6 +2,7 @@ package rtype
 
 import (
 	"myecho/model"
+	"myecho/utils"
 	"time"
 )
 
@@ -13,13 +14,13 @@ type ArticleRequest struct {
 	Title          string    `json:"title"`
 	Summary        string    `json:"summary"`
 	Content        string    `json:"content"`
-	CategoryID     uint      `json:"category_id"`
+	CategoryUUID   string    `json:"category_uuid"`
 	IsAllowComment *bool     `json:"is_allow_comment"`
 	PostTime       time.Time `json:"post_time"`
 	Status         int8      `json:"status"`
 	Visibility     int8      `json:"visibility"`
 	Password       string    `json:"password"`
-	TagIDs         []uint    `json:"tag_ids"`
+	TagUUIDs       []string  `json:"tag_uuids"`
 }
 
 func (a *ArticleRequest) SetSummary() {
@@ -30,6 +31,9 @@ func (a *ArticleRequest) SetSummary() {
 	} else {
 		a.Summary = a.Content
 	}
+}
+func (a *ArticleRequest) PreHandle() {
+	a.TagUUIDs = utils.GetDuplicateSlice(a.TagUUIDs)
 }
 
 type User struct {
@@ -48,9 +52,9 @@ type ArticleResponse struct {
 	Author         *User                `json:"author"`
 	Title          string               `json:"title"`
 	Summary        string               `json:"summary"`
-	DetailID       uint                 `json:"-"`
+	DetailUUID     string               `json:"-"`
 	Detail         *model.ArticleDetail `json:"detail"`
-	CategoryID     uint                 `json:"category_id"`
+	CategoryUUID   string               `json:"category_uuid"`
 	Category       *Category            `json:"category"`
 	IsAllowComment *bool                `json:"is_allow_comment"`
 	ReadCount      uint                 `json:"read_count"`
@@ -92,9 +96,9 @@ func ModelToArticleResponse(article *model.Article) *ArticleResponse {
 		Author:         ModelToUser(article.Author),
 		Title:          article.Title,
 		Summary:        article.Summary,
-		DetailID:       article.DetailID,
+		DetailUUID:     article.DetailUUID,
 		Detail:         article.Detail,
-		CategoryID:     article.CategoryID,
+		CategoryUUID:   article.CategoryUUID,
 		Category:       ModelToCategory(article.Category),
 		IsAllowComment: article.IsAllowComment,
 		ReadCount:      article.ReadCount,

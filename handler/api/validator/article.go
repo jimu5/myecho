@@ -16,10 +16,10 @@ func ValidateArticleRequest(articleRequest *rtype.ArticleRequest) error {
 	if articleRequest.PostTime.IsZero() {
 		articleRequest.PostTime = time.Now()
 	}
-	if err := ValidateCategoryID(articleRequest.CategoryID); err != nil {
+	if err := ValidateCategoryUUID(articleRequest.CategoryUUID); err != nil {
 		return err
 	}
-	if err := ValidateTagIDs(articleRequest.TagIDs); err != nil {
+	if err := ValidateTagUUIDs(articleRequest.TagUUIDs); err != nil {
 		return err
 	}
 	return nil

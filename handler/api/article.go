@@ -86,7 +86,7 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 	if err = c.QueryParser(&queryParam); err != nil {
 		return err
 	}
-	if err = handler.DetailPreHandle(c, &article); err != nil {
+	if err = handler.DetailPreHandleByParam(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	queryParam.ID = article.ID
@@ -104,6 +104,7 @@ func ArticleCreate(c *fiber.Ctx) error {
 	if err := c.BodyParser(&r); err != nil {
 		return ParseErrorResponse(c, err.Error())
 	}
+	r.PreHandle()
 	// 校验
 	err := validator.ValidateArticleRequest(&r)
 	if err != nil {
@@ -117,7 +118,11 @@ func ArticleCreate(c *fiber.Ctx) error {
 	article.AuthorID = user.ID
 	article.Author = user
 
-	article.Tags = getTags(r.TagIDs)
+	tags, err := getTagsByUUID(r.TagUUIDs)
+	if err != nil {
+		return err
+	}
+	article.Tags = tags
 
 	err = dal.MySqlDB.Article.Create(&article)
 	if err != nil {
@@ -134,8 +139,9 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	if err := c.BodyParser(&r); err != nil {
 		return ParseErrorResponse(c, err.Error())
 	}
+	r.PreHandle()
 	// 校验
-	if err := handler.DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	if err := validator.ValidateArticleRequest(&r); err != nil {
@@ -145,14 +151,17 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	r.SetSummary()
 	structAssign(&article, &r)
 	article.Detail = &model.ArticleDetail{Content: r.Content}
-	tags := getTags(r.TagIDs)
+	tags, err := getTagsByUUID(r.TagUUIDs)
+	if err != nil {
+		return err
+	}
 	article.Tags = tags
 
 	if err := dal.MySqlDB.Article.Update(&article); err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
 	//config.Database.Debug().Model(&article).Omit("User").Updates(&article)
-	article, err := dal.MySqlDB.Article.FindByID(article.ID)
+	article, err = dal.MySqlDB.Article.FindByID(article.ID)
 	if err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
@@ -163,7 +172,7 @@ func ArticleUpdate(c *fiber.Ctx) error {
 // 删除文章
 func ArticleDelete(c *fiber.Ctx) error {
 	var article model.Article
-	if err := handler.DetailPreHandle(c, &article); err != nil {
+	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	if err := dal.MySqlDB.Article.DeleteByID(article.ID); err != nil {
@@ -172,16 +181,9 @@ func ArticleDelete(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func getTags(tagIDs []uint) []*model.Tag {
-	if len(tagIDs) == 0 {
-		return nil
+func getTagsByUUID(tagUUIDs []string) ([]*model.Tag, error) {
+	if len(tagUUIDs) == 0 {
+		return nil, nil
 	}
-	tags := make([]*model.Tag, len(tagIDs))
-	for i, id := range tagIDs {
-		tag := &model.Tag{}
-		tag.ID = id
-		tags[i] = tag
-	}
-	FindTags(tags)
-	return tags
+	return FindTagsByUUID(tagUUIDs)
 }

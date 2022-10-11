@@ -40,7 +40,7 @@ func TagUpdate(c *fiber.Ctx) error {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	var tag model.Tag
-	if err := handler.DetailPreHandle(c, &tag); err != nil {
+	if err := handler.DetailPreHandleByParam(c, &tag); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	tag.Name = req.Name
@@ -50,7 +50,7 @@ func TagUpdate(c *fiber.Ctx) error {
 
 func TagDelete(c *fiber.Ctx) error {
 	var tag model.Tag
-	if err := handler.DetailPreHandle(c, &tag); err != nil {
+	if err := handler.DetailPreHandleByParam(c, &tag); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	connect.Database.Table("tags").Delete(&tag)
@@ -64,4 +64,10 @@ func deleteAlterDelete(tag *model.Tag) {
 
 func FindTags(tags []*model.Tag) {
 	connect.Database.Table("tags").Find(&tags)
+}
+
+func FindTagsByUUID(uuids []string) ([]*model.Tag, error) {
+	result := make([]*model.Tag, 0)
+	err := connect.Database.Model(&model.Tag{}).Where("uuid in (?)", uuids).Find(&result).Error
+	return result, err
 }
