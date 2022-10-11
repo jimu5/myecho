@@ -5,7 +5,7 @@ import "time"
 // 评论
 type Comment struct {
 	BaseModel
-	ArticleUUID string    `json:"-" gorm:"size:64"`
+	ArticleUUID string    `json:"-" gorm:"size:20;index"`
 	AuthorName  string    `json:"author_name" gorm:"size:64"`
 	AuthorEmail string    `json:"author_email" gorm:"size:64"`
 	AuthorIP    string    `json:"author_ip" gorm:"size:16"`

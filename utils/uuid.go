@@ -17,7 +17,7 @@ func getRandomString(n int) string {
 }
 
 func GenUID20() string {
-	t := time.Now().UnixMicro() // ms 13位
-	tStr := strconv.FormatInt(t, 10)
+	t := time.Now().UnixMicro()      // ms 16位
+	tStr := strconv.FormatInt(t, 16) // 13位
 	return getRandomString(7) + tStr
 }

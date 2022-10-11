@@ -11,7 +11,7 @@ import (
 type Category struct {
 	BaseModel
 	Name     string    `json:"name" gorm:"size:64"`
-	UUID     string    `json:"uuid" gorm:"size:64"`
+	UUID     string    `json:"uuid" gorm:"size:20;index"`
 	FatherID *uint     `json:"father_id" gorm:"default:null"`
 	Father   *Category `json:"father"`
 	Count    uint      `json:"count"`
@@ -20,14 +20,14 @@ type Category struct {
 // 文章详情
 type ArticleDetail struct {
 	ID      uint   `gorm:"primarykey"`
-	UUID    string `json:"uuid" gorm:"size:16"`
+	UUID    string `json:"uuid" gorm:"size:64;index"`
 	Content string `json:"content" gorm:"type:longtext"`
 }
 
 // 文章
 type Article struct {
 	BaseModel
-	UUID           string         `json:"uuid" gorm:"size:64"`
+	UUID           string         `json:"uuid" gorm:"size:20;index"`
 	AuthorID       uint           `json:"author_id" gorm:"default:null"`
 	Author         *User          `json:"author"`
 	Title          string         `json:"title" gorm:"size:128"`
@@ -36,7 +36,7 @@ type Article struct {
 	LikeCount      int            `json:"like_count" gorm:"default:0"`
 	IsAllowComment *bool          `json:"is_allow_comment" gorm:"default:true"`
 	CommentCount   uint           `json:"comment_count" gorm:"default:0"`
-	CategoryUUID   string         `json:"category_uuid" gorm:"default:null"`
+	CategoryUUID   string         `json:"category_uuid" gorm:"size:20"`
 	Category       *Category      `json:"category" gorm:"foreignKey:UUID"`
 	DetailUUID     string         `json:"detail_uuid" gorm:"size:64"`
 	Detail         *ArticleDetail `json:"detail" gorm:"foreignKey:UUID"`
