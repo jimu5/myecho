@@ -70,6 +70,7 @@ func (article *Article) BeforeCreate(tx *gorm.DB) error {
 			article.Detail.UUID = article.UUID + "_" + uuid
 		}
 	}
+	// TODO: 根据文章内容生成统计信息 https://github.com/mdigger/goldmark-stats info.Chars, info.Duration(400), 使用协程加版本锁
 	return nil
 }
 

@@ -1,6 +1,8 @@
 package rtype
 
 import (
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/text"
 	"myecho/model"
 	"myecho/utils"
 	"time"
@@ -24,12 +26,15 @@ type ArticleRequest struct {
 }
 
 func (a *ArticleRequest) SetSummary() {
+	strByte := []byte(a.Content)
+	originDoc := goldmark.DefaultParser().Parse(text.NewReader(strByte))
+	parseContent := originDoc.Text(strByte)
 	// 转换 rune 类型, 用于处理中文
-	runeStr := []rune(a.Content)
+	runeStr := []rune(string(parseContent))
 	if len(runeStr) > 255 {
 		a.Summary = string(runeStr[:255])
 	} else {
-		a.Summary = a.Content
+		a.Summary = string(parseContent)
 	}
 }
 func (a *ArticleRequest) PreHandle() {
