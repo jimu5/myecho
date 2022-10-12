@@ -21,7 +21,7 @@ type Category struct {
 type ArticleDetail struct {
 	ID      uint   `gorm:"primarykey"`
 	UUID    string `json:"uuid" gorm:"size:64;index"`
-	Content string `json:"content" gorm:"type:longtext"`
+	Content string `json:"content" gorm:"type:text"`
 }
 
 // 文章
