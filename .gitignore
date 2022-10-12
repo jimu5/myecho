@@ -29,5 +29,6 @@ test.db
 myecho
 myecho.exe
 storage
-
+config.yaml
 bin
+myecho.db

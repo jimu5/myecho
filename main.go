@@ -21,6 +21,7 @@ var (
 
 func main() {
 	flag.Parse()
+	config.ReadYAMLConfig()
 	app := fiber.New(fiber.Config{
 		Prefork:   *prod,
 		BodyLimit: 1024 * 1024 * 1024,
