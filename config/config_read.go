@@ -6,7 +6,8 @@ import (
 )
 
 type YAMLConfig struct {
-	Database *Database `yaml:"database"`
+	Database  *Database  `yaml:"database"`
+	APPConfig *APPConfig `yaml:"app_config"`
 }
 
 type Database struct {
@@ -16,6 +17,10 @@ type Database struct {
 	User     string `yaml:"user"`
 	Password string `yaml:"password"`
 	DBName   string `yaml:"db_name"`
+}
+
+type APPConfig struct {
+	AllowRegister bool `yaml:"allow_register"`
 }
 
 var Yaml YAMLConfig

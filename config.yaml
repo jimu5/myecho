@@ -5,3 +5,5 @@ database:
   user: admin
   password: admin
   db_name: myecho
+app_config:
+  allow_register: true

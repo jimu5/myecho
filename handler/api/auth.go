@@ -3,6 +3,7 @@ package api
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"myecho/config"
 	"myecho/dal/connect"
 	"myecho/handler/api/validator"
 	"myecho/handler/rtype"
@@ -45,6 +46,9 @@ func Login(c *fiber.Ctx) error {
 
 // 注册
 func Register(c *fiber.Ctx) error {
+	if !config.Yaml.APPConfig.AllowRegister {
+		return LoginErrorResponse(c, CanNotRegister)
+	}
 	var r rtype.RegisterRequest
 	var res rtype.RegisterResponse
 	if err := c.BodyParser(&r); err != nil {

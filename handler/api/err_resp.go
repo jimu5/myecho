@@ -16,6 +16,7 @@ const (
 const (
 	LoginErrorMsg        = "账号或密码错误"
 	UnauthorizedErrorMsg = "未登录"
+	CanNotRegister       = "禁止注册"
 )
 
 type Error struct {
