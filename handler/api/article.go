@@ -118,7 +118,7 @@ func ArticleCreate(c *fiber.Ctx) error {
 	article.AuthorID = user.ID
 	article.Author = user
 
-	tags, err := getTagsByUUID(r.TagUUIDs)
+	tags, err := getTagsByUID(r.TagUIDs)
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	r.SetSummary()
 	structAssign(&article, &r)
 	article.Detail = &model.ArticleDetail{Content: r.Content}
-	tags, err := getTagsByUUID(r.TagUUIDs)
+	tags, err := getTagsByUID(r.TagUIDs)
 	if err != nil {
 		return err
 	}
@@ -181,9 +181,9 @@ func ArticleDelete(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func getTagsByUUID(tagUUIDs []string) ([]*model.Tag, error) {
-	if len(tagUUIDs) == 0 {
+func getTagsByUID(tagUIDs []string) ([]*model.Tag, error) {
+	if len(tagUIDs) == 0 {
 		return nil, nil
 	}
-	return FindTagsByUUID(tagUUIDs)
+	return FindTagsByUID(tagUIDs)
 }

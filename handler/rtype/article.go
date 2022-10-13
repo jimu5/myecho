@@ -16,13 +16,13 @@ type ArticleRequest struct {
 	Title          string    `json:"title"`
 	Summary        string    `json:"summary"`
 	Content        string    `json:"content"`
-	CategoryUUID   string    `json:"category_uuid"`
+	CategoryUID    string    `json:"category_uid"`
 	IsAllowComment *bool     `json:"is_allow_comment"`
 	PostTime       time.Time `json:"post_time"`
 	Status         int8      `json:"status"`
 	Visibility     int8      `json:"visibility"`
 	Password       string    `json:"password"`
-	TagUUIDs       []string  `json:"tag_uuids"`
+	TagUIDs        []string  `json:"tag_uids"`
 }
 
 func (a *ArticleRequest) SetSummary() {
@@ -38,7 +38,7 @@ func (a *ArticleRequest) SetSummary() {
 	}
 }
 func (a *ArticleRequest) PreHandle() {
-	a.TagUUIDs = utils.GetDuplicateSlice(a.TagUUIDs)
+	a.TagUIDs = utils.GetDuplicateSlice(a.TagUIDs)
 }
 
 type User struct {
@@ -57,9 +57,9 @@ type ArticleResponse struct {
 	Author         *User                `json:"author"`
 	Title          string               `json:"title"`
 	Summary        string               `json:"summary"`
-	DetailUUID     string               `json:"-"`
+	DetailUID      string               `json:"-"`
 	Detail         *model.ArticleDetail `json:"detail"`
-	CategoryUUID   string               `json:"category_uuid"`
+	CategoryUID    string               `json:"category_uid"`
 	Category       *Category            `json:"category"`
 	IsAllowComment *bool                `json:"is_allow_comment"`
 	ReadCount      uint                 `json:"read_count"`
@@ -101,9 +101,9 @@ func ModelToArticleResponse(article *model.Article) *ArticleResponse {
 		Author:         ModelToUser(article.Author),
 		Title:          article.Title,
 		Summary:        article.Summary,
-		DetailUUID:     article.DetailUUID,
+		DetailUID:      article.DetailUID,
 		Detail:         article.Detail,
-		CategoryUUID:   article.CategoryUUID,
+		CategoryUID:    article.CategoryUID,
 		Category:       ModelToCategory(article.Category),
 		IsAllowComment: article.IsAllowComment,
 		ReadCount:      article.ReadCount,

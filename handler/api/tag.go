@@ -66,8 +66,8 @@ func FindTags(tags []*model.Tag) {
 	connect.Database.Table("tags").Find(&tags)
 }
 
-func FindTagsByUUID(uuids []string) ([]*model.Tag, error) {
+func FindTagsByUID(uids []string) ([]*model.Tag, error) {
 	result := make([]*model.Tag, 0)
-	err := connect.Database.Model(&model.Tag{}).Where("uuid in (?)", uuids).Find(&result).Error
+	err := connect.Database.Model(&model.Tag{}).Where("uid in (?)", uids).Find(&result).Error
 	return result, err
 }

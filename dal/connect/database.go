@@ -21,9 +21,9 @@ func ConnectDB() {
 	}
 	err = Database.AutoMigrate(
 		&model.User{},
-		&model.ArticleDetail{},
-		&model.Category{},
 		&model.Tag{},
+		&model.Category{},
+		&model.ArticleDetail{},
 		&model.Comment{},
 		&model.File{},
 		&model.Article{},

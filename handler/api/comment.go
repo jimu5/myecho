@@ -24,7 +24,7 @@ func CommentCreate(c *fiber.Ctx) error {
 	}
 
 	var comment model.Comment
-	comment.ArticleUUID = article.UUID
+	comment.ArticleUID = article.UID
 	structAssign(&comment, &res)
 	if c.Locals("user") != nil {
 		comment.UserID = c.Locals("user").(*model.User).ID

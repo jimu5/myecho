@@ -18,11 +18,11 @@ func ValidateCategoryID(categoryID uint) error {
 	return nil
 }
 
-func ValidateCategoryUUID(uuid string) error {
-	if len(uuid) == 0 {
+func ValidateCategoryUID(uid string) error {
+	if len(uid) == 0 {
 		return nil
 	}
-	err := connect.Database.Where("uuid = ?", uuid).First(&model.Category{}).Error
+	err := connect.Database.Where("uid = ?", uid).First(&model.Category{}).Error
 	if err != nil {
 		return errors.ErrCategoryNotFound
 	}
@@ -33,8 +33,8 @@ func ValidateCategoryCreate(req *rtype.CategoryCreateRequest) error {
 	if req.Name == "" {
 		return errors.ErrCategoryNameEmpty
 	}
-	if req.FatherID != nil {
-		if err := ValidateCategoryID(*req.FatherID); err != nil {
+	if req.FatherUID != nil {
+		if err := ValidateCategoryUID(*req.FatherUID); err != nil {
 			return err
 		}
 	}

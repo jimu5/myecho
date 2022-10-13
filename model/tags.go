@@ -8,12 +8,12 @@ import (
 type Tag struct {
 	BaseModel
 	Name string `json:"name" gorm:"size:64"`
-	UUID string `json:"uuid" gorm:"size:20"`
+	UID  string `json:"uid" gorm:"size:20"`
 }
 
 func (tag *Tag) BeforeCreate(tx *gorm.DB) error {
-	if len(tag.UUID) == 0 {
-		tag.UUID = utils.GenUID20()
+	if len(tag.UID) == 0 {
+		tag.UID = utils.GenUID20()
 	}
 	return nil
 }

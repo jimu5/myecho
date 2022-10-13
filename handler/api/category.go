@@ -24,8 +24,9 @@ func CategoryCreate(c *fiber.Ctx) error {
 		return nil
 	}
 	category := model.Category{
-		Name:     req.Name,
-		FatherID: req.FatherID}
+		Name:      req.Name,
+		FatherUID: req.FatherUID,
+	}
 	connect.Database.Table("categories").Create(&category)
 	return c.Status(fiber.StatusCreated).JSON(&category)
 }
