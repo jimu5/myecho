@@ -156,7 +156,7 @@ func ArticleUpdate(c *fiber.Ctx) error {
 		return err
 	}
 	article.Tags = tags
-
+	// TODO: content id 为0的情况
 	if err := dal.MySqlDB.Article.Update(&article); err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}

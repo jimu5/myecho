@@ -36,13 +36,13 @@ type Article struct {
 	IsAllowComment *bool          `json:"is_allow_comment" gorm:"default:true"`
 	CommentCount   uint           `json:"comment_count" gorm:"default:0"`
 	CategoryUID    string         `json:"category_uid" gorm:"size:20"`
-	Category       *Category      `json:"category" gorm:"foreignKey:UID"`
+	Category       *Category      `json:"category" gorm:"foreignKey:UID;references:category_uid"`
 	DetailUID      string         `json:"detail_uid" gorm:"size:64"`
-	Detail         *ArticleDetail `json:"detail" gorm:"foreignKey:UID"`
+	Detail         *ArticleDetail `json:"detail" gorm:"foreignKey:UID;references:detail_uid"`
 	PostTime       time.Time      `json:"post_time"`
 	Status         int8           `json:"status" gorm:"default:1"` //  1:公开 2: 置顶 3: 私密 4: 草稿 5: 等待复审 6: 回收站
 	Password       string         `json:"-" gorm:"default:null"`
-	Tags           []*Tag         `gorm:"many2many:article_tags;foreignKey:UID;References:UID;"`
+	Tags           []*Tag         `gorm:"many2many:article_tags;foreignKey:UID;references:UID;"`
 }
 
 func (articleDetail *ArticleDetail) BeforeCreate(tx *gorm.DB) error {

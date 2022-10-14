@@ -20,9 +20,9 @@ func ConnectDB() {
 		panic(err)
 	}
 	err = Database.AutoMigrate(
+		&model.Category{},
 		&model.User{},
 		&model.Tag{},
-		&model.Category{},
 		&model.ArticleDetail{},
 		&model.Comment{},
 		&model.File{},
