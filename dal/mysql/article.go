@@ -52,7 +52,7 @@ func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryP
 }
 
 func (a *ArticleDBRepo) Create(article *model.Article) error {
-	return db.Model(&ArticleModel{}).Preload(clause.Associations).Create(article).Error
+	return db.Debug().Model(&ArticleModel{}).Create(article).Error
 }
 
 func (a *ArticleDBRepo) PageFindAll(param *PageFindParam, _ *struct{}) ([]*ArticleModel, error) {

@@ -11,7 +11,7 @@ import (
 type Category struct {
 	BaseModel
 	Name      string  `json:"name" gorm:"size:64"`
-	UID       string  `json:"uid" gorm:"size:20;"`
+	UID       string  `json:"uid" gorm:"size:20"`
 	FatherUID *string `json:"father_uid" gorm:"default:null"`
 	Count     uint    `json:"count"`
 }
@@ -36,9 +36,9 @@ type Article struct {
 	IsAllowComment *bool          `json:"is_allow_comment" gorm:"default:true"`
 	CommentCount   uint           `json:"comment_count" gorm:"default:0"`
 	CategoryUID    string         `json:"category_uid" gorm:"size:20"`
-	Category       *Category      `json:"category" gorm:"foreignKey:UID;references:category_uid"`
+	Category       *Category      `json:"category" gorm:"foreignKey:category_uid;references:uid"`
 	DetailUID      string         `json:"detail_uid" gorm:"size:64"`
-	Detail         *ArticleDetail `json:"detail" gorm:"foreignKey:UID;references:detail_uid"`
+	Detail         *ArticleDetail `json:"detail" gorm:"foreignKey:detail_uid;references:uid"`
 	PostTime       time.Time      `json:"post_time"`
 	Status         int8           `json:"status" gorm:"default:1"` //  1:公开 2: 置顶 3: 私密 4: 草稿 5: 等待复审 6: 回收站
 	Password       string         `json:"-" gorm:"default:null"`
