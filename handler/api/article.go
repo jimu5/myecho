@@ -24,8 +24,8 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 }
 
 type ArticleAllListQueryParam struct {
-	CategoryID *uint                `query:"category_id"`
-	Status     *mysql.ArticleStatus `query:"status"`
+	CategoryUID *string              `query:"category_uid"`
+	Status      *mysql.ArticleStatus `query:"status"`
 }
 
 func ArticleAllList(c *fiber.Ctx) error {
@@ -38,7 +38,7 @@ func ArticleAllList(c *fiber.Ctx) error {
 		return err
 	}
 	sqlCommonParam := mysql.ArticleCommonQueryParam{
-		CategoryID: queryParam.CategoryID,
+		CategoryUID: queryParam.CategoryUID,
 	}
 	topStatus := mysql.ARTICLE_STATUS_TOP
 	if queryParam.Status != nil {

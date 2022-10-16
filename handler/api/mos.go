@@ -1,6 +1,7 @@
 package api
 
 import (
+	"crypto/tls"
 	"github.com/gofiber/fiber/v2"
 	"io"
 	"log"
@@ -13,6 +14,10 @@ import (
 	"os"
 	"path"
 )
+
+var httpClient = &http.Client{
+	Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
+}
 
 func UploadFile(c *fiber.Ctx) error {
 	form, err := c.MultipartForm()
@@ -58,7 +63,7 @@ func SaveLinkUrlFile(c *fiber.Ctx) error {
 	}
 	defer out.Close()
 
-	resp, err := http.Get(reqBody.Url)
+	resp, err := httpClient.Get(reqBody.Url)
 	if err != nil {
 		return err
 	}

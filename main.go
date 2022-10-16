@@ -23,15 +23,17 @@ func main() {
 	flag.Parse()
 	config.ReadYAMLConfig()
 	app := fiber.New(fiber.Config{
-		Prefork:   *prod,
-		BodyLimit: 1024 * 1024 * 1024,
-		Views:     html.New("./views", ".html"),
+		Prefork:           *prod,
+		BodyLimit:         1024 * 1024 * 1024,
+		Views:             html.New("./views", ".html"),
+		PassLocalsToViews: true, // 开启这个设置，将 ctx 里面的变量传递给模板
 	})
 	connect.ConnectDB()
 	mysql.InitDB()
 	app.Use(recover.New(recover.Config{
 		EnableStackTrace: true,
 	}))
+	app.Use(middleware.MWRequestTimeCost)
 	app.Use(logger.New())
 	app.Static("/admin", "./static/admin")
 	app.Static("/static", "./views/static")

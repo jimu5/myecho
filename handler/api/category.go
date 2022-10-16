@@ -11,7 +11,7 @@ import (
 
 func CategoryAll(c *fiber.Ctx) error {
 	var res []model.Category
-	connect.Database.Table("categories").Find(&res)
+	connect.Database.Table("categories").Order("id").Find(&res)
 	return c.JSON(&res)
 }
 

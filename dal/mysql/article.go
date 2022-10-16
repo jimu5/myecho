@@ -26,8 +26,8 @@ const (
 )
 
 type ArticleCommonQueryParam struct {
-	CategoryID *uint
-	Status     *ArticleStatus
+	CategoryUID *string
+	Status      *ArticleStatus
 }
 
 type PageFindArticleByNotStatusParam struct {
@@ -38,10 +38,10 @@ func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryP
 	SqlPrefix := make([]string, 0)
 	SqlValue := make([]interface{}, 0)
 	and := " AND "
-	if param.CategoryID != nil {
-		sql := "category_id = ?"
+	if param.CategoryUID != nil {
+		sql := "category_uid = ?"
 		SqlPrefix = append(SqlPrefix, sql)
-		SqlValue = append(SqlValue, *param.CategoryID)
+		SqlValue = append(SqlValue, *param.CategoryUID)
 	}
 	if param.Status != nil {
 		sql := "status = ?"

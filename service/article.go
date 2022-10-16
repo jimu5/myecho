@@ -24,8 +24,8 @@ func (a *Article) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql
 	status := mysql.ARTICLE_STATUS_TOP
 	pageInfo := mysql.PageInfo{}
 	sqlParam := mysql.ArticleCommonQueryParam{
-		CategoryID: param.CategoryID,
-		Status:     &status,
+		CategoryUID: param.CategoryUID,
+		Status:      &status,
 	}
 	total, err := dal.MySqlDB.Article.CountDisplayable()
 	if err != nil {

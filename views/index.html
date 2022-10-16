@@ -12,10 +12,10 @@
 <body>
   {{ template "header" }}
   <div class="index-content">
-    {{ template "articles" .Data}}
-    {{ template "pagination" .PageInfo}}
+    {{ template "articles" .Data.PageData}}
+    {{ template "pagination" .Data.PageInfo}}
   </div>
-  {{ template "footer" }}
+  {{ template "footer" .RequestTimeDuration }}
 </body>
 
 </html>

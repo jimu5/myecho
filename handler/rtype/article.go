@@ -9,7 +9,7 @@ import (
 )
 
 type ArticleDisplayListQueryParam struct {
-	CategoryID *uint `query:"category_id"`
+	CategoryUID *string `query:"category_uid"`
 }
 
 type ArticleRequest struct {

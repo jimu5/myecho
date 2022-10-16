@@ -18,7 +18,7 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 		return err
 	}
 	pageInfoResp := getPageInfoRespByMysqlPageInfo(c, &pageInfo)
-	return c.Render("index", Pagination{PageInfo: pageInfoResp, Data: data})
+	return c.Render("index", respToMap(Pagination{PageInfo: pageInfoResp, PageData: data}))
 }
 
 func ArticleRetrieve(c *fiber.Ctx) error {
@@ -35,5 +35,5 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.Render("article", res)
+	return c.Render("article", respToMap(res))
 }

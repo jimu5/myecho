@@ -17,7 +17,7 @@ type PageInfoResp struct {
 
 type Pagination struct {
 	PageInfo PageInfoResp `json:"page_info"`
-	Data     interface{}  `json:"data"`
+	PageData interface{}  `json:"page_data"`
 }
 
 func getPageInfoRespByMysqlPageInfo(c *fiber.Ctx, pageInfoMysql *mysql.PageInfo) PageInfoResp {
@@ -58,4 +58,10 @@ func getPageInfoRespByMysqlPageInfo(c *fiber.Ctx, pageInfoMysql *mysql.PageInfo)
 
 func genRawUrl(path, query string) string {
 	return path + "?" + query
+}
+
+func respToMap(data interface{}) fiber.Map {
+	return fiber.Map{
+		"Data": data,
+	}
 }
