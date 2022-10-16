@@ -27,6 +27,7 @@ hr {
 .article {
     margin: auto;
     margin-top: -80px;
+    margin-bottom: 120px;
     padding: 0 20px 20px 20px;
     max-width: 800px;
 }
@@ -230,11 +231,19 @@ footer {
 }
 
 
+@media screen and (max-width: 1240px) {
+    /* article */
+    .article-outline {
+        display: none;
+    }
+}
+
+
 /* lib */
 .vditor-img__img {
     text-align: center;
 }
 .vditor-img__img img {
-    max-width: 100%;
+    max-width: 95%;
     max-height: 100%;
 }
