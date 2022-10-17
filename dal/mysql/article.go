@@ -52,7 +52,7 @@ func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryP
 }
 
 func (a *ArticleDBRepo) Create(article *model.Article) error {
-	return db.Debug().Model(&ArticleModel{}).Create(article).Error
+	return db.Model(&ArticleModel{}).Create(article).Error
 }
 
 func (a *ArticleDBRepo) PageFindAll(param *PageFindParam, _ *struct{}) ([]*ArticleModel, error) {
@@ -87,9 +87,11 @@ func (a *ArticleDBRepo) CountAll(queryParam ArticleCommonQueryParam) (int64, err
 	return total, err
 }
 
-func (a *ArticleDBRepo) CountDisplayable() (int64, error) {
+func (a *ArticleDBRepo) CountDisplayable(queryParam ArticleCommonQueryParam) (int64, error) {
 	var total int64
-	err := db.Model(&ArticleModel{}).Where("status in (?)", []ArticleStatus{ARTICLE_STATUS_TOP, ARTILCE_STATUS_PUBLIC}).Count(&total).Error
+	queryParam.Status = nil
+	querySqlDB := a.preCreateQuerySQL(db.Model(&ArticleModel{}), queryParam)
+	err := querySqlDB.Where("status in (?)", []ArticleStatus{ARTICLE_STATUS_TOP, ARTILCE_STATUS_PUBLIC}).Count(&total).Error
 	return total, err
 }
 
