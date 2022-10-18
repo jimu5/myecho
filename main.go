@@ -36,8 +36,8 @@ func main() {
 		EnableStackTrace: true,
 	}))
 	app.Use(middleware.MWRequestTimeCost)
-	app.Use(cache.New(middleware.CacheConfig))
 	app.Use(logger.New())
+	app.Use(cache.New(middleware.CacheConfig))
 	app.Static("/admin", "./static/admin")
 	app.Static("/static", "./views/static")
 	app.Static("/mos", config.StorageRootPath)
