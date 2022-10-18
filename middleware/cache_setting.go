@@ -14,6 +14,9 @@ var CacheConfig = cache.Config{
 				return true
 			}
 		}
+		if path == "/status" {
+			return true
+		}
 		return false
 	},
 	Expiration: 5 * time.Second,
