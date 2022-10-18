@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
@@ -35,6 +36,7 @@ func main() {
 		EnableStackTrace: true,
 	}))
 	app.Use(middleware.MWRequestTimeCost)
+	app.Use(cache.New(middleware.CacheConfig))
 	app.Use(logger.New())
 	app.Static("/admin", "./static/admin")
 	app.Static("/static", "./views/static")
