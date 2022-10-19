@@ -7,13 +7,17 @@ var (
 )
 
 type MysqlDBRepo struct {
-	Article *mysql.ArticleDBRepo
-	File    *mysql.FileRepo
+	Article  *mysql.ArticleDBRepo
+	File     *mysql.FileRepo
+	Category *mysql.CategoryRepo
+	Setting  *mysql.SettingRepo
 }
 
 func NewMysqlDBRepo() MysqlDBRepo {
 	return MysqlDBRepo{
-		Article: &mysql.ArticleDBRepo{},
-		File:    &mysql.FileRepo{},
+		Article:  &mysql.ArticleDBRepo{},
+		File:     &mysql.FileRepo{},
+		Category: &mysql.CategoryRepo{},
+		Setting:  &mysql.SettingRepo{},
 	}
 }

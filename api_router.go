@@ -29,6 +29,9 @@ func SetupApiRouter(app *fiber.App) {
 			apiRoute.Patch("/tags/:id", mw.Authentication, api.TagUpdate)
 			apiRoute.Delete("/tags/:id", mw.Authentication, api.TagDelete)
 
+			apiRoute.Post("/settings", mw.Authentication, api.SettingCreate)
+			apiRoute.Patch("/settings/:key", mw.Authentication, api.SettingUpdate)
+
 			mos.Post("upload", mw.Authentication, api.UploadFile)
 			mos.Post("save_url_file", mw.Authentication, api.SaveLinkUrlFile)
 		}
@@ -47,6 +50,8 @@ func SetupApiRouter(app *fiber.App) {
 
 			noNeedAuth.Get("/articles/categories/all", api.CategoryAll)
 
+			noNeedAuth.Get("/settings/:key", api.SettingRetrieve)
+			noNeedAuth.Get("/settings", api.SettingAll)
 			noNeedAuth.Get("/tags/all", api.TagListAll)
 		}
 	}
