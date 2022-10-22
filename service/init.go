@@ -5,13 +5,13 @@ var (
 )
 
 type s struct {
-	Article Article
-	Setting Setting
+	Article ArticleService
+	Setting SettingService
 }
 
 func newService() s {
 	return s{
-		Article: Article{},
-		Setting: Setting{},
+		Article: ArticleService{},
+		Setting: SettingService{},
 	}
 }

@@ -7,6 +7,12 @@ type SettingRepo struct {
 
 type SettingModel = model.Setting
 
+const (
+	SettingModelTypeInt    = "int"
+	SettingModelTypeString = "string"
+	SettingModelTypeBool   = "bool"
+)
+
 func (s *SettingRepo) Create(setting *SettingModel) error {
 	return db.Create(setting).Error
 }

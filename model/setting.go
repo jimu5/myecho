@@ -7,9 +7,10 @@ import (
 
 type Setting struct {
 	BaseModel
-	Key   string `json:"key" gorm:"size:255"`
-	Value string `json:"value" gorm:"type:text"`
-	Type  string `json:"type" gorm:"size:20"`
+	Key    string `json:"key" gorm:"size:255"`
+	Value  string `json:"value" gorm:"type:text"`
+	Type   string `json:"type" gorm:"size:20"`
+	Cached bool   // 是否缓存到内存
 }
 
 func (s *Setting) BeforeCreate(tx *gorm.DB) error {

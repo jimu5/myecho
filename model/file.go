@@ -3,7 +3,7 @@ package model
 import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"myecho/config"
+	"myecho/config/static_config"
 	"myecho/utils"
 	"os"
 	"path/filepath"
@@ -50,7 +50,7 @@ func (f *File) GetTempSavePath() string {
 	if err != nil {
 		panic(err)
 	}
-	tempPath := filepath.Join(config.StorageTempPath, f.UUID)
+	tempPath := filepath.Join(static_config.StorageTempPath, f.UUID)
 	return tempPath + f.ExtensionName
 }
 
@@ -62,8 +62,8 @@ func (f *File) GetUrlPath() string {
 	if err != nil {
 		panic(err)
 	}
-	uPath := filepath.Join(config.StorageRootUrl, f.DirPath, f.UUID)
-	if config.OSName == config.WINDOWS {
+	uPath := filepath.Join(static_config.StorageRootUrl, f.DirPath, f.UUID)
+	if static_config.OSName == static_config.WINDOWS {
 		uPath = strings.Replace(uPath, "\\", "/", -1)
 	}
 	return uPath + f.ExtensionName
@@ -73,12 +73,12 @@ func (f *File) GetActualSavePath() string {
 	if len(f.UUID) == 0 {
 		f.SetUUID()
 	}
-	fPath := filepath.Join(config.StorageRootPath, f.DirPath, f.UUID)
+	fPath := filepath.Join(static_config.StorageRootPath, f.DirPath, f.UUID)
 	return fPath + f.ExtensionName
 }
 
 func (f *File) GetActualSaveDir() string {
-	return filepath.Join(config.StorageRootPath, f.DirPath)
+	return filepath.Join(static_config.StorageRootPath, f.DirPath)
 }
 
 func (f *File) GetTempSaveFileMD5() (string, error) {
@@ -93,7 +93,7 @@ func (f *File) CreateDirIfNotExist() error {
 }
 
 func (f *File) CreateTempIfNotExist() error {
-	return utils.CreateDirIfNotExist(config.StorageTempPath)
+	return utils.CreateDirIfNotExist(static_config.StorageTempPath)
 }
 
 func (f *File) MoveTempFileToActualPath() error {

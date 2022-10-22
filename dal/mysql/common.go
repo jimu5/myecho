@@ -2,7 +2,7 @@ package mysql
 
 import (
 	"gorm.io/gorm"
-	"myecho/config"
+	"myecho/config/static_config"
 )
 
 type PageFindParam struct {
@@ -28,7 +28,7 @@ func Paginate(param *PageFindParam) func(db *gorm.DB) *gorm.DB {
 			param.Page = 1
 		}
 		if param.PageSize < 1 {
-			param.PageSize = config.PageSize
+			param.PageSize = static_config.PageSize
 		}
 		offset := param.ForceOffset
 		if offset == 0 {
@@ -47,6 +47,6 @@ func (p *PageInfo) FillInfoFromParam(param *PageFindParam) {
 	if param.PageSize != 0 {
 		p.PageSize = param.PageSize
 	} else {
-		p.PageSize = config.PageSize
+		p.PageSize = static_config.PageSize
 	}
 }

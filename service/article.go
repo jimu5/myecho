@@ -7,7 +7,7 @@ import (
 	"myecho/handler/rtype"
 )
 
-type Article struct {
+type ArticleService struct {
 }
 
 type ArticleDisplayListQueryParam struct {
@@ -20,7 +20,7 @@ type ArticleRetrieveQueryParam struct {
 	NoRead bool `query:"no_read"`
 }
 
-func (a *Article) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql.PageInfo, []*rtype.ArticleResponse, error) {
+func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql.PageInfo, []*rtype.ArticleResponse, error) {
 	status := mysql.ARTICLE_STATUS_TOP
 	pageInfo := mysql.PageInfo{}
 	sqlParam := mysql.ArticleCommonQueryParam{
@@ -55,7 +55,7 @@ func (a *Article) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql
 	return pageInfo, res, nil
 }
 
-func (a *Article) ArticleRetrieve(param *ArticleRetrieveQueryParam) (rtype.ArticleResponse, error) {
+func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (rtype.ArticleResponse, error) {
 	article, err := dal.MySqlDB.Article.FindByID(param.ID)
 	if err != nil {
 		return rtype.ArticleResponse{}, err

@@ -5,7 +5,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"myecho/config"
+	"myecho/config/yaml_config"
 	"myecho/model"
 )
 
@@ -34,9 +34,9 @@ func ConnectDB() {
 }
 
 func getDialectorFromYamlConfig() gorm.Dialector {
-	dbConfig := config.Yaml.Database
+	dbConfig := yaml_config.Yaml.Database
 	var dsn string
-	switch config.Yaml.Database.Type {
+	switch yaml_config.Yaml.Database.Type {
 	case "sqlite":
 		dsn = dbConfig.DBName + ".db"
 		return sqlite.Open(dsn)

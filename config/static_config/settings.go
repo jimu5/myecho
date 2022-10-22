@@ -1,4 +1,4 @@
-package config
+package static_config
 
 const (
 	// 全局配置

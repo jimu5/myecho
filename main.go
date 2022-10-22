@@ -8,7 +8,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
 	"log"
-	"myecho/config"
+	"myecho/config/static_config"
+	"myecho/config/yaml_config"
 	"myecho/dal/connect"
 	"myecho/dal/mysql"
 
@@ -22,7 +23,7 @@ var (
 
 func main() {
 	flag.Parse()
-	config.ReadYAMLConfig()
+	yaml_config.ReadYAMLConfig()
 	app := fiber.New(fiber.Config{
 		Prefork:           *prod,
 		BodyLimit:         1024 * 1024 * 1024,
@@ -40,7 +41,7 @@ func main() {
 	app.Use(cache.New(middleware.CacheConfig))
 	app.Static("/admin", "./static/admin")
 	app.Static("/static", "./views/static")
-	app.Static("/mos", config.StorageRootPath)
+	app.Static("/mos", static_config.StorageRootPath)
 	SetupApiRouter(app)
 	SetupViewRouter(app)
 	app.Use(middleware.Custom404ErrorHandler)
