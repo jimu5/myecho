@@ -7,14 +7,34 @@ type SettingRepo struct {
 
 type SettingModel = model.Setting
 
-const (
-	SettingModelTypeInt    = "int"
-	SettingModelTypeString = "string"
-	SettingModelTypeBool   = "bool"
-)
+func getDefaultSettings() map[string]SettingModel {
+	settings := make([]SettingModel, 0)
+	settings = append(settings, SettingModel{
+		Key:    "SiteTitle",
+		Value:  "Myecho 默认网站名",
+		Cached: true,
+	})
+	settings = append(settings, SettingModel{
+		Key:    "SiteIndexMetaKeyword",
+		Value:  "myecho",
+		Cached: true,
+	})
+	result := make(map[string]SettingModel, len(settings))
+	for i := range settings {
+		result[settings[i].Key] = settings[i]
+	}
+	return result
+}
 
 func (s *SettingRepo) Create(setting *SettingModel) error {
 	return db.Create(setting).Error
+}
+
+func (s *SettingRepo) MCreate(settings []*SettingModel) error {
+	if len(settings) != 0 {
+		return db.Create(settings).Error
+	}
+	return nil
 }
 
 func (s *SettingRepo) GetAll() ([]*SettingModel, error) {
@@ -46,4 +66,27 @@ func (s *SettingRepo) UpdateValueAndType(key, typeValue, value string) (SettingM
 		return SettingModel{}, nil
 	}
 	return s.GetByKey(key)
+}
+
+// 初始化默认设置
+func (s *SettingRepo) InitDefaultSetting() {
+	allSettings, err := s.GetAll()
+	if err != nil {
+		panic(err)
+	}
+	defaultSettingMap := getDefaultSettings()
+	for _, setting := range allSettings {
+		if _, ok := defaultSettingMap[setting.Key]; ok {
+			delete(defaultSettingMap, setting.Key)
+		}
+	}
+	needInitSettings := make([]*SettingModel, 0, len(defaultSettingMap))
+	for i := range defaultSettingMap {
+		setting := defaultSettingMap[i]
+		needInitSettings = append(needInitSettings, &setting)
+	}
+	err = s.MCreate(needInitSettings)
+	if err != nil {
+		panic(err)
+	}
 }

@@ -20,6 +20,7 @@ func ConnectDB() {
 		panic(err)
 	}
 	err = Database.AutoMigrate(
+		&model.Setting{},
 		&model.Category{},
 		&model.User{},
 		&model.Tag{},

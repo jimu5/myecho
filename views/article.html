@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-  <title>{{ .Data.Title }}</title>
+  <title>{{ .Settings.GetStringValue "SiteTitle" }} - {{ .Data.Title }}</title>
   <link rel="stylesheet" href="/static/css/lib/vditor@3.8.17.css" />
   <script src="/static/js/lib/vditor@3.8.17.min.js"></script>
   <script src="/static/js/lib/dayjs@1.8.21.min.js"></script>

@@ -13,6 +13,12 @@ type Setting struct {
 	Cached bool   // 是否缓存到内存
 }
 
+const (
+	SettingModelTypeInt    = "int"
+	SettingModelTypeString = "string"
+	SettingModelTypeBool   = "bool"
+)
+
 func (s *Setting) BeforeCreate(tx *gorm.DB) error {
 	var count int64
 	err := tx.Model(&Setting{}).Where("key = ?", s.Key).Count(&count).Error
@@ -23,7 +29,7 @@ func (s *Setting) BeforeCreate(tx *gorm.DB) error {
 		return errors.ErrSettingCreateExist
 	}
 	if len(s.Type) == 0 {
-		s.Type = "string"
+		s.Type = SettingModelTypeString
 	}
 	return nil
 }

@@ -8,11 +8,11 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/gofiber/template/html"
 	"log"
+	"myecho/config"
 	"myecho/config/static_config"
 	"myecho/config/yaml_config"
 	"myecho/dal/connect"
 	"myecho/dal/mysql"
-
 	"myecho/middleware"
 )
 
@@ -33,6 +33,7 @@ func main() {
 	})
 	connect.ConnectDB()
 	mysql.InitDB()
+	config.InitConfig()
 	app.Use(recover.New(recover.Config{
 		EnableStackTrace: true,
 	}))

@@ -28,6 +28,10 @@ func (s *SettingService) GetAll() ([]*mysql.SettingModel, error) {
 }
 
 func (s *SettingService) GetByKey(key string) (mysql.SettingModel, error) {
+	cacheValue, exist := config.MySqlSettingModelCache.Get("key")
+	if exist {
+		return cacheValue, nil
+	}
 	return dal.MySqlDB.Setting.GetByKey(key)
 }
 func (s *SettingService) UpdateValue(key, value string) (mysql.SettingModel, error) {
@@ -41,6 +45,6 @@ func (s *SettingService) UpdateValue(key, value string) (mysql.SettingModel, err
 
 func cacheSetting(model *mysql.SettingModel) {
 	if model.Cached {
-		config.MySqlSettingCache.Set(model.Key, model)
+		config.MySqlSettingModelCache.Set(model.Key, model)
 	}
 }

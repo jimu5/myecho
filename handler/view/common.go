@@ -2,6 +2,7 @@ package view
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"myecho/config"
 	"myecho/config/static_config"
 	"myecho/dal/mysql"
 	"net/url"
@@ -62,6 +63,7 @@ func genRawUrl(path, query string) string {
 
 func respToMap(data interface{}) fiber.Map {
 	return fiber.Map{
-		"Data": data,
+		"Data":     data,
+		"Settings": config.MySqlSettingModelCache,
 	}
 }
