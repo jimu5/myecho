@@ -62,3 +62,14 @@ func SettingAll(c *fiber.Ctx) error {
 	}
 	return c.JSON(&result)
 }
+
+func SettingDelete(c *fiber.Ctx) error {
+	key := c.Params("key")
+	if len(key) == 0 {
+		return errors.ErrSettingKey
+	}
+	if err := service.S.Setting.DeleteByKey(key); err != nil {
+		return err
+	}
+	return nil
+}

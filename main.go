@@ -40,6 +40,7 @@ func main() {
 	app.Use(middleware.MWRequestTimeCost)
 	app.Use(logger.New())
 	app.Use(cache.New(middleware.CacheConfig))
+	app.Use(middleware.CommonErrorHandler)
 	app.Static("/admin", "./static/admin")
 	app.Static("/static", "./views/static")
 	app.Static("/mos", static_config.StorageRootPath)

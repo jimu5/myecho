@@ -36,6 +36,7 @@ var (
 	ErrTagNameExist = errs.New("tag name 已存在")
 
 	// Setting
-	ErrSettingCreateExist = errs.New("setting key 已存在, 不能创建")
-	ErrSettingKey         = errs.New("setting key 有误")
+	ErrSettingKeyExist           = errs.New("setting key 已存在, 不能创建")
+	ErrSettingKey                = errs.New("setting key 有误")
+	ErrDeleteSettingKeyIsDefault = errs.New("setting key 为系统默认 key, 不可删除")
 )

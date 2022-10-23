@@ -10,14 +10,12 @@ type SettingModel = model.Setting
 func getDefaultSettings() map[string]SettingModel {
 	settings := make([]SettingModel, 0)
 	settings = append(settings, SettingModel{
-		Key:    "SiteTitle",
-		Value:  "Myecho 默认网站名",
-		Cached: true,
+		Key:   "SiteTitle",
+		Value: "Myecho 默认网站名",
 	})
 	settings = append(settings, SettingModel{
-		Key:    "SiteIndexMetaKeyword",
-		Value:  "myecho",
-		Cached: true,
+		Key:   "SiteIndexMetaKeyword",
+		Value: "myecho",
 	})
 	result := make(map[string]SettingModel, len(settings))
 	for i := range settings {
@@ -68,6 +66,10 @@ func (s *SettingRepo) UpdateValueAndType(key, typeValue, value string) (SettingM
 	return s.GetByKey(key)
 }
 
+func (s *SettingRepo) DeleteByKey(key string) error {
+	return db.Model(&SettingModel{}).Where("key = ?", key).Delete(&SettingModel{}).Error
+}
+
 // 初始化默认设置
 func (s *SettingRepo) InitDefaultSetting() {
 	allSettings, err := s.GetAll()
@@ -89,4 +91,13 @@ func (s *SettingRepo) InitDefaultSetting() {
 	if err != nil {
 		panic(err)
 	}
+}
+
+// 检查是否为默认key
+func (s *SettingRepo) CheckIsInitKey(key string) bool {
+	defaultSettingMap := getDefaultSettings()
+	if _, ok := defaultSettingMap[key]; ok {
+		return true
+	}
+	return false
 }

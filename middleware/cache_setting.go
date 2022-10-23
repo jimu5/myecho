@@ -3,21 +3,27 @@ package middleware
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
+	"strings"
 	"time"
 )
 
+var passCacheRoutePathPrefix = []string{
+	"/api",
+	"/status",
+}
+
 var CacheConfig = cache.Config{
 	Next: func(c *fiber.Ctx) bool {
-		path := c.Path()
-		if len(path) > 4 {
-			if path[:4] == "/api" {
-				return true
-			}
-		}
-		if path == "/status" {
-			return true
-		}
-		return false
+		return isPathSkipCache(c.Path())
 	},
 	Expiration: 5 * time.Second,
+}
+
+func isPathSkipCache(path string) bool {
+	for i := range passCacheRoutePathPrefix {
+		if strings.HasPrefix(path, passCacheRoutePathPrefix[i]) {
+			return true
+		}
+	}
+	return false
 }

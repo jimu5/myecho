@@ -4,6 +4,7 @@ import (
 	"myecho/config"
 	"myecho/dal"
 	"myecho/dal/mysql"
+	"myecho/handler/api/errors"
 )
 
 type SettingService struct {
@@ -39,12 +40,18 @@ func (s *SettingService) UpdateValue(key, value string) (mysql.SettingModel, err
 	if err != nil {
 		return result, err
 	}
+	// 这里采用的是更新后立马更新缓存
 	cacheSetting(&result)
 	return result, nil
 }
 
-func cacheSetting(model *mysql.SettingModel) {
-	if model.Cached {
-		config.MySqlSettingModelCache.Set(model.Key, model)
+func (s *SettingService) DeleteByKey(key string) error {
+	if yes := dal.MySqlDB.Setting.CheckIsInitKey(key); yes {
+		return errors.ErrDeleteSettingKeyIsDefault
 	}
+	return dal.MySqlDB.Setting.DeleteByKey(key)
+}
+
+func cacheSetting(model *mysql.SettingModel) {
+	config.MySqlSettingModelCache.Set(model.Key, model)
 }

@@ -5,12 +5,16 @@ import (
 )
 
 const (
-	Unauthorized     = 4001
-	NotFound         = 4004
-	ValidateError    = 5001
-	InternalSQLError = 5002
-	ParseError       = 5002
-	LoginError       = 6001
+	CommonBadError = 4001
+	ParseError     = 4002
+
+	Unauthorized = 4011
+	NotFound     = 4041
+
+	ValidateError = 4031
+	LoginError    = 4032
+
+	InternalSQLError = 5001
 )
 
 const (

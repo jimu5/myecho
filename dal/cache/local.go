@@ -34,9 +34,7 @@ func InitSettingCache() *MysqlSettingMap {
 	allSettings, _ := dal.MySqlDB.Setting.GetAll()
 	var resultMap MysqlSettingMap
 	for _, setting := range allSettings {
-		if setting.Cached {
-			resultMap.Store(setting.Key, *setting)
-		}
+		resultMap.Store(setting.Key, *setting)
 	}
 	return &resultMap
 }

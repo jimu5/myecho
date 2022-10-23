@@ -31,6 +31,7 @@ func SetupApiRouter(app *fiber.App) {
 
 			apiRoute.Post("/settings", mw.Authentication, api.SettingCreate)
 			apiRoute.Patch("/settings/:key", mw.Authentication, api.SettingUpdate)
+			apiRoute.Delete("settings/:key", mw.Authentication, api.SettingDelete)
 
 			mos.Post("upload", mw.Authentication, api.UploadFile)
 			mos.Post("save_url_file", mw.Authentication, api.SaveLinkUrlFile)
