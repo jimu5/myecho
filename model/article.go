@@ -11,10 +11,10 @@ import (
 // 分类
 type Category struct {
 	BaseModel
-	Name      string  `json:"name" gorm:"size:64"`
-	UID       string  `json:"uid" gorm:"size:20"`
-	FatherUID *string `json:"father_uid" gorm:"default:null"`
-	Count     uint    `json:"count"`
+	Name      string `json:"name" gorm:"size:64"`
+	UID       string `json:"uid" gorm:"size:20"`
+	FatherUID string `json:"father_uid" gorm:"default:null"`
+	Count     uint   `json:"count"`
 }
 
 // 文章详情

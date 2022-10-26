@@ -33,8 +33,8 @@ func ValidateCategoryCreate(req *rtype.CategoryCreateRequest) error {
 	if req.Name == "" {
 		return errors.ErrCategoryNameEmpty
 	}
-	if req.FatherUID != nil {
-		if err := ValidateCategoryUID(*req.FatherUID); err != nil {
+	if len(req.FatherUID) != 0 {
+		if err := ValidateCategoryUID(req.FatherUID); err != nil {
 			return err
 		}
 	}

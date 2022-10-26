@@ -20,5 +20,5 @@ func CommonErrorHandler(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(api.Error{Code: api.CommonBadError, Msg: err.Error()})
 	}
 	// TODO: 需要增加普通页面的错误返回
-	return nil
+	return err
 }
