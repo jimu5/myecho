@@ -29,13 +29,14 @@ func (c *CategoryService) All() ([]*Category, error) {
 	return categories, nil
 }
 
-func FillTotalCountCategories(allCategories []*Category) {
-	categoryUIDMap := make(map[string]*Category, len(allCategories))
-	for _, c := range allCategories {
+// 返回 map[category_uid]children
+func BuildChildMap(categories []*Category) map[string][]*Category {
+	categoryUIDMap := make(map[string]*Category, len(categories))
+	for _, c := range categories {
 		categoryUIDMap[c.UID] = c
 	}
-	helpMap := make(map[string][]*Category, len(allCategories))
-	for _, c := range allCategories {
+	helpMap := make(map[string][]*Category, len(categories))
+	for _, c := range categories {
 		if _, ok := helpMap[c.UID]; !ok {
 			helpMap[c.UID] = make([]*Category, 0)
 		}
@@ -50,6 +51,14 @@ func FillTotalCountCategories(allCategories []*Category) {
 			helpMap[father.UID] = make([]*Category, 0)
 		}
 		helpMap[father.UID] = append(helpMap[father.UID], c)
+	}
+	return helpMap
+}
+func FillTotalCountCategories(allCategories []*Category) {
+	helpMap := BuildChildMap(allCategories)
+	categoryUIDMap := make(map[string]*Category, len(allCategories))
+	for _, c := range allCategories {
+		categoryUIDMap[c.UID] = c
 	}
 	// 计算最终结果
 	totalCountMap := make(map[string]uint, len(allCategories))

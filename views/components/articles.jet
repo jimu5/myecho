@@ -1,4 +1,3 @@
-{{ define "articles" }}
 {{ range . }}
 <div class="article-block">
   <a href="/articles/{{ .ID }}">
@@ -26,5 +25,4 @@
   </div>
 </div>
 <hr>
-{{ end }}
 {{ end }}

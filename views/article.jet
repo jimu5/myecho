@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-  <title>{{ .Settings.GetStringValue "SiteTitle" }} - {{ .Data.Title }}</title>
+  <title>{{ Settings.GetStringValue("SiteTitle") }} - {{ Data.Title }}</title>
   <link rel="stylesheet" href="/static/css/lib/vditor@3.8.17.css" />
   <script src="/static/js/lib/vditor@3.8.17.min.js"></script>
   <script src="/static/js/lib/dayjs@1.8.21.min.js"></script>
@@ -17,15 +17,15 @@
 </head>
 
 <body>
-  {{ template "header" }}
+  {{ include "components/header" }}
   <div class="article" onmousedown="articleClick(event)">
     <h1 class="article-title">
-      {{ .Data.Title }}
+      {{ Data.Title }}
     </h1>
     <div class="article-content" id="article_content"></div>
     <div class="article-outline" id="article_outline"></div>
     <script>
-      Vditor.preview(document.getElementById("article_content"), {{ .Data.Detail.Content }}, {
+      Vditor.preview(document.getElementById("article_content"), {{ Data.Detail.Content }}, {
         anchor: 1,
         after: function () {
           Vditor.outlineRender(document.getElementById("article_content"), document.getElementById("article_outline"));
@@ -34,7 +34,7 @@
       })
     </script>
   </div>
-  {{ template "footer" .RequestTimeDuration }}
+  {{ include "components/footer" RequestTimeDuration }}
 </body>
 
 <script type="text/javascript">

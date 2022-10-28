@@ -4,21 +4,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-  <title>{{ .Settings.GetStringValue "SiteTitle"}} - 分类目录</title>
-  <meta name="keyword" content="{{ .Settings.GetStringValue " SiteIndexMetaKeyword" }}">
+  <title>{{ Settings.GetStringValue("SiteTitle") }} - 分类目录</title>
+  <meta name="keyword" content="{{ Settings.GetStringValue("SiteIndexMetaKeyword") }}">
   <link type="text/css" rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
-  {{ template "header" }}
+  {{ include "components/header" }}
   <div class="index-content">
-    {{ range .Data }}
+    {{ range Data }}
     <p>
       {{ .Name }}({{ .TotalCount }})
     </p>
     {{ end }}
   </div>
-  {{ template "footer" .RequestTimeDuration }}
+  {{ include "components/footer" RequestTimeDuration }}
 </body>
 
 </html>

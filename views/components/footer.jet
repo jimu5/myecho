@@ -1,0 +1,4 @@
+<footer>
+  <p>加载耗时 {{ .GetTimeCost() }} </p>
+  <p>@Myecho Created by Kimiato</p>
+</footer>

@@ -4,8 +4,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-  <title>{{ .Settings.GetStringValue "SiteTitle" }}</title>
-  <meta name="keyword" content="{{ .Settings.GetStringValue "SiteIndexMetaKeyword" }}">
+  <title>{{ Settings.GetStringValue("SiteTitle") }}</title>
+  <meta name="keyword" content="{{ Settings.GetStringValue("SiteIndexMetaKeyword") }}">
   <link type="text/css" rel="stylesheet" href="/static/css/style.css">
   <script src="https://unpkg.com/dayjs@1.8.21/dayjs.min.js"></script>
   <!-- 预加载一下 -->
@@ -13,12 +13,12 @@
 </head>
 
 <body>
-  {{ template "header" }}
+  {{ include "components/header" }}
   <div class="index-content">
-    {{ template "articles" .Data.PageData}}
-    {{ template "pagination" .Data.PageInfo}}
+    {{ include "components/articles" Data.PageData}}
+    {{ include "components/pagination" Data.PageInfo}}
   </div>
-  {{ template "footer" .RequestTimeDuration }}
+  {{ include "components/footer" RequestTimeDuration }}
 </body>
 
 </html>
