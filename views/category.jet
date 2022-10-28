@@ -13,9 +13,11 @@
   {{ include "components/header" }}
   <div class="index-content">
     {{ range Data }}
-    <p>
-      {{ .Name }}({{ .TotalCount }})
-    </p>
+    <ul>
+      <li>
+        <a href="/?category_name={{ .Name }}&category_uid={{ .UID }}">{{ .Name }}({{ .TotalCount }})</a>
+      </li>
+    </ul>
     {{ end }}
   </div>
   {{ include "components/footer" RequestTimeDuration }}

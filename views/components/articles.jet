@@ -8,14 +8,14 @@
 
   <p>
     <script>
-      time = dayjs({{ .PostTime }}).format("YYYY-MM-DD HH:mm:ss")
+      time = dayjs("{{ .PostTime }}").format("YYYY-MM-DD HH:mm:ss")
       document.write(time)
     </script>
   </p>
   <div class="article-block-summary">
     {{ .Summary }}
     <script>
-      if ({{ .Summary }}.length > 254) {
+      if ("{{ .Summary }}".length > 254) {
         document.write("...")
       }
     </script>

@@ -17,6 +17,9 @@ var CacheConfig = cache.Config{
 		return isPathSkipCache(c.Path())
 	},
 	Expiration: 5 * time.Second,
+	KeyGenerator: func(ctx *fiber.Ctx) string {
+		return ctx.OriginalURL()
+	},
 }
 
 func isPathSkipCache(path string) bool {
