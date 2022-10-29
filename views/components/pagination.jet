@@ -1,8 +1,8 @@
 <div class="pagination">
-  {{ if .Next }}
-    <a style="padding-right: 20px;" href="{{ .Next }}">下一页</a>
-  {{ end }}
   {{ if .Pre }}
     <a href="{{ .Pre }}">上一页</a>
+  {{ end }}
+  {{ if .Next }}
+    <a style="padding-right: 20px;" href="{{ .Next }}">下一页</a>
   {{ end }}
 </div>
