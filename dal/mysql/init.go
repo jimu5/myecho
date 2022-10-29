@@ -10,3 +10,5 @@ var db *gorm.DB
 func InitDB() {
 	db = connect.Database
 }
+
+var categoryRepo = CategoryRepo{}

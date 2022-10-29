@@ -5,22 +5,53 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
   <title>{{ Settings.GetStringValue("SiteTitle") }} - 分类目录</title>
-  <meta name="keyword" content="{{ Settings.GetStringValue("SiteIndexMetaKeyword") }}">
+  <meta name="keyword" content="{{ Settings.GetStringValue(" SiteIndexMetaKeyword") }}">
   <link type="text/css" rel="stylesheet" href="/static/css/style.css">
 </head>
 
 <body>
   {{ include "components/header" }}
-  <div class="index-content">
-    {{ range Data }}
-    <ul>
-      <li>
+  <div class="index-content" id="category_ul">
+    <ul style="padding-left: 30px;">
+      {{ range Data }}
+      <li id="{{ .UID }}" father="{{ .FatherUID }}" style="padding-top: 15px">
         <a href="/?category_name={{ .Name }}&category_uid={{ .UID }}">{{ .Name }}({{ .TotalCount }})</a>
       </li>
+      {{ end }}
     </ul>
-    {{ end }}
   </div>
   {{ include "components/footer" RequestTimeDuration }}
 </body>
+
+<script>
+  var dom_list = document.getElementById("category_ul").getElementsByTagName("li")
+  var has_father = new Array()
+  for (let i = 0; i < dom_list.length; i++) {
+    if (dom_list[i].getAttribute("father") !== "") {
+      has_father.push(dom_list[i])
+      dom_list[i].remove()
+    }
+  }
+  var cant_find_father = new Array()
+  for (let i = 0; i < has_father.length; i++) {
+    father_li = document.getElementById(has_father[i].getAttribute("father"))
+    if (!father_li) {
+      cant_find_father.push(has_father[i])
+      continue
+    }
+    children_ul = father_li.getElementsByTagName("children")
+    if (children_ul.length === 0) {
+      children_ul = document.createElement('ul')
+      children_ul.setAttribute("style", "list-style: none")
+      father_li.appendChild(children_ul)
+    }
+    children_ul.appendChild(has_father[i])
+  }
+  // 如果还有剩下的直接追加到末尾
+  category_ul = document.getElementById("category_ul")
+  for (let i = 0; i < cant_find_father.length; i) {
+    category_ul.appendChild(cant_find_father[i])
+  }
+</script>
 
 </html>
