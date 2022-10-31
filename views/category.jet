@@ -26,10 +26,12 @@
 <script>
   var dom_list = document.getElementById("category_ul").getElementsByTagName("li")
   var has_father = new Array()
-  for (let i = 0; i < dom_list.length; i++) {
+  for (let i = 0; i < dom_list.length;) {
     if (dom_list[i].getAttribute("father") !== "") {
       has_father.push(dom_list[i])
       dom_list[i].remove()
+    } else {
+      i++;
     }
   }
   var cant_find_father = new Array()
