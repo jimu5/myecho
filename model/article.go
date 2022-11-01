@@ -107,29 +107,53 @@ func (article *Article) BeforeCreate(tx *gorm.DB) error {
 }
 
 func (article *Article) AfterCreate(tx *gorm.DB) error {
-	if len(article.CategoryUID) != 0 {
-		return tx.Model(&Category{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count + 1")).Error
+	if err := article.AddCategoryCount(tx); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (article *Article) BeforeUpdate(tx *gorm.DB) error {
-	if len(article.CategoryUID) != 0 {
-		return tx.Model(&Category{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count - 1")).Error
+	oldArticle, err := getOldArticle(tx, article.ID)
+	if err != nil {
+		return err
+	}
+	if err := oldArticle.ReduceCategoryCount(tx); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (article *Article) AfterUpdate(tx *gorm.DB) error {
-	if len(article.CategoryUID) != 0 {
-		return tx.Model(&Category{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count + 1")).Error
+	if err := article.AddCategoryCount(tx); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (article *Article) AfterDelete(tx *gorm.DB) error {
-	if len(article.CategoryUID) != 0 {
+	if err := article.ReduceCategoryCount(tx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (article *Article) AddCategoryCount(tx *gorm.DB) error {
+	if article.Status == 1 && len(article.CategoryUID) != 0 {
+		return tx.Model(&Category{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count + 1")).Error
+	}
+	return nil
+}
+
+func (article *Article) ReduceCategoryCount(tx *gorm.DB) error {
+	if article.Status == 1 && len(article.CategoryUID) != 0 {
 		return tx.Model(&Category{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count - 1")).Error
 	}
 	return nil
+}
+
+func getOldArticle(tx *gorm.DB, id uint) (Article, error) {
+	var oldArticle Article
+	err := tx.Model(&Article{}).Where("id = ?", id).First(&oldArticle).Error
+	return oldArticle, err
 }
