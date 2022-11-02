@@ -25,7 +25,7 @@
     <div class="article-content" id="article_content"></div>
     <div class="article-outline" id="article_outline"></div>
     <script>
-      Vditor.preview(document.getElementById("article_content"), {{ Data.Detail.Content }}, {
+      Vditor.preview(document.getElementById("article_content"), "{{ Data.Detail.Content }}", {
         anchor: 1,
         after: function () {
           Vditor.outlineRender(document.getElementById("article_content"), document.getElementById("article_outline"));
