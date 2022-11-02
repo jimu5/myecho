@@ -24,14 +24,18 @@
     </h1>
     <div class="article-content" id="article_content"></div>
     <div class="article-outline" id="article_outline"></div>
+    <div style="display: none" id="raw_content">{{ Data.Detail.Content | raw }}</div>
     <script>
-      Vditor.preview(document.getElementById("article_content"), "{{ Data.Detail.Content }}", {
+      rawContentNode = document.getElementById("raw_content")
+      content = rawContentNode.innerText
+      Vditor.preview(document.getElementById("article_content"), content, {
         anchor: 1,
         after: function () {
           Vditor.outlineRender(document.getElementById("article_content"), document.getElementById("article_outline"));
           initOutline();
         }
       })
+      rawContentNode.remove()
     </script>
   </div>
   {{ include "components/footer" RequestTimeDuration }}
