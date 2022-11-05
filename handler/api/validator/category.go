@@ -38,6 +38,9 @@ func ValidateCategoryCreate(req *rtype.CategoryCreateRequest) error {
 			return err
 		}
 	}
+	if !req.Type.IsCategoryTypeValid() {
+		return errors.ErrCategoryType
+	}
 	return nil
 }
 

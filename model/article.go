@@ -1,21 +1,11 @@
 package model
 
 import (
-	"myecho/handler/api/errors"
 	"myecho/utils"
 	"time"
 
 	"gorm.io/gorm"
 )
-
-// 分类
-type Category struct {
-	BaseModel
-	Name      string `json:"name" gorm:"size:64"`
-	UID       string `json:"uid" gorm:"size:20"`
-	FatherUID string `json:"father_uid" gorm:"default:null"`
-	Count     uint   `json:"count"`
-}
 
 // 文章详情
 type ArticleDetail struct {
@@ -53,45 +43,6 @@ func (articleDetail *ArticleDetail) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-func (category *Category) CheckNameExist(tx *gorm.DB, name string) (bool, error) {
-	var sameNameCount int64
-	err := tx.Model(&Category{}).Where("name = ?", name).Count(&sameNameCount).Error
-	if err != nil {
-		return false, err
-	}
-	if sameNameCount > 0 {
-		return false, nil
-	}
-	return true, nil
-}
-
-func (category *Category) BeforeCreate(tx *gorm.DB) error {
-	if len(category.UID) == 0 {
-		category.UID = utils.GenUID20()
-	}
-	if ok, err := category.CheckNameExist(tx, category.Name); err != nil || !ok {
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return errors.ErrCategoryNameExist
-		}
-	}
-	return nil
-}
-
-func (category *Category) BeforeUpdate(tx *gorm.DB) error {
-	if ok, err := category.CheckNameExist(tx, category.Name); err != nil || !ok {
-		if err != nil {
-			return err
-		}
-		if !ok {
-			return errors.ErrCategoryNameExist
-		}
-	}
-	return nil
-}
-
 func (article *Article) BeforeCreate(tx *gorm.DB) error {
 	if len(article.UID) == 0 {
 		article.UID = utils.GenUID20()
@@ -114,11 +65,7 @@ func (article *Article) AfterCreate(tx *gorm.DB) error {
 }
 
 func (article *Article) BeforeUpdate(tx *gorm.DB) error {
-	oldArticle, err := getOldArticle(tx, article.ID)
-	if err != nil {
-		return err
-	}
-	if err := oldArticle.ReduceCategoryCount(tx); err != nil {
+	if err := article.ReduceCategoryCount(tx); err != nil {
 		return err
 	}
 	return nil
@@ -146,13 +93,17 @@ func (article *Article) AddCategoryCount(tx *gorm.DB) error {
 }
 
 func (article *Article) ReduceCategoryCount(tx *gorm.DB) error {
-	if article.Status == 1 && len(article.CategoryUID) != 0 {
-		return tx.Model(&Category{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count - 1")).Error
+	oldArticle, err := getArticle(tx, article.ID)
+	if err != nil {
+		return err
+	}
+	if oldArticle.Status == 1 && len(oldArticle.CategoryUID) != 0 {
+		return tx.Model(&Category{}).Where("uid = ?", oldArticle.CategoryUID).Update("count", gorm.Expr("count - 1")).Error
 	}
 	return nil
 }
 
-func getOldArticle(tx *gorm.DB, id uint) (Article, error) {
+func getArticle(tx *gorm.DB, id uint) (Article, error) {
 	var oldArticle Article
 	err := tx.Model(&Article{}).Where("id = ?", id).First(&oldArticle).Error
 	return oldArticle, err

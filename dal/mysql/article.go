@@ -37,7 +37,6 @@ type PageFindArticleByNotStatusParam struct {
 func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryParam) (*gorm.DB, error) {
 	SqlPrefix := make([]string, 0)
 	SqlValue := make([]interface{}, 0)
-	and := " AND "
 	if param.CategoryUID != nil {
 		sql := "category_uid in (?)"
 		allUID := make([]string, 0)
@@ -55,7 +54,7 @@ func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryP
 		SqlPrefix = append(SqlPrefix, sql)
 		SqlValue = append(SqlValue, *param.Status)
 	}
-	return db.Where(strings.Join(SqlPrefix, and), SqlValue...), nil
+	return db.Where(strings.Join(SqlPrefix, queryAND), SqlValue...), nil
 }
 
 func (a *ArticleDBRepo) Create(article *model.Article) error {

@@ -1,13 +1,43 @@
 package mysql
 
 import (
+	"gorm.io/gorm"
+	"myecho/handler/api/errors"
 	"myecho/model"
+	"myecho/utils"
 )
+
+type CategoryModel model.Category
+
+func (category *CategoryModel) BeforeCreate(tx *gorm.DB) error {
+	if len(category.UID) == 0 {
+		category.UID = utils.GenUID20()
+	}
+	if ok, err := categoryRepo.CheckNameExist(tx, category.Name, category.Type); err != nil || !ok {
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.ErrCategoryNameExist
+		}
+	}
+	return nil
+}
+
+func (category *CategoryModel) BeforeUpdate(tx *gorm.DB) error {
+	if ok, err := categoryRepo.CheckNameExist(tx, category.Name, category.Type); err != nil || !ok {
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errors.ErrCategoryNameExist
+		}
+	}
+	return nil
+}
 
 type CategoryRepo struct {
 }
-
-type CategoryModel = model.Category
 
 func (c *CategoryRepo) All() ([]*CategoryModel, error) {
 	res := make([]*CategoryModel, 0)
@@ -16,7 +46,7 @@ func (c *CategoryRepo) All() ([]*CategoryModel, error) {
 }
 
 func (c *CategoryRepo) Create(categoryModel *CategoryModel) error {
-	return db.Create(&categoryModel).Error
+	return db.Create(categoryModel).Error
 }
 
 func (c *CategoryRepo) GetAllChildrenUID(father_uid string) ([]string, error) {
@@ -38,4 +68,31 @@ func (c *CategoryRepo) GetAllChildrenUID(father_uid string) ([]string, error) {
 		}
 	}
 	return childrenUID, nil
+}
+
+func (c *CategoryRepo) ValidateUIDExist(uid string) error {
+	if len(uid) == 0 {
+		return nil
+	}
+	var count int64
+	err := db.Model(&CategoryModel{}).Where("uid = ?", uid).Count(&count).Error
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return errors.ErrCategoryNotFound
+	}
+	return nil
+}
+
+func (c *CategoryRepo) CheckNameExist(tx *gorm.DB, name string, _type model.CategoryType) (bool, error) {
+	var sameNameCount int64
+	err := tx.Model(&CategoryModel{}).Where("name = ? and type = ?", name, _type).Count(&sameNameCount).Error
+	if err != nil {
+		return false, err
+	}
+	if sameNameCount > 0 {
+		return false, nil
+	}
+	return true, nil
 }

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"myecho/dal/connect"
 	"myecho/dal/mysql"
 	"myecho/handler/api/errors"
 	"myecho/handler/api/validator"
@@ -29,6 +30,23 @@ func DetailPreHandleByParam[T any](c *fiber.Ctx, model *T) error {
 	}
 	// model 实际上是一个模型的指针
 	return validator.ValidateID(idInt, model)
+}
+
+func GetIDByParam[T any](c *fiber.Ctx, model *T) (uint, error) {
+	id := c.Params("id")
+	idInt, err := strconv.ParseInt(id, 10, 64)
+	if err != nil || idInt <= 0 {
+		return 0, errors.ErrorIDNotFound
+	}
+	var count int64
+	err = connect.Database.Model(model).Where("id = ?", idInt).Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	if count == 0 {
+		return uint(idInt), errors.ErrorIDNotFound
+	}
+	return uint(idInt), nil
 }
 
 func ParsePageFindParam(c *fiber.Ctx) (mysql.PageFindParam, error) {

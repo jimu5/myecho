@@ -5,6 +5,8 @@ import (
 	"myecho/config/static_config"
 )
 
+const queryAND = " AND "
+
 type PageFindParam struct {
 	Page        int  `json:"page" query:"page"`
 	PageSize    int  `json:"page_size" query:"page_size"`

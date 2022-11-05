@@ -8,6 +8,7 @@ type s struct {
 	Article  ArticleService
 	Setting  SettingService
 	Category CategoryService
+	Link     LinkService
 }
 
 func newService() s {
@@ -15,5 +16,6 @@ func newService() s {
 		Article:  ArticleService{},
 		Setting:  SettingService{},
 		Category: CategoryService{},
+		Link:     LinkService{},
 	}
 }

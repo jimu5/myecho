@@ -21,7 +21,7 @@ func SetupApiRouter(app *fiber.App) {
 
 			apiRoute.Patch("/comments/:id", mw.Authentication, api.CommentUpdate)
 
-			apiRoute.Post("/articles/categories", mw.Authentication, api.CategoryCreate)
+			apiRoute.Post("/articles/categories", mw.Authentication, api.ArticleCategoryCreate)
 			apiRoute.Patch("/articles/categories/:id", mw.Authentication, api.CategoryUpdate)
 			apiRoute.Delete("/articles/categories/:id", mw.Authentication, api.CategoryDelete)
 
@@ -32,6 +32,10 @@ func SetupApiRouter(app *fiber.App) {
 			apiRoute.Post("/settings", mw.Authentication, api.SettingCreate)
 			apiRoute.Patch("/settings/:key", mw.Authentication, api.SettingUpdate)
 			apiRoute.Delete("settings/:key", mw.Authentication, api.SettingDelete)
+
+			apiRoute.Post("/links", mw.Authentication, api.LinkCreate)
+			apiRoute.Put("/links/:id", mw.Authentication, api.LinkUpdate)
+			apiRoute.Delete("/links/:id", mw.Authentication, api.LinkDelete)
 
 			mos.Post("upload", mw.Authentication, api.UploadFile)
 			mos.Post("save_url_file", mw.Authentication, api.SaveLinkUrlFile)
@@ -54,6 +58,8 @@ func SetupApiRouter(app *fiber.App) {
 			noNeedAuth.Get("/settings/:key", api.SettingRetrieve)
 			noNeedAuth.Get("/settings", api.SettingAll)
 			noNeedAuth.Get("/tags/all", api.TagListAll)
+
+			apiRoute.Get("/links", mw.Authentication, api.LinkAll)
 		}
 	}
 }

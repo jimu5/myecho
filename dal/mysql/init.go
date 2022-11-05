@@ -11,4 +11,8 @@ func InitDB() {
 	db = connect.Database
 }
 
-var categoryRepo = CategoryRepo{}
+var (
+	categoryRepo    = CategoryRepo{}
+	articlegoryRepo = ArticleDBRepo{}
+	linkRepo        = LinkRepo{}
+)

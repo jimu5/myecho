@@ -15,7 +15,7 @@ func CategoryAll(c *fiber.Ctx) error {
 	return c.JSON(&res)
 }
 
-func CategoryCreate(c *fiber.Ctx) error {
+func ArticleCategoryCreate(c *fiber.Ctx) error {
 	var req rtype.CategoryCreateRequest
 	if err := c.BodyParser(&req); err != nil {
 		return nil
@@ -27,6 +27,7 @@ func CategoryCreate(c *fiber.Ctx) error {
 		Name:      req.Name,
 		FatherUID: req.FatherUID,
 	}
+	category.Type = model.CategoryTypeArticle
 	connect.Database.Table("categories").Create(&category)
 	return c.Status(fiber.StatusCreated).JSON(&category)
 }
@@ -65,7 +66,7 @@ func CategoryDelete(c *fiber.Ctx) error {
 
 func deleteAlterRelated(deletedCategoryID uint) error {
 	if tx := connect.Database.Table("articles").Where("category_id = ?", deletedCategoryID).Update(
-		"category_id", nil); tx.Error != nil {
+		"category_uid", nil); tx.Error != nil {
 		return tx.Error
 	}
 	if tx := connect.Database.Table("categories").Where("father_id = ?", deletedCategoryID).Delete(

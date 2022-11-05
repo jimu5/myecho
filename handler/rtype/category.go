@@ -1,8 +1,11 @@
 package rtype
 
+import "myecho/model"
+
 type CategoryCreateRequest struct {
-	Name      string `json:"name" gorm:"size:64"`
-	FatherUID string `json:"father_uid" gorm:"default:null"`
+	Name      string             `json:"name" gorm:"size:64"`
+	FatherUID string             `json:"father_uid" gorm:"default:null"`
+	Type      model.CategoryType `json:"type"`
 }
 
 type CategoryUpdateRequest struct {
