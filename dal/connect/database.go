@@ -28,6 +28,7 @@ func ConnectDB() {
 		&model.Comment{},
 		&model.File{},
 		&model.Article{},
+		&model.Link{},
 	)
 	if err != nil {
 		panic(err)
