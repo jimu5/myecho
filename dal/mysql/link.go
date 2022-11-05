@@ -8,6 +8,10 @@ import (
 
 type LinkModel model.Link
 
+func (LinkModel) TableName() string {
+	return "links"
+}
+
 func (lm *LinkModel) BeforeCreate(tx *gorm.DB) error {
 	if err := categoryRepo.ValidateUIDExist(lm.CategoryUID); err != nil {
 		return err

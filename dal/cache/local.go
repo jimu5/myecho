@@ -2,7 +2,7 @@ package cache
 
 import (
 	"myecho/dal"
-	"myecho/model"
+	"myecho/dal/mysql"
 	"sync"
 )
 
@@ -10,15 +10,15 @@ type MysqlSettingMap struct {
 	sync.Map
 }
 
-func (m *MysqlSettingMap) Get(key string) (model.Setting, bool) {
+func (m *MysqlSettingMap) Get(key string) (mysql.SettingModel, bool) {
 	v, ok := m.Load(key)
 	if !ok {
-		return model.Setting{}, false
+		return mysql.SettingModel{}, false
 	}
-	return v.(model.Setting), true
+	return v.(mysql.SettingModel), true
 }
 
-func (m *MysqlSettingMap) Set(key string, value *model.Setting) {
+func (m *MysqlSettingMap) Set(key string, value *mysql.SettingModel) {
 	m.Store(key, value)
 }
 

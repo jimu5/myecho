@@ -2,9 +2,9 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"myecho/dal/mysql"
 	"myecho/handler/api/errors"
 	"myecho/handler/rtype"
-	"myecho/model"
 	"myecho/service"
 )
 
@@ -16,7 +16,7 @@ func SettingCreate(c *fiber.Ctx) error {
 	if err := setting.Validate(); err != nil {
 		return err
 	}
-	err := service.S.Setting.Create(&model.Setting{Key: setting.Key, Value: setting.Value, Type: setting.Value})
+	err := service.S.Setting.Create(&mysql.SettingModel{Key: setting.Key, Value: setting.Value, Type: setting.Value})
 	if err != nil {
 		return err
 	}

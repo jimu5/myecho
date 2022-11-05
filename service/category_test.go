@@ -2,12 +2,12 @@ package service
 
 import (
 	"fmt"
-	"myecho/model"
+	"myecho/dal/mysql"
 	"testing"
 )
 
 func TestFillTotalCountCategories(t *testing.T) {
-	modelCategories := []*model.Category{
+	modelCategories := []*mysql.CategoryModel{
 		{UID: "A", Count: 8},
 		{UID: "B", Count: 6, FatherUID: "A"},
 		{UID: "C", Count: 5, FatherUID: "A"},

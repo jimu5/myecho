@@ -9,6 +9,10 @@ import (
 
 type CategoryModel model.Category
 
+func (CategoryModel) TableName() string {
+	return "categories"
+}
+
 func (category *CategoryModel) BeforeCreate(tx *gorm.DB) error {
 	if len(category.UID) == 0 {
 		category.UID = utils.GenUID20()

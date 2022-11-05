@@ -33,7 +33,7 @@ type Article struct {
 	PostTime       time.Time      `json:"post_time"`
 	Status         int8           `json:"status" gorm:"default:1"` //  1:公开 2: 置顶 3: 私密 4: 草稿 5: 等待复审 6: 回收站
 	Password       string         `json:"-" gorm:"default:null"`
-	Tags           []*Tag         `gorm:"many2many:article_tags;foreignKey:UID;references:UID;"`
+	Tags           []*Tag         `gorm:"many2many:article_tags;foreignKey:UID;joinforeignKey:ArticleUID;references:UID;joinReferences:TagUID"`
 }
 
 func (articleDetail *ArticleDetail) BeforeCreate(tx *gorm.DB) error {
@@ -41,70 +41,4 @@ func (articleDetail *ArticleDetail) BeforeCreate(tx *gorm.DB) error {
 		articleDetail.UID = utils.GenUID20()
 	}
 	return nil
-}
-
-func (article *Article) BeforeCreate(tx *gorm.DB) error {
-	if len(article.UID) == 0 {
-		article.UID = utils.GenUID20()
-	}
-	if article.Detail != nil {
-		if len(article.Detail.UID) == 0 {
-			uid := utils.GenUID20()
-			article.Detail.UID = article.UID + "_" + uid
-		}
-	}
-	// TODO: 根据文章内容生成统计信息 https://github.com/mdigger/goldmark-stats info.Chars, info.Duration(400), 使用协程加版本锁
-	return nil
-}
-
-func (article *Article) AfterCreate(tx *gorm.DB) error {
-	if err := article.AddCategoryCount(tx); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (article *Article) BeforeUpdate(tx *gorm.DB) error {
-	if err := article.ReduceCategoryCount(tx); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (article *Article) AfterUpdate(tx *gorm.DB) error {
-	if err := article.AddCategoryCount(tx); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (article *Article) AfterDelete(tx *gorm.DB) error {
-	if err := article.ReduceCategoryCount(tx); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (article *Article) AddCategoryCount(tx *gorm.DB) error {
-	if article.Status == 1 && len(article.CategoryUID) != 0 {
-		return tx.Model(&Category{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count + 1")).Error
-	}
-	return nil
-}
-
-func (article *Article) ReduceCategoryCount(tx *gorm.DB) error {
-	oldArticle, err := getArticle(tx, article.ID)
-	if err != nil {
-		return err
-	}
-	if oldArticle.Status == 1 && len(oldArticle.CategoryUID) != 0 {
-		return tx.Model(&Category{}).Where("uid = ?", oldArticle.CategoryUID).Update("count", gorm.Expr("count - 1")).Error
-	}
-	return nil
-}
-
-func getArticle(tx *gorm.DB, id uint) (Article, error) {
-	var oldArticle Article
-	err := tx.Model(&Article{}).Where("id = ?", id).First(&oldArticle).Error
-	return oldArticle, err
 }

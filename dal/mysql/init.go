@@ -12,7 +12,7 @@ func InitDB() {
 }
 
 var (
-	categoryRepo    = CategoryRepo{}
-	articlegoryRepo = ArticleDBRepo{}
-	linkRepo        = LinkRepo{}
+	categoryRepo = CategoryRepo{}
+	articleRepo  = ArticleDBRepo{}
+	linkRepo     = LinkRepo{}
 )

@@ -4,13 +4,77 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"myecho/model"
+	"myecho/utils"
 	"strings"
 )
 
 type ArticleDBRepo struct {
 }
 
-type ArticleModel = model.Article
+type ArticleModel model.Article
+
+func (ArticleModel) TableName() string {
+	return "articles"
+}
+func (article *ArticleModel) BeforeCreate(tx *gorm.DB) error {
+	if len(article.UID) == 0 {
+		article.UID = utils.GenUID20()
+	}
+	if article.Detail != nil {
+		if len(article.Detail.UID) == 0 {
+			uid := utils.GenUID20()
+			article.Detail.UID = article.UID + "_" + uid
+		}
+	}
+	// TODO: 根据文章内容生成统计信息 https://github.com/mdigger/goldmark-stats info.Chars, info.Duration(400), 使用协程加版本锁
+	return nil
+}
+
+func (article *ArticleModel) AfterCreate(tx *gorm.DB) error {
+	if err := article.AddCategoryCount(tx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (article *ArticleModel) BeforeUpdate(tx *gorm.DB) error {
+	if err := article.ReduceCategoryCount(tx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (article *ArticleModel) AfterUpdate(tx *gorm.DB) error {
+	if err := article.AddCategoryCount(tx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (article *ArticleModel) AfterDelete(tx *gorm.DB) error {
+	if err := article.ReduceCategoryCount(tx); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (article *ArticleModel) AddCategoryCount(tx *gorm.DB) error {
+	if article.Status == 1 && len(article.CategoryUID) != 0 {
+		return tx.Model(&CategoryModel{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count + 1")).Error
+	}
+	return nil
+}
+
+func (article *ArticleModel) ReduceCategoryCount(tx *gorm.DB) error {
+	oldArticle, err := articleRepo.TXGet(tx, article.ID)
+	if err != nil {
+		return err
+	}
+	if oldArticle.Status == 1 && len(oldArticle.CategoryUID) != 0 {
+		return tx.Model(&CategoryModel{}).Where("uid = ?", oldArticle.CategoryUID).Update("count", gorm.Expr("count - 1")).Error
+	}
+	return nil
+}
 
 type (
 	ArticleStatus int8
@@ -57,8 +121,14 @@ func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryP
 	return db.Where(strings.Join(SqlPrefix, queryAND), SqlValue...), nil
 }
 
-func (a *ArticleDBRepo) Create(article *model.Article) error {
+func (a *ArticleDBRepo) Create(article *ArticleModel) error {
 	return db.Model(&ArticleModel{}).Create(article).Error
+}
+
+func (a *ArticleDBRepo) TXGet(tx *gorm.DB, id uint) (ArticleModel, error) {
+	var oldArticle ArticleModel
+	err := tx.Model(&ArticleModel{}).Where("id = ?", id).First(&oldArticle).Error
+	return oldArticle, err
 }
 
 func (a *ArticleDBRepo) PageFindAll(param *PageFindParam, _ *struct{}) ([]*ArticleModel, error) {

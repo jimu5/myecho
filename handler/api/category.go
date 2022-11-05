@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gofiber/fiber/v2"
 	"myecho/dal/connect"
+	"myecho/dal/mysql"
 	"myecho/handler"
 	"myecho/handler/api/validator"
 	"myecho/handler/rtype"
@@ -10,8 +11,11 @@ import (
 )
 
 func CategoryAll(c *fiber.Ctx) error {
-	var res []model.Category
-	connect.Database.Table("categories").Order("id").Find(&res)
+	var res []mysql.CategoryModel
+	err := connect.Database.Table("categories").Order("id").Find(&res).Error
+	if err != nil {
+		return err
+	}
 	return c.JSON(&res)
 }
 
@@ -23,18 +27,21 @@ func ArticleCategoryCreate(c *fiber.Ctx) error {
 	if err := validator.ValidateCategoryCreate(&req); err != nil {
 		return nil
 	}
-	category := model.Category{
+	category := mysql.CategoryModel{
 		Name:      req.Name,
 		FatherUID: req.FatherUID,
 	}
 	category.Type = model.CategoryTypeArticle
-	connect.Database.Table("categories").Create(&category)
+	err := connect.Database.Table("categories").Create(&category).Error
+	if err != nil {
+		return err
+	}
 	return c.Status(fiber.StatusCreated).JSON(&category)
 }
 
 func CategoryUpdate(c *fiber.Ctx) error {
 	var req rtype.CategoryUpdateRequest
-	var category model.Category
+	var category mysql.CategoryModel
 	if err := c.BodyParser(&req); err != nil {
 		return nil
 	}
@@ -51,7 +58,7 @@ func CategoryUpdate(c *fiber.Ctx) error {
 }
 
 func CategoryDelete(c *fiber.Ctx) error {
-	var category model.Category
+	var category mysql.CategoryModel
 	if err := handler.DetailPreHandleByParam(c, &category); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
@@ -70,7 +77,7 @@ func deleteAlterRelated(deletedCategoryID uint) error {
 		return tx.Error
 	}
 	if tx := connect.Database.Table("categories").Where("father_id = ?", deletedCategoryID).Delete(
-		&model.Category{}); tx.Error != nil {
+		&mysql.CategoryModel{}); tx.Error != nil {
 		return tx.Error
 	}
 	return nil

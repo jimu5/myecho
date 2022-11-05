@@ -1,11 +1,53 @@
 package mysql
 
-import "myecho/model"
+import (
+	"gorm.io/gorm"
+	"myecho/handler/api/errors"
+	"myecho/model"
+)
 
 type SettingRepo struct {
 }
 
-type SettingModel = model.Setting
+type SettingModel model.Setting
+
+func (SettingModel) TableName() string {
+	return "settings"
+}
+
+func (s *SettingModel) BeforeCreate(tx *gorm.DB) error {
+	if err := s.checkExist(tx); err != nil {
+		return err
+	}
+	s.setDefaultType()
+	return nil
+}
+
+func (s *SettingModel) BeforeUpdate(tx *gorm.DB) error {
+	if err := s.checkExist(tx); err != nil {
+		return err
+	}
+	s.setDefaultType()
+	return nil
+}
+
+func (s *SettingModel) setDefaultType() {
+	if len(s.Type) == 0 {
+		s.Type = model.SettingModelTypeString
+	}
+}
+
+func (s *SettingModel) checkExist(tx *gorm.DB) error {
+	var count int64
+	err := tx.Model(&SettingModel{}).Where("key = ?", s.Key).Count(&count).Error
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return errors.ErrSettingKeyExist
+	}
+	return nil
+}
 
 func getDefaultSettings() map[string]SettingModel {
 	settings := make([]SettingModel, 0)

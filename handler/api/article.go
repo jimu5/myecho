@@ -98,7 +98,7 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 }
 
 func ArticleCreate(c *fiber.Ctx) error {
-	var article model.Article
+	var article mysql.ArticleModel
 	var detail model.ArticleDetail
 	var r rtype.ArticleRequest
 	if err := c.BodyParser(&r); err != nil {
@@ -134,7 +134,7 @@ func ArticleCreate(c *fiber.Ctx) error {
 
 // 更新文章
 func ArticleUpdate(c *fiber.Ctx) error {
-	var article model.Article
+	var article mysql.ArticleModel
 	var r rtype.ArticleRequest
 	if err := c.BodyParser(&r); err != nil {
 		return ParseErrorResponse(c, err.Error())

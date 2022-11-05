@@ -3,6 +3,7 @@ package rtype
 import (
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/text"
+	"myecho/dal/mysql"
 	"myecho/model"
 	"myecho/utils"
 	"time"
@@ -91,7 +92,7 @@ func ModelToCategory(category *model.Category) *Category {
 	}
 }
 
-func ModelToArticleResponse(article *model.Article) *ArticleResponse {
+func ModelToArticleResponse(article *mysql.ArticleModel) *ArticleResponse {
 	if article == nil {
 		return nil
 	}
@@ -115,7 +116,7 @@ func ModelToArticleResponse(article *model.Article) *ArticleResponse {
 	}
 }
 
-func MultiModelToArticleResponse(articles []*model.Article) []*ArticleResponse {
+func MultiModelToArticleResponse(articles []*mysql.ArticleModel) []*ArticleResponse {
 	result := make([]*ArticleResponse, 0, len(articles))
 	for _, article := range articles {
 		res := ModelToArticleResponse(article)

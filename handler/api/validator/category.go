@@ -2,16 +2,16 @@ package validator
 
 import (
 	"myecho/dal/connect"
+	"myecho/dal/mysql"
 	"myecho/handler/api/errors"
 	"myecho/handler/rtype"
-	"myecho/model"
 )
 
 func ValidateCategoryID(categoryID uint) error {
 	if categoryID == 0 {
 		return nil
 	}
-	err := connect.Database.Where("id = ?", categoryID).First(&model.Category{}).Error
+	err := connect.Database.Where("id = ?", categoryID).First(&mysql.CategoryModel{}).Error
 	if err != nil {
 		return errors.ErrCategoryNotFound
 	}
@@ -22,7 +22,7 @@ func ValidateCategoryUID(uid string) error {
 	if len(uid) == 0 {
 		return nil
 	}
-	err := connect.Database.Where("uid = ?", uid).First(&model.Category{}).Error
+	err := connect.Database.Where("uid = ?", uid).First(&mysql.CategoryModel{}).Error
 	if err != nil {
 		return errors.ErrCategoryNotFound
 	}
