@@ -12,6 +12,7 @@
 <body>
   {{ include "components/header" }}
   <div class="index-content" id="category_ul">
+    <h1>文章分类</h1>
     <ul style="padding-left: 30px;">
       {{ range Data }}
       <li id="{{ .UID }}" father="{{ .FatherUID }}" style="padding-top: 15px">

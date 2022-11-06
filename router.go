@@ -14,7 +14,7 @@ func SetupViewRouter(app *fiber.App) {
 	{
 		ViewRoute.Get("", view.ArticleDisplayList)
 		ViewRoute.Get("/articles/:id", view.ArticleRetrieve)
-		ViewRoute.Get("/articles/categories", view.CategoryArticleAll)
+		ViewRoute.Get("/article/categories", view.CategoryArticleAll)
 		ViewRoute.Get("/links", view.LinkAll)
 	}
 }
