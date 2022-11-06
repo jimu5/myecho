@@ -29,21 +29,6 @@ func ValidateCategoryUID(uid string) error {
 	return nil
 }
 
-func ValidateCategoryCreate(req *rtype.CategoryCreateRequest) error {
-	if req.Name == "" {
-		return errors.ErrCategoryNameEmpty
-	}
-	if len(req.FatherUID) != 0 {
-		if err := ValidateCategoryUID(req.FatherUID); err != nil {
-			return err
-		}
-	}
-	if !req.Type.IsCategoryTypeValid() {
-		return errors.ErrCategoryType
-	}
-	return nil
-}
-
 func ValidateCategoryUpdate(req *rtype.CategoryUpdateRequest) error {
 	if req.Name != nil && *req.Name == "" {
 		return errors.ErrCategoryNameEmpty

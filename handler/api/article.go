@@ -16,7 +16,8 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 	if err := c.QueryParser(&queryParam); err != nil {
 		return err
 	}
-	pageInfo, res, err := service.S.Article.ArticleDisplayList(&queryParam)
+	pageInfo, articles, err := service.S.Article.ArticleDisplayList(&queryParam)
+	res := rtype.MultiModelToArticleResponse(articles)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func ArticleAllList(c *fiber.Ctx) error {
 
 func ArticleRetrieve(c *fiber.Ctx) error {
 	var (
-		article model.Article
+		article mysql.ArticleModel
 		err     error
 	)
 	queryParam := service.ArticleRetrieveQueryParam{}
@@ -90,10 +91,11 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	queryParam.ID = article.ID
-	res, err := service.S.Article.ArticleRetrieve(&queryParam)
+	article, err = service.S.Article.ArticleRetrieve(&queryParam)
 	if err != nil {
 		return err
 	}
+	res := rtype.ModelToArticleResponse(&article)
 	return c.JSON(&res)
 }
 

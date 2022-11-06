@@ -89,7 +89,7 @@ func (c *CategoryRepo) ValidateUIDExist(uid string) error {
 	if err != nil {
 		return err
 	}
-	if count > 0 {
+	if count == 0 {
 		return errors.ErrCategoryNotFound
 	}
 	return nil

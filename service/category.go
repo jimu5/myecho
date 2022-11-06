@@ -32,6 +32,15 @@ func (c *CategoryService) AllByType(_type model.CategoryType) ([]*Category, erro
 	return categories, nil
 }
 
+func (c *CategoryService) CreateByType(category *mysql.CategoryModel, _type model.CategoryType) error {
+	category.Type = _type
+	return dal.MySqlDB.Category.Create(category)
+}
+
+func (c *CategoryService) ValidateUIDExist(uid string) error {
+	return dal.MySqlDB.Category.ValidateUIDExist(uid)
+}
+
 func mysqlToServiceCategory(allMysqlCategories []*mysql.CategoryModel) []*Category {
 	categories := make([]*Category, 0, len(allMysqlCategories))
 	for _, category := range allMysqlCategories {

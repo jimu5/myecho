@@ -21,7 +21,8 @@ func SetupApiRouter(app *fiber.App) {
 
 			apiRoute.Patch("/comments/:id", mw.Authentication, api.CommentUpdate)
 
-			apiRoute.Post("/articles/categories", mw.Authentication, api.ArticleCategoryCreate)
+			apiRoute.Post("/article/categories", mw.Authentication, api.ArticleCategoryCreate)
+			apiRoute.Post("/link/categories", mw.Authentication, api.LinkCategoryCreate)
 			apiRoute.Patch("/categories/:id", mw.Authentication, api.CategoryUpdate)
 			apiRoute.Delete("/categories/:id", mw.Authentication, api.CategoryDelete)
 

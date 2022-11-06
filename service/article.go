@@ -4,14 +4,13 @@ import (
 	"log"
 	"myecho/dal"
 	"myecho/dal/mysql"
-	"myecho/handler/rtype"
 )
 
 type ArticleService struct {
 }
 
 type ArticleDisplayListQueryParam struct {
-	rtype.ArticleDisplayListQueryParam
+	CategoryUID *string `query:"category_uid"`
 	mysql.PageFindParam
 }
 
@@ -20,7 +19,7 @@ type ArticleRetrieveQueryParam struct {
 	NoRead bool `query:"no_read"`
 }
 
-func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql.PageInfo, []*rtype.ArticleResponse, error) {
+func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql.PageInfo, []*mysql.ArticleModel, error) {
 	status := mysql.ARTICLE_STATUS_TOP
 	pageInfo := mysql.PageInfo{}
 	sqlParam := mysql.ArticleCommonQueryParam{
@@ -51,16 +50,14 @@ func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam)
 	}
 	articles := topArticles
 	articles = append(articles, restArticles...)
-	res := rtype.MultiModelToArticleResponse(articles)
-	return pageInfo, res, nil
+	return pageInfo, articles, nil
 }
 
-func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (rtype.ArticleResponse, error) {
+func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (mysql.ArticleModel, error) {
 	article, err := dal.MySqlDB.Article.FindByID(param.ID)
 	if err != nil {
-		return rtype.ArticleResponse{}, err
+		return mysql.ArticleModel{}, err
 	}
-	res := rtype.ModelToArticleResponse(&article)
 	if !param.NoRead {
 		go func() {
 			if err := dal.MySqlDB.Article.AddReadCountByID(article.ID, 1); err != nil {
@@ -68,5 +65,5 @@ func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (rtyp
 			}
 		}()
 	}
-	return *res, nil
+	return article, nil
 }

@@ -36,21 +36,35 @@ func CategoryLinkAll(c *fiber.Ctx) error {
 	return c.JSON(&result)
 }
 
-func ArticleCategoryCreate(c *fiber.Ctx) error {
+func getCategoryFromCategoryCreateRequest(c *fiber.Ctx) (mysql.CategoryModel, error) {
 	var req rtype.CategoryCreateRequest
 	if err := c.BodyParser(&req); err != nil {
-		return nil
+		return mysql.CategoryModel{}, err
 	}
-	if err := validator.ValidateCategoryCreate(&req); err != nil {
-		return nil
+	if err := req.Validate(); err != nil {
+		return mysql.CategoryModel{}, err
 	}
-	category := mysql.CategoryModel{
-		Name:      req.Name,
-		FatherUID: req.FatherUID,
-	}
-	category.Type = model.CategoryTypeArticle
-	err := connect.Database.Table("categories").Create(&category).Error
+	category := req.ToMysqlModel()
+	return category, nil
+}
+
+func ArticleCategoryCreate(c *fiber.Ctx) error {
+	category, err := getCategoryFromCategoryCreateRequest(c)
 	if err != nil {
+		return err
+	}
+	if err = service.S.Category.CreateByType(&category, model.CategoryTypeArticle); err != nil {
+		return err
+	}
+	return c.Status(fiber.StatusCreated).JSON(&category)
+}
+
+func LinkCategoryCreate(c *fiber.Ctx) error {
+	category, err := getCategoryFromCategoryCreateRequest(c)
+	if err != nil {
+		return err
+	}
+	if err = service.S.Category.CreateByType(&category, model.CategoryTypeLink); err != nil {
 		return err
 	}
 	return c.Status(fiber.StatusCreated).JSON(&category)
