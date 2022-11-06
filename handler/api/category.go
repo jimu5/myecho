@@ -8,6 +8,7 @@ import (
 	"myecho/handler/api/validator"
 	"myecho/handler/rtype"
 	"myecho/model"
+	"myecho/service"
 )
 
 func CategoryAll(c *fiber.Ctx) error {
@@ -17,6 +18,22 @@ func CategoryAll(c *fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(&res)
+}
+
+func CategoryArticleAll(c *fiber.Ctx) error {
+	result, err := service.S.Category.AllByType(model.CategoryTypeArticle)
+	if err != nil {
+		return err
+	}
+	return c.JSON(&result)
+}
+
+func CategoryLinkAll(c *fiber.Ctx) error {
+	result, err := service.S.Category.AllByType(model.CategoryTypeLink)
+	if err != nil {
+		return err
+	}
+	return c.JSON(&result)
 }
 
 func ArticleCategoryCreate(c *fiber.Ctx) error {

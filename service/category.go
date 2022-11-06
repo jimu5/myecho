@@ -3,6 +3,7 @@ package service
 import (
 	"myecho/dal"
 	"myecho/dal/mysql"
+	"myecho/model"
 )
 
 type CategoryService struct {
@@ -14,11 +15,24 @@ type Category struct {
 }
 
 func (c *CategoryService) All() ([]*Category, error) {
-
 	allMysqlCategories, err := dal.MySqlDB.Category.All()
 	if err != nil {
 		return nil, err
 	}
+	categories := mysqlToServiceCategory(allMysqlCategories)
+	return categories, nil
+}
+
+func (c *CategoryService) AllByType(_type model.CategoryType) ([]*Category, error) {
+	allMysqlCategories, err := dal.MySqlDB.Category.AllByType(_type)
+	if err != nil {
+		return nil, err
+	}
+	categories := mysqlToServiceCategory(allMysqlCategories)
+	return categories, nil
+}
+
+func mysqlToServiceCategory(allMysqlCategories []*mysql.CategoryModel) []*Category {
 	categories := make([]*Category, 0, len(allMysqlCategories))
 	for _, category := range allMysqlCategories {
 		categories = append(categories, &Category{
@@ -26,7 +40,7 @@ func (c *CategoryService) All() ([]*Category, error) {
 		})
 	}
 	FillTotalCountCategories(categories)
-	return categories, nil
+	return categories
 }
 
 // 返回 map[category_uid]children

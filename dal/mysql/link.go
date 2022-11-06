@@ -43,7 +43,7 @@ func (lm *LinkModel) AfterUpdate(tx *gorm.DB) error {
 	return nil
 }
 
-func (lm *LinkModel) AfterDelete(tx *gorm.DB) error {
+func (lm *LinkModel) BeforeDelete(tx *gorm.DB) error {
 	if err := lm.ReduceCategoryCount(tx); err != nil {
 		return err
 	}
@@ -102,7 +102,9 @@ func (l *LinkRepo) UpdateByID(id uint, linkModel *LinkModel) error {
 }
 
 func (l *LinkRepo) DeleteByID(id uint) error {
-	return db.Model(&LinkModel{}).Where("id = ?", id).Error
+	link := &LinkModel{}
+	link.ID = id
+	return db.Delete(link).Error
 }
 
 func (l *LinkRepo) All(param *LinkCommonQueryParam) ([]*LinkModel, error) {

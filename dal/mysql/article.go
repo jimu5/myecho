@@ -51,7 +51,7 @@ func (article *ArticleModel) AfterUpdate(tx *gorm.DB) error {
 	return nil
 }
 
-func (article *ArticleModel) AfterDelete(tx *gorm.DB) error {
+func (article *ArticleModel) BeforeDelete(tx *gorm.DB) error {
 	if err := article.ReduceCategoryCount(tx); err != nil {
 		return err
 	}
@@ -200,7 +200,9 @@ func (a *ArticleDBRepo) FindByID(id uint) (ArticleModel, error) {
 }
 
 func (a *ArticleDBRepo) DeleteByID(id uint) error {
-	return db.Model(&ArticleModel{}).Select("Detail").Delete(&ArticleModel{}, id).Error
+	article := &ArticleModel{}
+	article.ID = id
+	return db.Model(&ArticleModel{}).Select("Detail").Delete(article).Error
 }
 
 func (a *ArticleDBRepo) AddReadCountByID(id uint, addCount uint) error {
