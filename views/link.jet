@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+  <title>{{ Settings.GetStringValue("SiteTitle") }} - 链接</title>
+  <meta name="keyword" content="{{ Settings.GetStringValue(" SiteIndexMetaKeyword") }}">
+  <link type="text/css" rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+  {{ include "components/header" }}
+  <div class="index-content">
+    <h1>链接</h1>
+    {{ range Data }}
+    <div style="width: 25%; height: 0; padding-bottom: 25%; position: relative; display: inline-block;">
+      <a class="link-image-a" href="{{ .URL }}" title="{{ .Name }}">
+        <div class="link-des-image" style="background-image: url({{ .IconURL }});">
+        </div>
+      </a>
+      <div class="link-des">
+        <div class="link-tile-text">
+          <a href="{{ .URL }}" title="{{ .Name }} target">
+            {{ .Name}}
+          </a>
+          <div class="link-tile-des">
+            {{ .Description }}
+          </div>
+        </div>
+      </div>
+    </div>
+    {{ end }}
+  </div>
+  {{ include "components/footer" RequestTimeDuration }}
+</body>
+
+</html>

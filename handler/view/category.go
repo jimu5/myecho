@@ -2,11 +2,12 @@ package view
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"myecho/model"
 	"myecho/service"
 )
 
-func CategoryAll(c *fiber.Ctx) error {
-	categories, err := service.S.Category.All()
+func CategoryArticleAll(c *fiber.Ctx) error {
+	categories, err := service.S.Category.AllByType(model.CategoryTypeArticle)
 	if err != nil {
 		return err
 	}
