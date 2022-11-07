@@ -280,7 +280,8 @@ footer {
 
     /* link */
     .link-container {
-        width: 50%;
+        width: 49%;
+        padding-bottom: 49%;
     }
 }
 
