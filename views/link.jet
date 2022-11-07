@@ -14,7 +14,7 @@
   <div class="index-content">
     <h1>链接</h1>
     {{ range Data }}
-    <div style="width: 25%; height: 0; padding-bottom: 25%; position: relative; display: inline-block;">
+    <div class="link-container">
       <a class="link-image-a" href="{{ .URL }}" title="{{ .Name }}">
         <div class="link-des-image" style="background-image: url({{ .IconURL }});">
         </div>

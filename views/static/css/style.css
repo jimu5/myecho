@@ -134,6 +134,14 @@ footer {
 
 
 /* link */
+.link-container {
+    width: 25%;
+    height: 0;
+    padding-bottom: 25%;
+    position: relative;
+    display: inline-block;
+}
+
 .link-des {
     border-bottom-left-radius: 8px;
     border-bottom-right-radius: 8px;
@@ -268,6 +276,11 @@ footer {
         -webkit-transition: 500ms ease;
         -ms-transition: 500ms ease;
         -o-transition: 500ms ease;
+    }
+
+    /* link */
+    .link-container {
+        width: 50%;
     }
 }
 
