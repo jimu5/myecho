@@ -48,6 +48,7 @@ header {
 
 #nav {
     float: right;
+    z-index: 10;
 }
 
 #nav ul li {
@@ -137,6 +138,7 @@ footer {
 .link-container {
     width: 25%;
     height: 0;
+    z-index: 1;
     padding-bottom: 25%;
     position: relative;
     display: inline-block;
@@ -149,7 +151,7 @@ footer {
     background: rgba(0, 0, 0, .3);
     overflow: hidden;
     width: calc(100% - 22px);
-    z-index: 3;
+    z-index: 2;
     display: flex;
     align-items: center;
     bottom: 0;
@@ -269,7 +271,6 @@ footer {
         line-height: 60px;
         margin: 0;
         color: #fff;
-        z-index: 10;
         height: 60px;
         transition: 500ms ease;
         -moz-transition: 500ms ease;
