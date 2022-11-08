@@ -19,7 +19,7 @@ func (m *MysqlSettingMap) Get(key string) (mysql.SettingModel, bool) {
 }
 
 func (m *MysqlSettingMap) Set(key string, value *mysql.SettingModel) {
-	m.Store(key, value)
+	m.Store(key, *value)
 }
 
 func (m *MysqlSettingMap) GetStringValue(key string) string {

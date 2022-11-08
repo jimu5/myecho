@@ -98,7 +98,8 @@ func (l *LinkRepo) Create(linkModel *LinkModel) error {
 }
 
 func (l *LinkRepo) UpdateByID(id uint, linkModel *LinkModel) error {
-	return db.Model(&LinkModel{}).Where("id = ?", id).Save(linkModel).Error
+	linkModel.ID = id
+	return db.Model(linkModel).Where("id = ?", id).Save(linkModel).Error
 }
 
 func (l *LinkRepo) DeleteByID(id uint) error {
