@@ -16,6 +16,7 @@ type Setting[T int | string] struct {
 }
 
 func (s *SettingService) Create(model *mysql.SettingModel) error {
+	model.IsSystem = false
 	err := dal.MySqlDB.Setting.Create(model)
 	if err != nil {
 		return err

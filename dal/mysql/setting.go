@@ -24,9 +24,6 @@ func (s *SettingModel) BeforeCreate(tx *gorm.DB) error {
 }
 
 func (s *SettingModel) BeforeUpdate(tx *gorm.DB) error {
-	if err := s.checkExist(tx); err != nil {
-		return err
-	}
 	s.setDefaultType()
 	return nil
 }
@@ -61,6 +58,7 @@ func getDefaultSettings() map[string]SettingModel {
 	})
 	result := make(map[string]SettingModel, len(settings))
 	for i := range settings {
+		settings[i].IsSystem = true
 		result[settings[i].Key] = settings[i]
 	}
 	return result
@@ -73,6 +71,13 @@ func (s *SettingRepo) Create(setting *SettingModel) error {
 func (s *SettingRepo) MCreate(settings []*SettingModel) error {
 	if len(settings) != 0 {
 		return db.Create(settings).Error
+	}
+	return nil
+}
+
+func (s *SettingRepo) MUpdateIsSystem(settings []*SettingModel, isSystem bool) error {
+	if len(settings) != 0 {
+		return db.Model(settings).Update("is_system", isSystem).Error
 	}
 	return nil
 }
@@ -119,8 +124,12 @@ func (s *SettingRepo) InitDefaultSetting() {
 		panic(err)
 	}
 	defaultSettingMap := getDefaultSettings()
+	updateSystemSettings := make([]*SettingModel, 0)
 	for _, setting := range allSettings {
 		if _, ok := defaultSettingMap[setting.Key]; ok {
+			if !setting.IsSystem {
+				updateSystemSettings = append(updateSystemSettings, setting)
+			}
 			delete(defaultSettingMap, setting.Key)
 		}
 	}
@@ -130,6 +139,10 @@ func (s *SettingRepo) InitDefaultSetting() {
 		needInitSettings = append(needInitSettings, &setting)
 	}
 	err = s.MCreate(needInitSettings)
+	if err != nil {
+		panic(err)
+	}
+	err = s.MUpdateIsSystem(updateSystemSettings, true)
 	if err != nil {
 		panic(err)
 	}
