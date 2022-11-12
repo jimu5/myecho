@@ -36,7 +36,7 @@ func SettingUpdate(c *fiber.Ctx) error {
 	if err := c.BodyParser(&reqParam); err != nil {
 		return err
 	}
-	result, err := service.S.Setting.UpdateValue(key, reqParam.Value)
+	result, err := service.S.Setting.UpdateValueAndDesc(key, reqParam.Value, reqParam.Description)
 	if err != nil {
 		return err
 	}

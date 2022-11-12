@@ -19,7 +19,8 @@ func (sq *SettingCreateReq) Validate() error {
 }
 
 type SettingUpdateReq struct {
-	Value string `json:"value"`
+	Value       string `json:"value"`
+	Description string `json:"description"`
 }
 
 type Setting struct {

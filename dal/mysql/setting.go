@@ -49,12 +49,19 @@ func (s *SettingModel) checkExist(tx *gorm.DB) error {
 func getDefaultSettings() map[string]SettingModel {
 	settings := make([]SettingModel, 0)
 	settings = append(settings, SettingModel{
-		Key:   "SiteTitle",
-		Value: "Myecho 默认网站名",
+		Key:         "SiteTitle",
+		Value:       "Myecho 默认网站名",
+		Description: "网站名",
 	})
 	settings = append(settings, SettingModel{
-		Key:   "SiteIndexMetaKeyword",
-		Value: "myecho",
+		Key:         "SiteIndexMetaKeyword",
+		Value:       "myecho",
+		Description: "站点主页关键词",
+	})
+	settings = append(settings, SettingModel{
+		Key:         "SiteIcon",
+		Value:       "",
+		Description: "网站icon",
 	})
 	result := make(map[string]SettingModel, len(settings))
 	for i := range settings {
@@ -97,8 +104,8 @@ func (s *SettingRepo) GetByKey(key string) (SettingModel, error) {
 	return result, err
 }
 
-func (s *SettingRepo) UpdateValue(key, value string) (SettingModel, error) {
-	err := db.Model(&SettingModel{}).Where("key = ?", key).Update("value", value).Error
+func (s *SettingRepo) UpdateValueAndDesc(key, value, desc string) (SettingModel, error) {
+	err := db.Model(&SettingModel{}).Where("key = ?", key).Updates(map[string]interface{}{"value": value, "description": desc}).Error
 	if err != nil {
 		return SettingModel{}, err
 	}

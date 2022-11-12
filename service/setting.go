@@ -36,8 +36,8 @@ func (s *SettingService) GetByKey(key string) (mysql.SettingModel, error) {
 	}
 	return dal.MySqlDB.Setting.GetByKey(key)
 }
-func (s *SettingService) UpdateValue(key, value string) (mysql.SettingModel, error) {
-	result, err := dal.MySqlDB.Setting.UpdateValue(key, value)
+func (s *SettingService) UpdateValueAndDesc(key, value, desc string) (mysql.SettingModel, error) {
+	result, err := dal.MySqlDB.Setting.UpdateValueAndDesc(key, value, desc)
 	if err != nil {
 		return result, err
 	}
