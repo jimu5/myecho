@@ -9,6 +9,7 @@ import (
 
 var passCacheRoutePathPrefix = []string{
 	"/api",
+	"/mos",
 	"/status",
 }
 
