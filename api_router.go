@@ -38,7 +38,8 @@ func SetupApiRouter(app *fiber.App) {
 			apiRoute.Put("/links/:id", mw.Authentication, api.LinkUpdate)
 			apiRoute.Delete("/links/:id", mw.Authentication, api.LinkDelete)
 
-			mos.Post("/upload", mw.Authentication, api.FileUpload)
+			mos.Post("/files/vditor_upload", mw.Authentication, api.VditorFileUpload)
+			mos.Post("/files/upload", mw.Authentication, api.FileSingleUpload)
 			mos.Post("/save_url_file", mw.Authentication, api.FileSaveByLinkUrl)
 			mos.Get("/files", mw.Authentication, api.FilePageList)
 			mos.Delete("/files/:id", mw.Authentication, api.FileDelete)

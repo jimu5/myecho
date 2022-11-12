@@ -32,7 +32,7 @@ type File struct {
 	Note          string `json:"note"`
 }
 
-func modelToFile(model *mysql.FileModel) File {
+func ModelToFile(model *mysql.FileModel) File {
 	return File{
 		BaseModel:     model.BaseModel,
 		FullName:      model.GetFullName(),
@@ -43,10 +43,10 @@ func modelToFile(model *mysql.FileModel) File {
 		Note:          model.Note,
 	}
 }
-func mModelToFiles(models []*mysql.FileModel) []*File {
+func MModelToFiles(models []*mysql.FileModel) []*File {
 	files := make([]*File, len(models))
 	for i, m := range models {
-		f := modelToFile(m)
+		f := ModelToFile(m)
 		files[i] = &f
 	}
 	return files
@@ -69,7 +69,7 @@ func (fs *FileService) PageList(param *FilePageListParam) (mysql.PageInfo, []*Fi
 	if err != nil {
 		return mysql.PageInfo{}, nil, err
 	}
-	files := mModelToFiles(modelFiles)
+	files := MModelToFiles(modelFiles)
 
 	return pageInfo, files, nil
 }
@@ -96,7 +96,7 @@ func (fs *FileService) UpdateFile(id uint, param *UpdateFileParam) (File, error)
 	if err != nil {
 		return File{}, nil
 	}
-	f := modelToFile(&file)
+	f := ModelToFile(&file)
 	return f, nil
 }
 

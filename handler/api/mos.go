@@ -21,7 +21,7 @@ var httpClient = &http.Client{
 	Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
 }
 
-func FileUpload(c *fiber.Ctx) error {
+func VditorFileUpload(c *fiber.Ctx) error {
 	form, err := c.MultipartForm()
 	if err != nil {
 		return err
@@ -47,6 +47,25 @@ func FileUpload(c *fiber.Ctx) error {
 		SuccMap:  successFileMap,
 	}
 	return c.JSON(handler.GetSuccessCommonResp(resp))
+}
+
+func FileSingleUpload(c *fiber.Ctx) error {
+	form, err := c.MultipartForm()
+	if err != nil {
+		return err
+	}
+	files := form.File["file"]
+	if len(files) == 0 {
+		return nil
+	}
+	file := files[0]
+	fileModel := mysql.GenFileModel(utils.ParseFileFullName(file.Filename))
+	if err = saveFile(c, file, &fileModel); err != nil {
+		return err
+	}
+	fileResp := service.ModelToFile(&fileModel)
+	return c.JSON(&fileResp)
+
 }
 
 // 保存链接的文件
@@ -125,6 +144,7 @@ func FileDelete(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// TODO: 修改这些逻辑代码到 service 层
 func saveFile(c *fiber.Ctx, file *multipart.FileHeader, fileModel *mysql.FileModel) error {
 	// 先保存到 temp 文件夹中
 	if err := c.SaveFile(file, fileModel.GetTempSavePath()); err != nil {
@@ -149,6 +169,7 @@ func duplicateSaveTempFileModel(fileModel *mysql.FileModel) error {
 		}
 		fileModel.UUID = sampleFileModels[0].UUID
 		fileModel.DirPath = sampleFileModels[0].DirPath
+		fileModel.ID = sampleFileModels[0].ID
 		return nil
 	}
 	err = dal.MySqlDB.File.Create(fileModel)
