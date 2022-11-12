@@ -2,18 +2,8 @@
 <html lang="zh-hans">
 
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
   <title>{{ Settings.GetStringValue("SiteTitle") }} - {{ Data.Title }}</title>
-  <link rel="stylesheet" href="/static/css/lib/vditor@3.8.17.css" />
-  <script src="/static/js/lib/vditor@3.8.17.min.js"></script>
-  <script src="/static/js/lib/dayjs@1.8.21.min.js"></script>
-
-  <link type="text/css" rel="stylesheet" href="/static/css/style.css" />
-
-  <!-- <link rel="stylesheet" href="https://unpkg.com/vditor/dist/index.css" />
-  <script src="https://unpkg.com/vditor/dist/index.min.js"></script>
-  <script src="https://unpkg.com/dayjs@1.8.21/dayjs.min.js"></script> -->
+  {{ include "components/common_head" }}
 </head>
 
 <body>
