@@ -12,6 +12,7 @@ func SetupViewRouter(app *fiber.App) {
 		app.Get("/status", monitor.New()) // 监控
 	}
 	{
+		ViewRoute.Get("favicon.ico", view.GetFavicon)
 		ViewRoute.Get("", view.ArticleDisplayList)
 		ViewRoute.Get("/articles/:id", view.ArticleRetrieve)
 		ViewRoute.Get("/article/categories", view.CategoryArticleAll)

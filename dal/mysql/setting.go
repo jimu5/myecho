@@ -59,7 +59,7 @@ func getDefaultSettings() map[string]SettingModel {
 		Description: "站点主页关键词",
 	})
 	settings = append(settings, SettingModel{
-		Key:         "SiteIcon",
+		Key:         "SiteFaviconIcon",
 		Value:       "",
 		Description: "网站icon",
 	})

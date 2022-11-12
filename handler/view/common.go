@@ -21,6 +21,14 @@ type Pagination struct {
 	PageData interface{}  `json:"page_data"`
 }
 
+func GetFavicon(c *fiber.Ctx) error {
+	err := c.SendFile(static_config.StorageIconPath)
+	if err != nil {
+		return c.SendStatus(404)
+	}
+	return nil
+}
+
 func getPageInfoRespByMysqlPageInfo(c *fiber.Ctx, pageInfoMysql *mysql.PageInfo) PageInfoResp {
 	pageInfoResp := PageInfoResp{}
 	if pageInfoMysql.Total == 0 {
