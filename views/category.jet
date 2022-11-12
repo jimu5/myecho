@@ -3,6 +3,7 @@
 
 <head>
   <title>{{ Settings.GetStringValue("SiteTitle") }} - 分类目录</title>
+  {{ include "components/common_head" }}
 </head>
 
 <body>
