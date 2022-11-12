@@ -12,11 +12,12 @@ import (
 
 type File struct {
 	BaseModel
-	Name          string `json:"name" gorm:"size:255"`
+	Name          string `json:"name" gorm:"size:255"` // 文件名, 不含后缀
 	DirPath       string `json:"dir_path" gorm:"size:512"`
 	UUID          string `json:"uuid" gorm:"size:36"`
-	ExtensionName string `json:"type" gorm:"size:32"`
+	ExtensionName string `json:"extension_name" gorm:"size:32"`
 	MD5           string `json:"md5" gorm:"size:255"`
+	Note          string `json:"note" gorm:"size:256"` // 备注
 }
 
 func (f *File) BeforeCreate(tx *gorm.DB) error {
@@ -77,6 +78,10 @@ func (f *File) GetActualSavePath() string {
 	return fPath + f.ExtensionName
 }
 
+func (f *File) GetFullName() string {
+	return f.Name + f.ExtensionName
+}
+
 func (f *File) GetActualSaveDir() string {
 	return filepath.Join(static_config.StorageRootPath, f.DirPath)
 }
@@ -98,4 +103,12 @@ func (f *File) CreateTempIfNotExist() error {
 
 func (f *File) MoveTempFileToActualPath() error {
 	return os.Rename(f.GetTempSavePath(), f.GetActualSavePath())
+}
+
+func (f *File) HardDelete() error {
+	savePath := f.GetActualSavePath()
+	if savePath == "/" || savePath == "" {
+		return nil
+	}
+	return os.Remove(savePath)
 }

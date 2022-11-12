@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"io"
 	"os"
+	"path"
 )
 
 func GetFileMD5(filePath string) (string, error) {
@@ -28,4 +29,11 @@ func CreateDirIfNotExist(dirPath string) error {
 		return nil
 	}
 	return err
+}
+
+func ParseFileFullName(fullName string) (string, string) {
+	fileNameRune := []rune(fullName)
+	extName := path.Ext(string(fileNameRune))
+	name := string(fileNameRune[0 : len(fileNameRune)-len(extName)])
+	return name, extName
 }

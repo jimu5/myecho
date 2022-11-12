@@ -10,6 +10,8 @@ import (
 	"myecho/dal/mysql"
 	"myecho/handler"
 	"myecho/handler/rtype"
+	"myecho/service"
+	"myecho/utils"
 	"net/http"
 	"os"
 	"path"
@@ -19,7 +21,7 @@ var httpClient = &http.Client{
 	Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
 }
 
-func UploadFile(c *fiber.Ctx) error {
+func FileUpload(c *fiber.Ctx) error {
 	form, err := c.MultipartForm()
 	if err != nil {
 		return err
@@ -28,8 +30,7 @@ func UploadFile(c *fiber.Ctx) error {
 	failedFileName := make([]string, 0)
 	successFileMap := make(map[string]string, len(files))
 	for _, file := range files {
-		extName := path.Ext(file.Filename)
-		fileModel := mysql.GenFileModel(file.Filename[0:len(file.Filename)-len(extName)], extName)
+		fileModel := mysql.GenFileModel(utils.ParseFileFullName(file.Filename))
 		// 如果后面出现相同的 filename
 		if _, ok := successFileMap[file.Filename]; ok {
 			failedFileName = append(failedFileName, file.Filename)
@@ -49,7 +50,7 @@ func UploadFile(c *fiber.Ctx) error {
 }
 
 // 保存链接的文件
-func SaveLinkUrlFile(c *fiber.Ctx) error {
+func FileSaveByLinkUrl(c *fiber.Ctx) error {
 	reqBody := new(rtype.SaveLinkFileReqBodyParam)
 	if err := c.BodyParser(reqBody); err != nil {
 		return err
@@ -82,6 +83,46 @@ func SaveLinkUrlFile(c *fiber.Ctx) error {
 		URL:         fileModel.GetUrlPath(),
 	}
 	return c.JSON(handler.GetSuccessCommonResp(res))
+}
+
+func FilePageList(c *fiber.Ctx) error {
+	queryParam := service.FilePageListParam{}
+	if err := c.QueryParser(&queryParam); err != nil {
+		return err
+	}
+	pageInfo, files, err := service.S.File.PageList(&queryParam)
+	if err != nil {
+		return err
+	}
+	return handler.PaginateData(c, pageInfo.Total, files)
+}
+
+func FileInfoUpdate(c *fiber.Ctx) error {
+	id, err := handler.GetIDByParam(c, &mysql.FileModel{})
+	if err != nil {
+		return err
+	}
+	param := service.UpdateFileParam{}
+	if err = c.BodyParser(&param); err != nil {
+		return err
+	}
+	file, err := service.S.File.UpdateFile(id, &param)
+	if err != nil {
+		return err
+	}
+	return c.JSON(&file)
+}
+
+func FileDelete(c *fiber.Ctx) error {
+	id, err := handler.GetIDByParam(c, &mysql.FileModel{})
+	if err != nil {
+		return err
+	}
+	err = service.S.File.Delete(id)
+	if err != nil {
+		return err
+	}
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func saveFile(c *fiber.Ctx, file *multipart.FileHeader, fileModel *mysql.FileModel) error {
