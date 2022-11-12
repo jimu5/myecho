@@ -50,9 +50,9 @@ func (fr *FileRepo) PageQueryByName(param *PageFindParam, name string) ([]*FileM
 	var err error
 	result := make([]*FileModel, 0)
 	if len(name) != 0 {
-		err = db.Model(&FileModel{}).Scopes(Paginate(param)).Where("name like ?", "%"+name+"%").Order("created_at").Find(&result).Error
+		err = db.Model(&FileModel{}).Scopes(Paginate(param)).Where("name like ?", "%"+name+"%").Order("created_at desc").Find(&result).Error
 	} else {
-		err = db.Model(&FileModel{}).Scopes(Paginate(param)).Find(&result).Order("created_at").Error
+		err = db.Model(&FileModel{}).Scopes(Paginate(param)).Find(&result).Order("created_at desc").Error
 	}
 	return result, err
 }
