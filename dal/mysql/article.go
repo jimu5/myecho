@@ -38,6 +38,9 @@ func (article *ArticleModel) AfterCreate(tx *gorm.DB) error {
 }
 
 func (article *ArticleModel) BeforeUpdate(tx *gorm.DB) error {
+	if article.ID == 0 {
+		return nil
+	}
 	if err := article.ReduceCategoryCount(tx); err != nil {
 		return err
 	}
@@ -45,6 +48,9 @@ func (article *ArticleModel) BeforeUpdate(tx *gorm.DB) error {
 }
 
 func (article *ArticleModel) AfterUpdate(tx *gorm.DB) error {
+	if article.ID == 0 {
+		return nil
+	}
 	if err := article.AddCategoryCount(tx); err != nil {
 		return err
 	}
