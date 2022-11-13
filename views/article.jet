@@ -20,6 +20,9 @@
       content = rawContentNode.innerText
       Vditor.preview(document.getElementById("article_content"), content, {
         anchor: 1,
+        hljs: {
+          enable: true
+        },
         after: function () {
           Vditor.outlineRender(document.getElementById("article_content"), document.getElementById("article_outline"));
           initOutline();
