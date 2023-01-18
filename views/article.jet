@@ -27,6 +27,9 @@
           enable: true
         },
         after: function () {
+          if (window.innerWidth <= 768) {
+            return
+          }
           let outlineElement = document.getElementById("article_outline");
           Vditor.outlineRender(document.getElementById("article_content"), document.getElementById("article_outline"));
           initOutline();
