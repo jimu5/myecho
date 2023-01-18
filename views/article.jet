@@ -19,13 +19,21 @@
       rawContentNode = document.getElementById("raw_content")
       content = rawContentNode.innerText
       Vditor.preview(document.getElementById("article_content"), content, {
+        speech: {
+          enable: true,
+        },
         anchor: 1,
         hljs: {
           enable: true
         },
         after: function () {
+          let outlineElement = document.getElementById("article_outline");
           Vditor.outlineRender(document.getElementById("article_content"), document.getElementById("article_outline"));
           initOutline();
+          if (outlineElement.innerHTML.trim() !== '') {
+            outlineElement.style.display = 'block'
+            initOutline()
+          }
         }
       })
       rawContentNode.remove()
@@ -65,7 +73,7 @@
           if (currentElement) {
             currentElement.classList.remove('vditor-outline__item--current')
           }
-          let index = i >0 ? i - 1 : 0
+          let index = i > 0 ? i - 1 : 0
           document.querySelector('span[data-target-id="' + toc[index].id + '"]').classList.add('vditor-outline__item--current')
           break
         }

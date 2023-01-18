@@ -198,7 +198,7 @@ footer {
 
     /* article */
     .article-outline {
-        display: none;
+        display: none !important;
     }
 
     /* header */
