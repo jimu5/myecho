@@ -11,6 +11,15 @@ import (
 	"myecho/service"
 )
 
+// ShowAccount godoc
+//
+//	@Summary		展示所有文章
+//	@Description	分页展示所有文章
+//	@Tags			articles
+//	@Accept			json
+//	@Produce		json
+//	@Success		200	{array}	model.Article
+//	@Router			/articles [get]
 func ArticleDisplayList(c *fiber.Ctx) error {
 	queryParam := service.ArticleDisplayListQueryParam{}
 	if err := c.QueryParser(&queryParam); err != nil {

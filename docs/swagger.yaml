@@ -1,0 +1,134 @@
+definitions:
+  model.Article:
+    properties:
+      author:
+        $ref: '#/definitions/model.User'
+      author_id:
+        type: integer
+      category:
+        $ref: '#/definitions/model.Category'
+      category_uid:
+        type: string
+      comment_count:
+        type: integer
+      created_at:
+        type: string
+      detail:
+        $ref: '#/definitions/model.ArticleDetail'
+      detail_uid:
+        type: string
+      id:
+        type: integer
+      is_allow_comment:
+        type: boolean
+      like_count:
+        type: integer
+      post_time:
+        type: string
+      read_count:
+        type: integer
+      status:
+        description: '1:公开 2: 置顶 3: 私密 4: 草稿 5: 等待复审 6: 回收站'
+        type: integer
+      summary:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/model.Tag'
+        type: array
+      title:
+        type: string
+      uid:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.ArticleDetail:
+    properties:
+      content:
+        type: string
+      id:
+        type: integer
+      uid:
+        type: string
+    type: object
+  model.Category:
+    properties:
+      count:
+        type: integer
+      created_at:
+        type: string
+      father_uid:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      type:
+        $ref: '#/definitions/model.CategoryType'
+      uid:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.CategoryType:
+    enum:
+    - 1
+    - 2
+    type: integer
+    x-enum-varnames:
+    - CategoryTypeArticle
+    - CategoryTypeLink
+  model.Tag:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      uid:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  model.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      id:
+        type: integer
+      lastLogin:
+        type: string
+      name:
+        type: string
+      nick_name:
+        type: string
+      permission_type:
+        type: integer
+      updated_at:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /articles:
+    get:
+      consumes:
+      - application/json
+      description: 分页展示所有文章
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/model.Article'
+            type: array
+      summary: 展示所有文章
+      tags:
+      - articles
+swagger: "2.0"

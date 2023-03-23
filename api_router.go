@@ -1,11 +1,13 @@
 package main
 
 import (
+	"github.com/gofiber/swagger"
 	"myecho/config/static_config"
 	"myecho/handler/api"
 	mw "myecho/middleware"
 
 	"github.com/gofiber/fiber/v2"
+	_ "myecho/docs"
 )
 
 func SetupApiRouter(app *fiber.App) {
@@ -67,5 +69,6 @@ func SetupApiRouter(app *fiber.App) {
 
 			apiRoute.Get("/links", mw.Authentication, api.LinkAll)
 		}
+		apiRoute.Get("/swagger/*", swagger.HandlerDefault)
 	}
 }
