@@ -11,7 +11,7 @@ import (
 )
 
 func SetupApiRouter(app *fiber.App) {
-	apiRoute := app.Group("/api")
+	apiRoute := app.Group("/api", mw.Authentication)
 	mos := app.Group(static_config.StorageRootUrl)
 	{
 		// 需要权限的, TODO: 改造
@@ -50,7 +50,7 @@ func SetupApiRouter(app *fiber.App) {
 		// 不需要权限的
 		{
 			// 登录相关
-			noNeedAuth := apiRoute.Group("")
+			noNeedAuth := app.Group("/api")
 			noNeedAuth.Post("/login", api.Login)
 			noNeedAuth.Post("/register", api.Register)
 
