@@ -8,81 +8,15 @@
 
 <body>
   {{ include "components/header" }}
-  <div class="article" onmousedown="articleClick(event)">
+  <div class="article">
     <h1 class="article-title">
       {{ Data.Title }}
     </h1>
     <div class="article-content" id="article_content"></div>
     <div class="article-outline" id="article_outline"></div>
-    <div style="display: none" id="raw_content">{{ Data.Detail.Content | raw }}</div>
-    <script>
-      rawContentNode = document.getElementById("raw_content")
-      content = rawContentNode.innerText
-      Vditor.preview(document.getElementById("article_content"), content, {
-        speech: {
-          enable: true,
-        },
-        anchor: 1,
-        hljs: {
-          enable: true
-        },
-        after: function () {
-          if (window.innerWidth <= 768) {
-            return
-          }
-          let outlineElement = document.getElementById("article_outline");
-          Vditor.outlineRender(document.getElementById("article_content"), document.getElementById("article_outline"));
-          initOutline();
-          if (outlineElement.innerHTML.trim() !== '') {
-            outlineElement.style.display = 'block'
-            initOutline()
-          }
-        }
-      })
-      rawContentNode.remove()
-    </script>
+    <div id="raw_content">{{ Data.Detail.Content | raw }}</div>
   </div>
   {{ include "components/footer" RequestTimeDuration }}
 </body>
-
-<script type="text/javascript">
-  function articleClick(e) {
-    if (e.target.tagName == "IMG") {
-      Vditor.previewImage(e.target)
-    }
-  }
-
-  const initOutline = () => {
-    const headingElements = []
-    Array.from(document.getElementById("article_content").children).forEach((item) => {
-      if (item.tagName.length == 2 && item.tagName !== 'HR' && item.tagName.indexOf('H') === 0) {
-        headingElements.push(item)
-      }
-    })
-    let toc = []
-    window.addEventListener('scroll', () => {
-      const scrollTop = window.scrollY
-      toc = []
-      headingElements.forEach((item) => {
-        toc.push({
-          id: item.id,
-          offsetTop: item.offsetTop,
-        })
-      })
-
-      const currentElement = document.querySelector('.vditor-outline__item--current')
-      for (let i = 0, iMax = toc.length; i < iMax; i++) {
-        if (scrollTop < toc[i].offsetTop - 30) {
-          if (currentElement) {
-            currentElement.classList.remove('vditor-outline__item--current')
-          }
-          let index = i > 0 ? i - 1 : 0
-          document.querySelector('span[data-target-id="' + toc[index].id + '"]').classList.add('vditor-outline__item--current')
-          break
-        }
-      }
-    })
-  }
-</script>
 
 </html>

@@ -1,11 +1,13 @@
 package view
 
 import (
+	"bytes"
 	"github.com/gofiber/fiber/v2"
 	"myecho/dal/mysql"
 	"myecho/handler"
 	"myecho/handler/api"
 	"myecho/service"
+	"myecho/utils"
 )
 
 func ArticleDisplayList(c *fiber.Ctx) error {
@@ -35,5 +37,11 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	// 解析成 markdown
+	var buf bytes.Buffer
+	if err = utils.MDParser.Convert([]byte(res.Detail.Content), &buf); err != nil {
+		return err
+	}
+	res.Detail.Content = buf.String()
 	return c.Render("article", respToMap(res))
 }
