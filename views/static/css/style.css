@@ -16,6 +16,10 @@ hr {
     border: 0px;
 }
 
+img {
+    max-width: 100%;
+}
+
 /* index */
 .index-content {
     margin: auto;
