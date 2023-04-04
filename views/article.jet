@@ -7,6 +7,8 @@
 </head>
 
 <body>
+  <script src="/static/lib/prism/prism.js"></script>
+  <link type="text/css" rel="stylesheet" href="/static/lib/prism/prism.css">
   {{ include "components/header" }}
   <div class="article">
     <h1 class="article-title">
