@@ -3,7 +3,6 @@ module myecho
 go 1.18
 
 require (
-	github.com/alecthomas/chroma/v2 v2.7.0
 	github.com/gofiber/fiber/v2 v2.43.0
 	github.com/gofiber/swagger v0.1.9
 	github.com/gofiber/template v1.8.0
@@ -11,7 +10,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/swaggo/swag v1.8.12
 	github.com/yuin/goldmark v1.5.4
-	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20220924101305-151362477c87
 	gopkg.in/yaml.v2 v2.4.0
 	gorm.io/driver/postgres v1.5.0
 	gorm.io/driver/sqlite v1.4.4
@@ -23,7 +21,6 @@ require (
 	github.com/CloudyKit/jet/v6 v6.2.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
-	github.com/dlclark/regexp2 v1.7.0 // indirect
 	github.com/go-openapi/jsonpointer v0.19.6 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/spec v0.20.8 // indirect
