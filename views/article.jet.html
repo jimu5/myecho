@@ -28,19 +28,33 @@
     img.classList.add('enlargeable');
   }
   var container = document.getElementById("article_content");
-  container.addEventListener("click", function(event) {
+  container.addEventListener("click", function (event) {
     if (event.target.classList.contains("enlargeable")) {
       var enlarged = document.createElement("div");
       var img = document.createElement("img");
+      var closeBtn = document.createElement("span");
       img.src = event.target.src;
+      closeBtn.innerHTML = "&times;";
+      closeBtn.classList.add("img-close-btn");
+
       enlarged.appendChild(img);
       enlarged.classList.add("enlarged");
-      container.appendChild(enlarged);
-      enlarged.addEventListener("click", function(e) {
-        if (e.target === this) {
+
+      var scale = 1.1;
+      img.addEventListener("click", function (event) {
+        scale += 0.1;
+        img.style.transform = "scale(" + scale + ")";
+        event.stopPropagation();
+      });
+
+      enlarged.addEventListener("click", function (e) {
+        if (e.target === this || e.target.classList.contains("img-close-btn")) {
           this.parentElement.removeChild(this);
         }
       });
+
+      enlarged.appendChild(closeBtn);
+      container.appendChild(enlarged);
     }
   });
 </script>
