@@ -27,7 +27,7 @@ func main() {
 	app := fiber.New(fiber.Config{
 		Prefork:           *prod,
 		BodyLimit:         1024 * 1024 * 1024,
-		Views:             jet.New("./views", ".jet"),
+		Views:             jet.New("./views", ".jet.html"),
 		ProxyHeader:       "X-Real-IP",
 		PassLocalsToViews: true, // 开启这个设置，将 ctx 里面的变量传递给模板
 	})
