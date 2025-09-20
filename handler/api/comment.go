@@ -40,7 +40,7 @@ func CommentUpdate(c *fiber.Ctx) error {
 	var r rtype.CommentRequest
 	// 校验
 	if err := c.BodyParser(&r); err != nil {
-		return nil
+		return ParseErrorResponse(c, err.Error())  // 使用统一的错误处理
 	}
 
 	var comment model.Comment

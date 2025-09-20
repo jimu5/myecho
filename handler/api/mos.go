@@ -2,7 +2,6 @@ package api
 
 import (
 	"crypto/tls"
-	"github.com/gofiber/fiber/v2"
 	"io"
 	"log"
 	"mime/multipart"
@@ -15,6 +14,8 @@ import (
 	"net/http"
 	"os"
 	"path"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 var httpClient = &http.Client{
@@ -24,12 +25,14 @@ var httpClient = &http.Client{
 func VditorFileUpload(c *fiber.Ctx) error {
 	form, err := c.MultipartForm()
 	if err != nil {
-		return err
+		log.Printf("解析多部分表单失败: %v", err)
+		return ParseErrorResponse(c, err.Error())
 	}
 	files := form.File["file[]"]
 	failedFileName := make([]string, 0)
 	successFileMap := make(map[string]string, len(files))
 	for _, file := range files {
+		log.Printf("处理文件: %s", file.Filename)
 		fileModel := mysql.GenFileModel(utils.ParseFileFullName(file.Filename))
 		// 如果后面出现相同的 filename
 		if _, ok := successFileMap[file.Filename]; ok {

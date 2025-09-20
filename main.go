@@ -18,7 +18,7 @@ import (
 
 var (
 	port = flag.String("port", ":2999", "Port Listen on")
-	prod = flag.Bool("prod", false, "Enable perfork in Production")
+	prod = flag.Bool("prod", true, "Enable perfork in Production")
 )
 
 func main() {
@@ -45,6 +45,7 @@ func main() {
 	app.Static("/static", "./views/static")
 	app.Static("/mos", static_config.StorageRootPath)
 	SetupApiRouter(app)
+	setSwaggerRoute(app)
 	SetupViewRouter(app)
 	app.Use(middleware.Custom404ErrorHandler)
 	log.Fatal(app.Listen(*port))

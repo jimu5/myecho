@@ -69,6 +69,11 @@ func SetupApiRouter(app *fiber.App) {
 
 			apiRoute.Get("/links", mw.Authentication, api.LinkAll)
 		}
-		apiRoute.Get("/swagger/*", swagger.HandlerDefault)
+	}
+}
+
+func setSwaggerRoute(app *fiber.App) {
+	if *prod {
+		app.Get("api/swagger/*", swagger.HandlerDefault)
 	}
 }

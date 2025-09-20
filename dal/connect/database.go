@@ -2,11 +2,13 @@ package connect
 
 import (
 	"fmt"
+	"myecho/config/yaml_config"
+	"myecho/model"
+	"time"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"myecho/config/yaml_config"
-	"myecho/model"
 )
 
 var Database *gorm.DB
@@ -15,10 +17,24 @@ var Database *gorm.DB
 func ConnectDB() {
 	var err error
 	Database, err = gorm.Open(getDialectorFromYamlConfig(), &gorm.Config{
-		DisableForeignKeyConstraintWhenMigrating: true})
+		DisableForeignKeyConstraintWhenMigrating: true,
+	})
 	if err != nil {
 		panic(err)
 	}
+
+	// 设置连接池
+	sqlDB, err := Database.DB()
+	if err != nil {
+		panic(err)
+	}
+
+	// 设置空闲连接池中连接的最大数量
+	sqlDB.SetMaxIdleConns(10)
+	// 设置打开数据库连接的最大数量
+	sqlDB.SetMaxOpenConns(100)
+	// 设置连接可复用的最大时间
+	sqlDB.SetConnMaxLifetime(time.Hour)
 	err = Database.AutoMigrate(
 		&model.Setting{},
 		&model.Category{},
