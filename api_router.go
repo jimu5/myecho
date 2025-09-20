@@ -11,7 +11,7 @@ import (
 )
 
 func SetupApiRouter(app *fiber.App) {
-	apiRoute := app.Group("/api", mw.Authentication)
+	apiRoute := app.Group("/api")
 	mos := app.Group(static_config.StorageRootUrl)
 	{
 		// 需要权限的, TODO: 改造
