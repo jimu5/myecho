@@ -14,6 +14,7 @@ import (
 	"myecho/dal/connect"
 	"myecho/dal/mysql"
 	"myecho/middleware"
+	"myecho/service"
 )
 
 var (
@@ -34,6 +35,7 @@ func main() {
 	connect.ConnectDB()
 	mysql.InitDB()
 	config.InitConfig()
+	service.S.Theme.InitDefaultTheme() // 初始化默认主题
 	app.Use(recover.New(recover.Config{
 		EnableStackTrace: true,
 	}))
@@ -45,6 +47,7 @@ func main() {
 	app.Static("/static", "./views/static")
 	app.Static("/mos", static_config.StorageRootPath)
 	SetupApiRouter(app)
+	SetupThemeRouter(app) // 添加主题路由
 	setSwaggerRoute(app)
 	SetupViewRouter(app)
 	app.Use(middleware.Custom404ErrorHandler)

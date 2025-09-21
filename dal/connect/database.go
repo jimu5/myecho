@@ -45,6 +45,7 @@ func ConnectDB() {
 		&model.File{},
 		&model.Article{},
 		&model.Link{},
+		&model.Theme{},
 	)
 	if err != nil {
 		panic(err)

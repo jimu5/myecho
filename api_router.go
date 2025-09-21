@@ -77,3 +77,8 @@ func setSwaggerRoute(app *fiber.App) {
 		app.Get("api/swagger/*", swagger.HandlerDefault)
 	}
 }
+
+// SetupThemeRouter 设置主题相关的API路由
+func SetupThemeRouter(app *fiber.App) {
+	api.SetupThemeRouter(app)
+}

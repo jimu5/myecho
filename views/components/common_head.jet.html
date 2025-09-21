@@ -3,6 +3,22 @@
 <link rel="icon" href="/favicon.ico" />
 <meta name="keyword" content="{{ Settings.GetStringValue("SiteIndexMetaKeyword") }}">
 <link type="text/css" rel="stylesheet" href="/static/css/style.css">
+
+{* 加载激活的主题样式和脚本 *}
+{{ if Theme }}
+  {{ if Theme.CSS }}
+    <style type="text/css">
+      {{ Theme.CSS }}
+    </style>
+  {{ end }}
+  {{ if Theme.JS }}
+    <script type="text/javascript">
+      {{ Theme.JS }}
+    </script>
+  {{ end }}
+{{ end }}
+
+
 <script src="/static/js/lib/dayjs@1.11.7.min.js"></script>
 <script src="https://unpkg.com/dayjs@1.8.21/dayjs.min.js"></script>
 

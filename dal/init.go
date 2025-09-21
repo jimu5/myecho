@@ -12,6 +12,7 @@ type MysqlDBRepo struct {
 	Category *mysql.CategoryRepo
 	Setting  *mysql.SettingRepo
 	Link     *mysql.LinkRepo
+	Theme    *mysql.ThemeRepo
 }
 
 func NewMysqlDBRepo() MysqlDBRepo {
@@ -21,5 +22,6 @@ func NewMysqlDBRepo() MysqlDBRepo {
 		Category: &mysql.CategoryRepo{},
 		Setting:  &mysql.SettingRepo{},
 		Link:     &mysql.LinkRepo{},
+		Theme:    &mysql.ThemeRepo{},
 	}
 }

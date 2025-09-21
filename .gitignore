@@ -32,3 +32,4 @@ storage
 config.yaml
 bin
 myecho.db
+.vscode/settings.json

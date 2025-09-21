@@ -6,6 +6,7 @@ var (
 	// Common
 	ErrorIDNotFound       = errs.New("ID not found")
 	ErrorInternalNotFound = errs.New("发生了内部错误, 部分内容未找到")
+	ErrInvalidParams      = errs.New("参数无效")
 	// Login
 	ErrLoginEmailOrNameEmpty = errs.New("登录账号或邮箱为空")
 	ErrPasswordEmpty         = errs.New("密码为空")

@@ -5,6 +5,7 @@ import (
 	"myecho/config"
 	"myecho/config/static_config"
 	"myecho/dal/mysql"
+	"myecho/service"
 	"net/url"
 	"strconv"
 	"strings"
@@ -70,8 +71,17 @@ func genRawUrl(path, query string) string {
 }
 
 func respToMap(data interface{}) fiber.Map {
-	return fiber.Map{
+	// 创建响应map
+	resp := fiber.Map{
 		"Data":     data,
 		"Settings": config.MySqlSettingModelCache,
 	}
+	
+	// 获取当前激活的主题
+	theme, err := service.S.Theme.GetActiveTheme()
+	if err == nil && theme != nil {
+		resp["Theme"] = theme
+	}
+	
+	return resp
 }

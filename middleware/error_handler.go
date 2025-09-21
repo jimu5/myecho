@@ -1,9 +1,13 @@
 package middleware
 
 import (
-	"github.com/gofiber/fiber/v2"
-	"myecho/handler/api"
 	"strings"
+
+	"github.com/gofiber/fiber/v2"
+)
+
+const (
+	CommonBadError = 4001
 )
 
 func Custom404ErrorHandler(c *fiber.Ctx) error {
@@ -17,7 +21,7 @@ func Custom404ErrorHandler(c *fiber.Ctx) error {
 func CommonErrorHandler(c *fiber.Ctx) error {
 	err := c.Next()
 	if err != nil && strings.HasPrefix(c.Path(), "/api") {
-		return c.Status(fiber.StatusBadRequest).JSON(api.Error{Code: api.CommonBadError, Msg: err.Error()})
+		return c.Status(fiber.StatusBadRequest).JSON(map[string]interface{}{"Code": CommonBadError, "Msg": err.Error()})
 	}
 	// TODO: 需要增加普通页面的错误返回
 	return err
