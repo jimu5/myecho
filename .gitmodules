@@ -1,0 +1,3 @@
+[submodule "fe/myecho-admin"]
+	path = fe/myecho-admin
+	url = https://github.com/Kimiato/myecho-admin.git

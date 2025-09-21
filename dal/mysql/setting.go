@@ -1,9 +1,10 @@
 package mysql
 
 import (
-	"gorm.io/gorm"
 	"myecho/handler/api/errors"
 	"myecho/model"
+
+	"gorm.io/gorm"
 )
 
 type SettingRepo struct {
@@ -105,7 +106,11 @@ func (s *SettingRepo) GetByKey(key string) (SettingModel, error) {
 }
 
 func (s *SettingRepo) UpdateValueAndDesc(key, value, desc string) (SettingModel, error) {
-	err := db.Model(&SettingModel{}).Where("key = ?", key).Updates(map[string]interface{}{"value": value, "description": desc}).Error
+	err := db.Model(&SettingModel{}).Where("key = ?", key).Save(map[string]interface{}{
+		"value":       value,
+		"description": desc,
+		"key":         key,
+	}).Error
 	if err != nil {
 		return SettingModel{}, err
 	}

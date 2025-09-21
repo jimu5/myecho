@@ -1,0 +1,1 @@
+$env:CGO_ENABLED = "0"; $env:GOOS="windows"; go build -o myecho.exe; .\myecho.exe
