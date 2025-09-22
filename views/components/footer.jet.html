@@ -1,5 +1,6 @@
 <footer>
   <div class="container">
-    <p>© {{ now().Year() }} {{ Settings.GetStringValue("SiteTitle") }}. All rights reserved.</p>
+    <p>加载耗时 {{ .GetTimeCost() }} </p>
+    <p>© 2025 {{ Settings.GetStringValue("SiteTitle") }}. All rights reserved.</p>
   </div>
 </footer>
