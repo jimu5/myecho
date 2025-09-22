@@ -5,24 +5,14 @@
       {{ .Title }}
     </h2>
   </a>
-
-  <p>
-    <script>
-      time = dayjs("{{ .PostTime }}").format("YYYY-MM-DD HH:mm:ss")
-      document.write(time)
-    </script>
-  </p>
+  <div class="article-meta">
+      <span>{{ .PostTime.Format("January 2, 2006") }}</span>
+  </div>
   <div class="article-block-summary">
     {{ .Summary }}
-    <script>
-      if ("{{ .Summary }}".length > 254) {
-        document.write("...")
-      }
-    </script>
   </div>
   <div class="article-block-actions">
-    <a href="/articles/{{ .ID }}" style="float:right">阅读全文</a>
+    <a href="/articles/{{ .ID }}">Read more</a>
   </div>
 </div>
-<hr>
 {{ end }}

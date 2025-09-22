@@ -2,56 +2,23 @@
 <html lang="zh-hans">
 
 <head>
-  <title>{{ Settings.GetStringValue("SiteTitle") }} - 分类目录</title>
+  <title>{{ Settings.GetStringValue("SiteTitle") }} - Categories</title>
   {{ include "components/common_head" }}
 </head>
 
 <body>
   {{ include "components/header" }}
-  <div class="index-content" id="category_ul">
-    <h1>文章分类</h1>
-    <ul style="padding-left: 30px;">
+  <div class="container">
+    <h1>Categories</h1>
+    <ul class="category-list">
       {{ range Data }}
-      <li id="{{ .UID }}" father="{{ .FatherUID }}" style="padding-top: 15px">
-        <a href="/?category_name={{ .Name }}&category_uid={{ .UID }}">{{ .Name }}({{ .TotalCount }})</a>
+      <li>
+        <a href="/?category_name={{ .Name }}&category_uid={{ .UID }}">{{ .Name }} ({{ .TotalCount }})</a>
       </li>
       {{ end }}
     </ul>
   </div>
   {{ include "components/footer" RequestTimeDuration }}
 </body>
-
-<script>
-  var dom_list = document.getElementById("category_ul").getElementsByTagName("li")
-  var has_father = new Array()
-  for (let i = 0; i < dom_list.length;) {
-    if (dom_list[i].getAttribute("father") !== "") {
-      has_father.push(dom_list[i])
-      dom_list[i].remove()
-    } else {
-      i++;
-    }
-  }
-  var cant_find_father = new Array()
-  for (let i = 0; i < has_father.length; i++) {
-    father_li = document.getElementById(has_father[i].getAttribute("father"))
-    if (!father_li) {
-      cant_find_father.push(has_father[i])
-      continue
-    }
-    children_ul = father_li.getElementsByTagName("children")
-    if (children_ul.length === 0) {
-      children_ul = document.createElement('ul')
-      children_ul.setAttribute("style", "list-style: none")
-      father_li.appendChild(children_ul)
-    }
-    children_ul.appendChild(has_father[i])
-  }
-  // 如果还有剩下的直接追加到末尾
-  category_ul = document.getElementById("category_ul")
-  for (let i = 0; i < cant_find_father.length; i) {
-    category_ul.appendChild(cant_find_father[i])
-  }
-</script>
 
 </html>

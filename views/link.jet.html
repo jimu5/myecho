@@ -2,32 +2,25 @@
 <html lang="zh-hans">
 
 <head>
-  <title>{{ Settings.GetStringValue("SiteTitle") }} - 链接</title>
+  <title>{{ Settings.GetStringValue("SiteTitle") }} - Links</title>
   {{ include "components/common_head" }}
 </head>
 
 <body>
   {{ include "components/header" }}
-  <div class="index-content">
-    <h1>链接</h1>
-    {{ range Data }}
-    <div class="link-container">
-      <a class="link-image-a" href="{{ .URL }}" title="{{ .Name }}">
-        <div class="link-des-image" style="background-image: url({{ .IconURL }});">
+  <div class="container">
+    <h1>Links</h1>
+    <div class="link-list">
+      {{ range Data }}
+      <a href="{{ .URL }}" target="_blank" class="link-card">
+        <div class="link-card-image" style="background-image: url({{ .IconURL }});"></div>
+        <div class="link-card-content">
+          <h3>{{ .Name }}</h3>
+          <p>{{ .Description }}</p>
         </div>
       </a>
-      <div class="link-des">
-        <div class="link-tile-text">
-          <a href="{{ .URL }}" title="{{ .Name }} target">
-            {{ .Name}}
-          </a>
-          <div class="link-tile-des">
-            {{ .Description }}
-          </div>
-        </div>
-      </div>
+      {{ end }}
     </div>
-    {{ end }}
   </div>
   {{ include "components/footer" RequestTimeDuration }}
 </body>

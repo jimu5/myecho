@@ -10,52 +10,15 @@
   <script src="/static/lib/prism/prism.js"></script>
   <link type="text/css" rel="stylesheet" href="/static/lib/prism/prism.css">
   {{ include "components/header" }}
-  <div class="article">
+  <div class="container article">
     <h1 class="article-title">
       {{ Data.Title }}
     </h1>
+    <div class="article-meta">
+        <span>{{ Data.PostTime.Format("January 2, 2006") }}</span>
+    </div>
     <div class="article-content" id="article_content">
      {{ Data.Detail.Content | raw }}
     </div>
-    <div class="article-outline" id="article_outline"></div>
   </div>
-  {{ include "components/footer" RequestTimeDuration }}
 </body>
-
-<script>
-  let article_imgs = document.querySelectorAll('#article_content img');
-  for (let img of article_imgs) {
-    img.classList.add('enlargeable');
-  }
-  var container = document.getElementById("article_content");
-  container.addEventListener("click", function (event) {
-    if (event.target.classList.contains("enlargeable")) {
-      var enlarged = document.createElement("div");
-      var img = document.createElement("img");
-      var closeBtn = document.createElement("span");
-      img.src = event.target.src;
-      closeBtn.innerHTML = "&times;";
-      closeBtn.classList.add("img-close-btn");
-
-      enlarged.appendChild(img);
-      enlarged.classList.add("enlarged");
-
-      var scale = 1.1;
-      img.addEventListener("click", function (event) {
-        scale += 0.1;
-        img.style.transform = "scale(" + scale + ")";
-        event.stopPropagation();
-      });
-
-      enlarged.addEventListener("click", function (e) {
-        if (e.target === this || e.target.classList.contains("img-close-btn")) {
-          this.parentElement.removeChild(this);
-        }
-      });
-
-      enlarged.appendChild(closeBtn);
-      container.appendChild(enlarged);
-    }
-  });
-</script>
-</html>

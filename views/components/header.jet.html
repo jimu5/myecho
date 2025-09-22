@@ -1,26 +1,25 @@
 <header>
-  <div style="height: 100%;">
-    <nav id="nav" onclick="navOnclick(this)">
-      <ul>
-        <li>
-          <a href="/">主页</a>
-        </li>
-        <li>
-          <a href="/article/categories">分类</a>
-        </li>
-        <li>
-          <a href="/links">链接</a>
-        </li>
-      </ul>
+  <div class="container">
+    <div class="logo">
+      <a href="/">{{ Settings.GetStringValue("SiteTitle") }}</a>
+    </div>
+    <nav id="nav">
+      <button class="menu-toggle" aria-label="Toggle navigation">
+        <span class="hamburger"></span>
+      </button>
+      <div class="nav-links">
+          <ul>
+            <li>
+              <a href="/">Home</a>
+            </li>
+            <li>
+              <a href="/article/categories">Categories</a>
+            </li>
+            <li>
+              <a href="/links">Links</a>
+            </li>
+          </ul>
+      </div>
     </nav>
   </div>
 </header>
-<script>
-  const navOnclick = (elem) => {
-    if (elem.className == "open") {
-      elem.removeAttribute("class")
-    } else {
-      elem.className = "open"
-    }
-  }
-</script>
