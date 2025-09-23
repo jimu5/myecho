@@ -33,3 +33,4 @@ config.yaml
 bin
 myecho.db
 .vscode/settings.json
+.DS_Store

@@ -16,3 +16,14 @@
   </div>
 </div>
 {{ end }}
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const summaries = document.querySelectorAll('.article-block-summary');
+    summaries.forEach(summary => {
+      if (summary.scrollHeight > summary.clientHeight) {
+        summary.classList.add('truncated');
+      }
+    });
+  });
+</script>
