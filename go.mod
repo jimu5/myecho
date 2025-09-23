@@ -5,10 +5,11 @@ go 1.23.0
 toolchain go1.24.7
 
 require (
+	github.com/CloudyKit/jet/v6 v6.2.0
+	github.com/fsnotify/fsnotify v1.5.1
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gofiber/fiber/v2 v2.43.0
 	github.com/gofiber/swagger v0.1.9
-	github.com/gofiber/template v1.8.0
 	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/swaggo/swag v1.8.12
@@ -20,7 +21,6 @@ require (
 
 require (
 	github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53 // indirect
-	github.com/CloudyKit/jet/v6 v6.2.0 // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
 	github.com/andybalholm/brotli v1.0.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
