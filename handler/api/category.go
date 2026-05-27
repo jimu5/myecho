@@ -74,10 +74,10 @@ func CategoryUpdate(c *fiber.Ctx) error {
 	var req rtype.CategoryUpdateRequest
 	var category mysql.CategoryModel
 	if err := c.BodyParser(&req); err != nil {
-		return nil
+		return err
 	}
 	if err := validator.ValidateCategoryUpdate(&req); err != nil {
-		return nil
+		return err
 	}
 	if err := handler.DetailPreHandleByParam(c, &category); err != nil {
 		return ValidateErrorResponse(c, err.Error())
@@ -96,18 +96,18 @@ func CategoryDelete(c *fiber.Ctx) error {
 	if result := connect.Database.Table("categories").Delete(&category); result.Error != nil {
 		return InternalErrorResponse(c, InternalSQLError, result.Error.Error())
 	}
-	if err := deleteAlterRelated(category.ID); err != nil {
+	if err := deleteAlterRelated(&category); err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
-func deleteAlterRelated(deletedCategoryID uint) error {
-	if tx := connect.Database.Table("articles").Where("category_id = ?", deletedCategoryID).Update(
+func deleteAlterRelated(deletedCategory *mysql.CategoryModel) error {
+	if tx := connect.Database.Table("articles").Where("category_uid = ?", deletedCategory.UID).Update(
 		"category_uid", nil); tx.Error != nil {
 		return tx.Error
 	}
-	if tx := connect.Database.Table("categories").Where("father_id = ?", deletedCategoryID).Delete(
+	if tx := connect.Database.Table("categories").Where("father_uid = ?", deletedCategory.UID).Delete(
 		&mysql.CategoryModel{}); tx.Error != nil {
 		return tx.Error
 	}

@@ -7,13 +7,13 @@ import (
 )
 
 // 定义错误响应结构
- type Error struct {
+type Error struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
 }
 
 const (
-	Unauthorized = 4011
+	Unauthorized         = 4011
 	UnauthorizedErrorMsg = "未登录"
 )
 
@@ -27,7 +27,11 @@ func Authentication(c *fiber.Ctx) (err error) {
 	if auth == "" {
 		return unauthorizedErrorResponse(c)
 	}
-	token := strings.Fields(auth)[1]
+	fields := strings.Fields(auth)
+	if len(fields) != 2 || strings.ToLower(fields[0]) != "token" {
+		return unauthorizedErrorResponse(c)
+	}
+	token := fields[1]
 	user, err := GetUserByToken(token)
 	if err != nil {
 		return unauthorizedErrorResponse(c)

@@ -42,6 +42,9 @@ func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam)
 		return pageInfo, nil, err
 	}
 	pageParam.ForceOffset = pageParam.PageSize*(pageParam.Page-1) - int(topTotal) // 注意这里 topTotal 位数
+	if pageParam.ForceOffset < 0 {
+		pageParam.ForceOffset = 0
+	}
 	status = mysql.ARTILCE_STATUS_PUBLIC
 	sqlParam.Status = &status
 	restArticles, err := dal.MySqlDB.Article.PageFindByCommonParam(&pageParam, sqlParam)

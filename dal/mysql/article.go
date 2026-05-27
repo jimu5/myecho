@@ -190,13 +190,25 @@ func (a *ArticleDBRepo) CountDisplayable(queryParam ArticleCommonQueryParam) (in
 }
 
 func (a *ArticleDBRepo) Update(article *ArticleModel) error {
-	if article.Tags != nil {
-		if err := db.Model(article).Association("Tags").Replace(article.Tags); err != nil {
-			return err
+	return db.Transaction(func(tx *gorm.DB) error {
+		if article.Detail != nil {
+			if article.DetailUID == "" {
+				article.Detail.UID = utils.GenUID20()
+				article.DetailUID = article.Detail.UID
+				if err := tx.Create(article.Detail).Error; err != nil {
+					return err
+				}
+			} else if err := tx.Model(&model.ArticleDetail{}).Where("uid = ?", article.DetailUID).Update("content", article.Detail.Content).Error; err != nil {
+				return err
+			}
 		}
-	}
-	err := db.Model(article).Omit("User", "Tags").Updates(article).Error
-	return err
+		if article.Tags != nil {
+			if err := tx.Model(article).Association("Tags").Replace(article.Tags); err != nil {
+				return err
+			}
+		}
+		return tx.Model(article).Omit("User", "Tags", "Detail").Updates(article).Error
+	})
 }
 
 func (a *ArticleDBRepo) FindByID(id uint) (ArticleModel, error) {

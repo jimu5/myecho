@@ -77,8 +77,7 @@ func FileSaveByLinkUrl(c *fiber.Ctx) error {
 	if err := c.BodyParser(reqBody); err != nil {
 		return err
 	}
-	extName := path.Ext(reqBody.Url)
-	filename := path.Base(reqBody.Url)
+	filename, extName := utils.ParseFileFullName(path.Base(reqBody.Url))
 	fileModel := mysql.GenFileModel(filename, extName)
 	out, err := os.Create(fileModel.GetTempSavePath()) // 保存在临时文件
 	if err != nil {

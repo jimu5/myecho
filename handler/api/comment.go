@@ -14,7 +14,7 @@ func CommentCreate(c *fiber.Ctx) error {
 	var res rtype.CommentRequest
 	var article model.Article
 	if err := c.BodyParser(&res); err != nil {
-		return nil
+		return ParseErrorResponse(c, err.Error())
 	}
 	if err := validator.ValidateCommentRequest(&res); err != nil {
 		return ValidateErrorResponse(c, err.Error())
@@ -40,15 +40,20 @@ func CommentUpdate(c *fiber.Ctx) error {
 	var r rtype.CommentRequest
 	// 校验
 	if err := c.BodyParser(&r); err != nil {
-		return ParseErrorResponse(c, err.Error())  // 使用统一的错误处理
+		return ParseErrorResponse(c, err.Error()) // 使用统一的错误处理
 	}
 
 	var comment model.Comment
+	if err := handler.DetailPreHandleByParam(c, &comment); err != nil {
+		return NotFoundErrorResponse(c, err.Error())
+	}
 	if err := validator.ValidateCommentRequest(&r); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 	structAssign(&comment, &r)
-	connect.Database.Updates(&comment)
+	if err := connect.Database.Model(&comment).Updates(&comment).Error; err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
 	return c.Status(fiber.StatusOK).JSON(comment)
 }
 
@@ -60,6 +65,6 @@ func ArticleCommentList(c *fiber.Ctx) error {
 	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
-	connect.Database.Table("comments").Where("article_id = ?", article.ID).Find(&comments)
+	connect.Database.Table("comments").Where("article_uid = ?", article.UID).Find(&comments)
 	return c.Status(fiber.StatusOK).JSON(comments)
 }

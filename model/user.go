@@ -1,7 +1,8 @@
 package model
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"math/big"
 	"time"
 
 	"gorm.io/gorm"
@@ -28,8 +29,12 @@ func GenerateRandomString(length int) string {
 	str := "0123456789abcdefghijklmnopqrstuvwxyz"
 	bytes := []byte(str)
 	var result []byte
-	for i := 0; i < length; i++ {
-		result = append(result, bytes[rand.Intn(len(bytes))])
+	for len(result) < length {
+		index, err := rand.Int(rand.Reader, big.NewInt(int64(len(bytes))))
+		if err != nil {
+			return string(result)
+		}
+		result = append(result, bytes[index.Int64()])
 	}
 	return string(result)
 }

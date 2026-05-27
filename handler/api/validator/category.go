@@ -33,8 +33,8 @@ func ValidateCategoryUpdate(req *rtype.CategoryUpdateRequest) error {
 	if req.Name != nil && *req.Name == "" {
 		return errors.ErrCategoryNameEmpty
 	}
-	if req.FatherID != nil {
-		if err := ValidateCategoryID(*req.FatherID); err != nil {
+	if req.FatherUID != nil {
+		if err := ValidateCategoryUID(*req.FatherUID); err != nil {
 			return err
 		}
 	}

@@ -29,7 +29,7 @@ func (category *CategoryModel) BeforeCreate(tx *gorm.DB) error {
 }
 
 func (category *CategoryModel) BeforeUpdate(tx *gorm.DB) error {
-	if ok, err := categoryRepo.CheckNameExist(tx, category.Name, category.Type); err != nil || !ok {
+	if ok, err := categoryRepo.CheckNameExistExceptID(tx, category.Name, category.Type, category.ID); err != nil || !ok {
 		if err != nil {
 			return err
 		}
@@ -96,8 +96,16 @@ func (c *CategoryRepo) ValidateUIDExist(uid string) error {
 }
 
 func (c *CategoryRepo) CheckNameExist(tx *gorm.DB, name string, _type model.CategoryType) (bool, error) {
+	return c.CheckNameExistExceptID(tx, name, _type, 0)
+}
+
+func (c *CategoryRepo) CheckNameExistExceptID(tx *gorm.DB, name string, _type model.CategoryType, id uint) (bool, error) {
 	var sameNameCount int64
-	err := tx.Model(&CategoryModel{}).Where("name = ? and type = ?", name, _type).Count(&sameNameCount).Error
+	query := tx.Model(&CategoryModel{}).Where("name = ? and type = ?", name, _type)
+	if id != 0 {
+		query = query.Where("id <> ?", id)
+	}
+	err := query.Count(&sameNameCount).Error
 	if err != nil {
 		return false, err
 	}

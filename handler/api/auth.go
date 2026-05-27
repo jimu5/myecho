@@ -19,7 +19,7 @@ func Login(c *fiber.Ctx) error {
 	var res rtype.LoginResponse
 	l := new(rtype.LoginRequest)
 	if err := c.BodyParser(l); err != nil {
-		return nil
+		return ParseErrorResponse(c, err.Error())
 	}
 	if err := validator.ValidateLoginRequest(l); err != nil {
 		return ValidateErrorResponse(c, err.Error())
@@ -52,7 +52,7 @@ func Register(c *fiber.Ctx) error {
 	var r rtype.RegisterRequest
 	var res rtype.RegisterResponse
 	if err := c.BodyParser(&r); err != nil {
-		return nil
+		return ParseErrorResponse(c, err.Error())
 	}
 	if err := validator.ValidateRegisterRequest(&r); err != nil {
 		return ValidateErrorResponse(c, err.Error())

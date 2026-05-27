@@ -16,7 +16,7 @@ func SettingCreate(c *fiber.Ctx) error {
 	if err := setting.Validate(); err != nil {
 		return err
 	}
-	err := service.S.Setting.Create(&mysql.SettingModel{Key: setting.Key, Value: setting.Value, Type: setting.Value})
+	err := service.S.Setting.Create(&mysql.SettingModel{Key: setting.Key, Value: setting.Value, Type: setting.Type})
 	if err != nil {
 		return err
 	}

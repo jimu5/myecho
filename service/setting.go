@@ -39,7 +39,7 @@ func (s *SettingService) GetAll() ([]*mysql.SettingModel, error) {
 }
 
 func (s *SettingService) GetByKey(key string) (mysql.SettingModel, error) {
-	cacheValue, exist := config.MySqlSettingModelCache.Get("key")
+	cacheValue, exist := config.MySqlSettingModelCache.Get(key)
 	if exist {
 		return cacheValue, nil
 	}
@@ -73,6 +73,9 @@ func saveIcon(key, value string) error {
 	}
 	os.Remove(static_config.StorageIconPath)
 	out, err := os.Create(static_config.StorageIconPath) // 保存在临时文件
+	if err != nil {
+		return err
+	}
 	defer out.Close()
 	resp, err := httpClient.Get(value)
 	if err != nil {

@@ -34,7 +34,7 @@ func SetupApiRouter(app *fiber.App) {
 
 			apiRoute.Post("/settings", mw.Authentication, api.SettingCreate)
 			apiRoute.Patch("/settings/:key", mw.Authentication, api.SettingUpdate)
-			apiRoute.Delete("settings/:key", mw.Authentication, api.SettingDelete)
+			apiRoute.Delete("/settings/:key", mw.Authentication, api.SettingDelete)
 
 			apiRoute.Post("/links", mw.Authentication, api.LinkCreate)
 			apiRoute.Put("/links/:id", mw.Authentication, api.LinkUpdate)

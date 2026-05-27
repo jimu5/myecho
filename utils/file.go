@@ -10,10 +10,10 @@ import (
 
 func GetFileMD5(filePath string) (string, error) {
 	file, err := os.Open(filePath)
-	defer file.Close()
 	if err != nil {
 		return "", err
 	}
+	defer file.Close()
 	hash := md5.New()
 	_, _ = io.Copy(hash, file)
 	return hex.EncodeToString(hash.Sum(nil)), nil
