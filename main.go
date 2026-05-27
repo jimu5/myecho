@@ -46,6 +46,7 @@ func main() {
 	app.Static("/admin", "./static/admin")
 	app.Static("/static", "./views/static")
 	app.Static("/mos", static_config.StorageRootPath)
+	app.Static("/themes", "./storage/themes")
 	SetupApiRouter(app)
 	SetupThemeRouter(app) // 添加主题路由
 	setSwaggerRoute(app)

@@ -1,11 +1,16 @@
 package theme
 
 import (
+	"fmt"
 	"myecho/dal/mysql"
 	"myecho/handler/api/errors"
 	"myecho/model"
 	"myecho/service"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -20,6 +25,32 @@ func CreateTheme(c *fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(&theme)
+}
+
+// UploadTheme 上传并安装主题压缩包
+func UploadTheme(c *fiber.Ctx) error {
+	file, err := c.FormFile("file")
+	if err != nil {
+		return err
+	}
+	if !strings.EqualFold(filepath.Ext(file.Filename), ".zip") {
+		return errors.ErrInvalidParams
+	}
+	if err := os.MkdirAll("./storage/temp", 0755); err != nil {
+		return err
+	}
+
+	tmpPath := filepath.Join("./storage/temp", fmt.Sprintf("theme-%d.zip", time.Now().UnixNano()))
+	if err := c.SaveFile(file, tmpPath); err != nil {
+		return err
+	}
+	defer os.Remove(tmpPath)
+
+	theme, err := service.S.Theme.InstallThemePackage(tmpPath)
+	if err != nil {
+		return err
+	}
+	return c.JSON(buildThemeResponse(theme))
 }
 
 // GetAllThemes 获取所有主题
@@ -38,24 +69,8 @@ func GetAllThemes(c *fiber.Ctx) error {
 		if err != nil {
 			config = make(map[string]interface{})
 		}
-		
-		// 创建响应对象
-		respTheme := map[string]interface{}{
-			"id":           theme.ID,
-			"name":         theme.Name,
-			"display_name": theme.DisplayName,
-			"author":       theme.Author,
-			"version":      theme.Version,
-			"description":  theme.Description,
-			"preview":      theme.Preview,
-			"css":          theme.CSS,
-			"js":           theme.JS,
-			"is_default":   theme.IsDefault,
-			"is_active":    theme.IsActive,
-			"config":       config,
-			"created_at":   theme.CreatedAt,
-			"updated_at":   theme.UpdatedAt,
-		}
+
+		respTheme := buildThemeResponseWithConfig(theme, config)
 		respThemes = append(respThemes, respTheme)
 	}
 
@@ -77,24 +92,7 @@ func GetTheme(c *fiber.Ctx) error {
 	modelTheme := (*model.Theme)(theme)
 	config, err := modelTheme.GetConfig()
 	if err == nil {
-		// 创建一个新的响应对象，包含解析后的配置
-		respTheme := map[string]interface{}{
-			"id":           theme.ID,
-			"name":         theme.Name,
-			"display_name": theme.DisplayName,
-			"author":       theme.Author,
-			"version":      theme.Version,
-			"description":  theme.Description,
-			"preview":      theme.Preview,
-			"css":          theme.CSS,
-			"js":           theme.JS,
-			"is_default":   theme.IsDefault,
-			"is_active":    theme.IsActive,
-			"config":       config,
-			"created_at":   theme.CreatedAt,
-			"updated_at":   theme.UpdatedAt,
-		}
-		return c.JSON(respTheme)
+		return c.JSON(buildThemeResponseWithConfig(theme, config))
 	}
 
 	return c.JSON(&theme)
@@ -144,11 +142,11 @@ func UpdateTheme(c *fiber.Ctx) error {
 	}
 	if config, ok := updateData["config"]; ok {
 		// 确保 config 是 map[string]interface{} 类型
-				if configMap, ok := config.(map[string]interface{}); ok {
-					if err := (*model.Theme)(theme).SetConfig(configMap); err != nil {
-						return err
-					}
-				}
+		if configMap, ok := config.(map[string]interface{}); ok {
+			if err := (*model.Theme)(theme).SetConfig(configMap); err != nil {
+				return err
+			}
+		}
 	}
 
 	if err := service.S.Theme.UpdateTheme(theme); err != nil {
@@ -192,24 +190,7 @@ func GetActiveTheme(c *fiber.Ctx) error {
 	modelTheme := (*model.Theme)(theme)
 	config, err := modelTheme.GetConfig()
 	if err == nil {
-		// 创建一个新的响应对象，包含解析后的配置
-		respTheme := map[string]interface{}{
-			"id":           theme.ID,
-			"name":         theme.Name,
-			"display_name": theme.DisplayName,
-			"author":       theme.Author,
-			"version":      theme.Version,
-			"description":  theme.Description,
-			"preview":      theme.Preview,
-			"css":          theme.CSS,
-			"js":           theme.JS,
-			"is_default":   theme.IsDefault,
-			"is_active":    theme.IsActive,
-			"config":       config,
-			"created_at":   theme.CreatedAt,
-			"updated_at":   theme.UpdatedAt,
-		}
-		return c.JSON(respTheme)
+		return c.JSON(buildThemeResponseWithConfig(theme, config))
 	}
 
 	return c.JSON(&theme)
@@ -251,4 +232,31 @@ func UpdateThemeConfig(c *fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(&theme)
+}
+
+func buildThemeResponse(theme *mysql.ThemeModel) map[string]interface{} {
+	config, err := (*model.Theme)(theme).GetConfig()
+	if err != nil {
+		config = make(map[string]interface{})
+	}
+	return buildThemeResponseWithConfig(theme, config)
+}
+
+func buildThemeResponseWithConfig(theme *mysql.ThemeModel, config map[string]interface{}) map[string]interface{} {
+	return map[string]interface{}{
+		"id":           theme.ID,
+		"name":         theme.Name,
+		"display_name": theme.DisplayName,
+		"author":       theme.Author,
+		"version":      theme.Version,
+		"description":  theme.Description,
+		"preview":      theme.Preview,
+		"css":          theme.CSS,
+		"js":           theme.JS,
+		"is_default":   theme.IsDefault,
+		"is_active":    theme.IsActive,
+		"config":       config,
+		"created_at":   theme.CreatedAt,
+		"updated_at":   theme.UpdatedAt,
+	}
 }

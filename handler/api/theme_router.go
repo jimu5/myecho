@@ -9,12 +9,21 @@ import (
 
 // SetupThemeRouter 设置主题相关的API路由
 func SetupThemeRouter(app *fiber.App) {
+	// 无需认证的主题API
+	publicThemeGroup := app.Group("/api/themes")
+	{
+		// 获取当前激活的主题
+		publicThemeGroup.Get("/active", theme.GetActiveTheme)
+	}
+
 	// 创建主题API分组，需要认证
 
 	themeGroup := app.Group("/api/themes", middleware.Authentication)
 	{
 		// 创建主题
 		themeGroup.Post("", theme.CreateTheme)
+		// 上传主题压缩包
+		themeGroup.Post("/upload", theme.UploadTheme)
 		// 获取所有主题
 		themeGroup.Get("", theme.GetAllThemes)
 		// 获取单个主题
@@ -29,10 +38,4 @@ func SetupThemeRouter(app *fiber.App) {
 		themeGroup.Patch("/:id/config", theme.UpdateThemeConfig)
 	}
 
-	// 无需认证的主题API
-	publicThemeGroup := app.Group("/api/themes")
-	{
-		// 获取当前激活的主题
-		publicThemeGroup.Get("/active", theme.GetActiveTheme)
-	}
 }

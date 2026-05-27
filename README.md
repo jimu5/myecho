@@ -66,6 +66,26 @@ app_config:
   allow_register: true
 ```
 
+## Theme Packages
+
+Theme packages are uploaded from the admin theme page as `.zip` files. A package must contain `theme.json`; referenced assets are extracted under `storage/themes/<theme-name>` and served from `/themes/<theme-name>/`.
+
+Example `theme.json`:
+
+```json
+{
+  "name": "clean_theme",
+  "display_name": "Clean Theme",
+  "author": "Myecho",
+  "version": "1.0.0",
+  "description": "A clean blog theme",
+  "css": "style.css",
+  "js": "script.js",
+  "preview": "preview.png",
+  "config": {}
+}
+```
+
 ## AI Development Notes
 
 AI coding agents should start with `AGENTS.md`. It contains the project map, layer boundaries, verification commands, and submodule guidance.
