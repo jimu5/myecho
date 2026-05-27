@@ -1,0 +1,20 @@
+---
+description: myecho project conventions
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# myecho Project Rules
+
+Read `AGENTS.md` before making changes. Follow its repository map, commands, and development rules.
+
+Keep Go changes scoped to the existing package boundaries:
+
+- API handlers and validators stay under `handler/api`.
+- View handlers stay under `handler/view`.
+- Business logic stays under `service`.
+- Persistence logic stays under `dal` and `model`.
+- Templates and public assets stay under `views`.
+
+Run `make fmt` after editing Go files and `make test` when the change affects backend behavior.
