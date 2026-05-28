@@ -75,6 +75,84 @@ func TestThemeAssetURLRejectsTraversal(t *testing.T) {
 	}
 }
 
+func TestInstallThemePackageCreatesAndUpdatesTheme(t *testing.T) {
+	setupServiceTestDB(t)
+	t.Cleanup(func() { _ = os.RemoveAll(themeStorageDir) })
+	zipPath := writeThemeZip(t, map[string]string{
+		"theme/theme.json": `{
+			"name": "upload_theme",
+			"display_name": "Upload Theme",
+			"author": "Myecho",
+			"version": "1.0.0",
+			"description": "A theme",
+			"css": "style.css",
+			"js": "script.js",
+			"preview": "preview.png",
+			"config": {"color": "blue"}
+		}`,
+		"theme/style.css":   "body { color: blue; }",
+		"theme/script.js":   "window.theme = true;",
+		"theme/preview.png": "preview",
+	})
+
+	theme, err := (&ThemeService{}).InstallThemePackage(zipPath)
+	if err != nil {
+		t.Fatalf("InstallThemePackage() error = %v", err)
+	}
+	if theme.Name != "upload_theme" || theme.DisplayName != "Upload Theme" {
+		t.Fatalf("theme = %+v", theme)
+	}
+	if theme.CSS == "" || theme.JS != "window.theme = true;" || theme.Preview != "/themes/upload_theme/preview.png" {
+		t.Fatalf("unexpected theme assets: %+v", theme)
+	}
+	if _, err := os.Stat(filepath.Join(themeStorageDir, "upload_theme", "style.css")); err != nil {
+		t.Fatalf("theme asset not extracted: %v", err)
+	}
+
+	updatedZip := writeThemeZip(t, map[string]string{
+		"theme/theme.json": `{"name":"upload_theme","display_name":"Updated","version":"2.0.0","js":"script.js"}`,
+		"theme/script.js":  "window.theme = 'updated';",
+	})
+	updated, err := (&ThemeService{}).InstallThemePackage(updatedZip)
+	if err != nil {
+		t.Fatalf("second InstallThemePackage() error = %v", err)
+	}
+	if updated.ID != theme.ID || updated.DisplayName != "Updated" || updated.JS != "window.theme = 'updated';" {
+		t.Fatalf("updated theme = %+v, original id %d", updated, theme.ID)
+	}
+}
+
+func TestThemeHelpersRejectInvalidInputs(t *testing.T) {
+	if _, _, err := readThemeManifest(filepath.Join(t.TempDir(), "missing.zip")); err == nil {
+		t.Fatal("readThemeManifest() expected missing file error")
+	}
+	if err := validateThemeManifest(nil); err == nil {
+		t.Fatal("validateThemeManifest(nil) expected error")
+	}
+	manifest := &ThemeManifest{Name: "valid_name"}
+	if err := validateThemeManifest(manifest); err != nil {
+		t.Fatalf("validateThemeManifest() error = %v", err)
+	}
+	if manifest.DisplayName != "valid_name" || manifest.Version != "1.0.0" || manifest.Config == nil {
+		t.Fatalf("manifest defaults not applied: %+v", manifest)
+	}
+	if _, ok := cleanZipName("../bad"); ok {
+		t.Fatal("cleanZipName() should reject traversal")
+	}
+	if isUnderZipDir("other/file", "theme") {
+		t.Fatal("isUnderZipDir() accepted outside path")
+	}
+	if isUnderDir(t.TempDir(), filepath.Join(t.TempDir(), "..", "outside")) {
+		t.Fatal("isUnderDir() accepted outside target")
+	}
+	if got := themeCSS("theme", ""); got != "" {
+		t.Fatalf("themeCSS(empty) = %q, want empty", got)
+	}
+	if got := themeJS(t.TempDir(), "../bad.js"); got != "" {
+		t.Fatalf("themeJS(traversal) = %q, want empty", got)
+	}
+}
+
 func writeThemeZip(t *testing.T, files map[string]string) string {
 	t.Helper()
 
