@@ -224,14 +224,12 @@ func (a *ArticleDBRepo) DeleteByID(id uint) error {
 }
 
 func (a *ArticleDBRepo) AddReadCountByID(id uint, addCount uint) error {
-	article := &ArticleModel{}
-	err := db.Transaction(func(tx *gorm.DB) error {
-		err := tx.Model(&ArticleModel{}).Select("read_count").First(article, id).Error
-		if err != nil {
-			return err
-		}
-		err = tx.Model(&ArticleModel{}).Where("id = ?", id).Update("read_count", article.ReadCount+addCount).Error
-		return err
-	})
-	return err
+	result := db.Model(&ArticleModel{}).Where("id = ?", id).Update("read_count", gorm.Expr("read_count + ?", addCount))
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

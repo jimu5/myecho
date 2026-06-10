@@ -2,6 +2,7 @@ package view
 
 import (
 	"bytes"
+	"errors"
 	"github.com/gofiber/fiber/v2"
 	"myecho/dal/mysql"
 	"myecho/handler"
@@ -35,6 +36,9 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 	queryParam.ID = article.ID
 	res, err := service.S.Article.ArticleRetrieve(&queryParam)
 	if err != nil {
+		if errors.Is(err, service.ErrArticleNotDisplayable) {
+			return c.SendStatus(fiber.StatusNotFound)
+		}
 		return err
 	}
 	// 解析成 markdown

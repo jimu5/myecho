@@ -16,36 +16,36 @@ func SetupApiRouter(app *fiber.App) {
 	{
 		// 需要权限的, TODO: 改造
 		{
-			apiRoute.Get("/all_articles", mw.Authentication, api.ArticleAllList)
-			apiRoute.Post("/articles", mw.Authentication, api.ArticleCreate)
-			apiRoute.Patch("/articles/:id", mw.Authentication, api.ArticleUpdate)
-			apiRoute.Delete("/articles/:id", mw.Authentication, api.ArticleDelete)
+			apiRoute.Get("/all_articles", mw.Authentication, mw.AdminRequired, api.ArticleAllList)
+			apiRoute.Post("/articles", mw.Authentication, mw.AdminRequired, api.ArticleCreate)
+			apiRoute.Patch("/articles/:id", mw.Authentication, mw.AdminRequired, api.ArticleUpdate)
+			apiRoute.Delete("/articles/:id", mw.Authentication, mw.AdminRequired, api.ArticleDelete)
 
-			apiRoute.Patch("/comments/:id", mw.Authentication, api.CommentUpdate)
+			apiRoute.Patch("/comments/:id", mw.Authentication, mw.AdminRequired, api.CommentUpdate)
 
-			apiRoute.Post("/article/categories", mw.Authentication, api.ArticleCategoryCreate)
-			apiRoute.Post("/link/categories", mw.Authentication, api.LinkCategoryCreate)
-			apiRoute.Patch("/categories/:id", mw.Authentication, api.CategoryUpdate)
-			apiRoute.Delete("/categories/:id", mw.Authentication, api.CategoryDelete)
+			apiRoute.Post("/article/categories", mw.Authentication, mw.AdminRequired, api.ArticleCategoryCreate)
+			apiRoute.Post("/link/categories", mw.Authentication, mw.AdminRequired, api.LinkCategoryCreate)
+			apiRoute.Patch("/categories/:id", mw.Authentication, mw.AdminRequired, api.CategoryUpdate)
+			apiRoute.Delete("/categories/:id", mw.Authentication, mw.AdminRequired, api.CategoryDelete)
 
-			apiRoute.Post("/tags", mw.Authentication, api.TagCreate)
-			apiRoute.Patch("/tags/:id", mw.Authentication, api.TagUpdate)
-			apiRoute.Delete("/tags/:id", mw.Authentication, api.TagDelete)
+			apiRoute.Post("/tags", mw.Authentication, mw.AdminRequired, api.TagCreate)
+			apiRoute.Patch("/tags/:id", mw.Authentication, mw.AdminRequired, api.TagUpdate)
+			apiRoute.Delete("/tags/:id", mw.Authentication, mw.AdminRequired, api.TagDelete)
 
-			apiRoute.Post("/settings", mw.Authentication, api.SettingCreate)
-			apiRoute.Patch("/settings/:key", mw.Authentication, api.SettingUpdate)
-			apiRoute.Delete("/settings/:key", mw.Authentication, api.SettingDelete)
+			apiRoute.Post("/settings", mw.Authentication, mw.AdminRequired, api.SettingCreate)
+			apiRoute.Patch("/settings/:key", mw.Authentication, mw.AdminRequired, api.SettingUpdate)
+			apiRoute.Delete("/settings/:key", mw.Authentication, mw.AdminRequired, api.SettingDelete)
 
-			apiRoute.Post("/links", mw.Authentication, api.LinkCreate)
-			apiRoute.Put("/links/:id", mw.Authentication, api.LinkUpdate)
-			apiRoute.Delete("/links/:id", mw.Authentication, api.LinkDelete)
+			apiRoute.Post("/links", mw.Authentication, mw.AdminRequired, api.LinkCreate)
+			apiRoute.Put("/links/:id", mw.Authentication, mw.AdminRequired, api.LinkUpdate)
+			apiRoute.Delete("/links/:id", mw.Authentication, mw.AdminRequired, api.LinkDelete)
 
-			mos.Post("/files/vditor_upload", mw.Authentication, api.VditorFileUpload)
-			mos.Post("/files/upload", mw.Authentication, api.FileSingleUpload)
-			mos.Post("/save_url_file", mw.Authentication, api.FileSaveByLinkUrl)
-			mos.Get("/files", mw.Authentication, api.FilePageList)
-			mos.Delete("/files/:id", mw.Authentication, api.FileDelete)
-			mos.Put("/files/:id", mw.Authentication, api.FileInfoUpdate)
+			mos.Post("/files/vditor_upload", mw.Authentication, mw.AdminRequired, api.VditorFileUpload)
+			mos.Post("/files/upload", mw.Authentication, mw.AdminRequired, api.FileSingleUpload)
+			mos.Post("/save_url_file", mw.Authentication, mw.AdminRequired, api.FileSaveByLinkUrl)
+			mos.Get("/files", mw.Authentication, mw.AdminRequired, api.FilePageList)
+			mos.Delete("/files/:id", mw.Authentication, mw.AdminRequired, api.FileDelete)
+			mos.Put("/files/:id", mw.Authentication, mw.AdminRequired, api.FileInfoUpdate)
 		}
 		// 不需要权限的
 		{
@@ -67,7 +67,7 @@ func SetupApiRouter(app *fiber.App) {
 			noNeedAuth.Get("/settings", api.SettingAll)
 			noNeedAuth.Get("/tags/all", api.TagListAll)
 
-			apiRoute.Get("/links", mw.Authentication, api.LinkAll)
+			apiRoute.Get("/links", mw.Authentication, mw.AdminRequired, api.LinkAll)
 		}
 	}
 }

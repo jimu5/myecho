@@ -18,7 +18,7 @@ func SetupThemeRouter(app *fiber.App) {
 
 	// 创建主题API分组，需要认证
 
-	themeGroup := app.Group("/api/themes", middleware.Authentication)
+	themeGroup := app.Group("/api/themes", middleware.Authentication, middleware.AdminRequired)
 	{
 		// 创建主题
 		themeGroup.Post("", theme.CreateTheme)

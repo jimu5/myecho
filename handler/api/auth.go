@@ -14,6 +14,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 func Login(c *fiber.Ctx) error {
@@ -77,13 +78,21 @@ func Register(c *fiber.Ctx) error {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
 	user.Password = hashedPassword
+	user.PermissionType = model.Normal
 	// 第一个注册的用户默认为管理员
 	if connect.Database.First(&model.User{}).RowsAffected == 0 {
 		user.PermissionType = model.Admin
 	}
-	if err := connect.Database.Model(&model.User{}).Create(&user).Error; err != nil {
+	permissionType := user.PermissionType
+	if err := connect.Database.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.User{}).Select("*").Create(&user).Error; err != nil {
+			return err
+		}
+		return tx.Model(&user).Update("permission_type", permissionType).Error
+	}); err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
+	user.PermissionType = permissionType
 	res.LoginResponse = userToLoginResponse(user)
 	return handler.Success(c, res)
 }

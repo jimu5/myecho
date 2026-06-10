@@ -1,6 +1,7 @@
 package api
 
 import (
+	stderrors "errors"
 	"github.com/gofiber/fiber/v2"
 	"myecho/config/static_config"
 	"myecho/dal"
@@ -8,8 +9,10 @@ import (
 	"myecho/handler"
 	"myecho/handler/api/validator"
 	"myecho/handler/rtype"
+	"myecho/middleware"
 	"myecho/model"
 	"myecho/service"
+	"strings"
 )
 
 // ShowAccount godoc
@@ -137,8 +140,12 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	queryParam.ID = article.ID
+	queryParam.IncludeNonPublic = isAdminRequest(c)
 	article, err = service.S.Article.ArticleRetrieve(&queryParam)
 	if err != nil {
+		if stderrors.Is(err, service.ErrArticleNotDisplayable) {
+			return NotFoundErrorResponse(c, err.Error())
+		}
 		return err
 	}
 	res := rtype.ModelToArticleResponse(&article)
@@ -234,4 +241,17 @@ func getTagsByUID(tagUIDs []string) ([]*model.Tag, error) {
 		return nil, nil
 	}
 	return FindTagsByUID(tagUIDs)
+}
+
+func isAdminRequest(c *fiber.Ctx) bool {
+	auth := c.Get("Authorization")
+	fields := strings.Fields(auth)
+	if len(fields) != 2 || strings.ToLower(fields[0]) != "token" {
+		return false
+	}
+	user, err := middleware.GetUserByToken(fields[1])
+	if err != nil {
+		return false
+	}
+	return user.PermissionType == model.Admin
 }

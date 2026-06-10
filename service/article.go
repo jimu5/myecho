@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"log"
 	"myecho/config/static_config"
 	"myecho/dal"
@@ -16,9 +17,12 @@ type ArticleDisplayListQueryParam struct {
 }
 
 type ArticleRetrieveQueryParam struct {
-	ID     uint `json:"id"`
-	NoRead bool `query:"no_read"`
+	ID               uint `json:"id"`
+	NoRead           bool `query:"no_read"`
+	IncludeNonPublic bool `json:"-"`
 }
+
+var ErrArticleNotDisplayable = errors.New("article is not displayable")
 
 func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql.PageInfo, []*mysql.ArticleModel, error) {
 	status := mysql.ARTICLE_STATUS_TOP
@@ -86,6 +90,9 @@ func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (mysq
 	if err != nil {
 		return mysql.ArticleModel{}, err
 	}
+	if !param.IncludeNonPublic && !isArticleDisplayable(article.Status) {
+		return mysql.ArticleModel{}, ErrArticleNotDisplayable
+	}
 	if !param.NoRead {
 		go func() {
 			if err := dal.MySqlDB.Article.AddReadCountByID(article.ID, 1); err != nil {
@@ -94,4 +101,8 @@ func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (mysq
 		}()
 	}
 	return article, nil
+}
+
+func isArticleDisplayable(status int8) bool {
+	return status == int8(mysql.ARTILCE_STATUS_PUBLIC) || status == int8(mysql.ARTICLE_STATUS_TOP)
 }
