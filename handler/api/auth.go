@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"myecho/config/yaml_config"
 	"myecho/dal/connect"
+	"myecho/handler"
 	"myecho/handler/api/validator"
 	"myecho/handler/rtype"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"myecho/model"
 
 	"github.com/gofiber/fiber/v2"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func Login(c *fiber.Ctx) error {
@@ -36,12 +38,23 @@ func Login(c *fiber.Ctx) error {
 	if result.Error != nil {
 		return LoginErrorResponse(c, LoginErrorMsg)
 	}
-	if user.Password != EncryptPassword(l.Password) {
+	ok, shouldUpgrade := CheckPassword(user.Password, l.Password)
+	if !ok {
 		return LoginErrorResponse(c, LoginErrorMsg)
 	}
+	if shouldUpgrade {
+		hashedPassword, err := HashPassword(l.Password)
+		if err != nil {
+			return InternalErrorResponse(c, InternalSQLError, err.Error())
+		}
+		user.Password = hashedPassword
+	}
 	user.LastLogin = time.Now()
-	connect.Database.Save(&user).Scan(&res)
-	return c.Status(fiber.StatusOK).JSON(res)
+	if err := connect.Database.Save(&user).Error; err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
+	res = userToLoginResponse(user)
+	return handler.Success(c, res)
 }
 
 // 注册
@@ -59,16 +72,38 @@ func Register(c *fiber.Ctx) error {
 	}
 	var user model.User
 	structAssign(&user, &r)
-	user.Password = EncryptPassword(user.Password)
+	hashedPassword, err := HashPassword(user.Password)
+	if err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
+	user.Password = hashedPassword
 	// 第一个注册的用户默认为管理员
 	if connect.Database.First(&model.User{}).RowsAffected == 0 {
 		user.PermissionType = model.Admin
 	}
-	connect.Database.Model(&model.User{}).Create(&user).Scan(&res)
-	return c.Status(fiber.StatusOK).JSON(res)
+	if err := connect.Database.Model(&model.User{}).Create(&user).Error; err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
+	res.LoginResponse = userToLoginResponse(user)
+	return handler.Success(c, res)
 }
 
-// sha256加密密码
+func HashPassword(password string) (string, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(hashedPassword), err
+}
+
+func CheckPassword(storedPassword, password string) (bool, bool) {
+	if err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password)); err == nil {
+		return true, false
+	}
+	if storedPassword == EncryptPassword(password) {
+		return true, true
+	}
+	return false, false
+}
+
+// EncryptPassword returns the legacy broken SHA-256 format kept only for login migration.
 func EncryptPassword(password string) string {
 	srcByte := []byte(password)
 	sha256Cipher := sha256.New()
@@ -77,6 +112,17 @@ func EncryptPassword(password string) string {
 	return sha256String
 }
 
+func userToLoginResponse(user model.User) rtype.LoginResponse {
+	return rtype.LoginResponse{
+		Email:          user.Email,
+		Name:           user.Name,
+		NickName:       user.NickName,
+		LastLogin:      user.LastLogin,
+		PermissionType: user.PermissionType,
+		Token:          user.Token,
+	}
+}
+
 func LoginErrorResponse(c *fiber.Ctx, msg string) error {
-	return c.Status(fiber.StatusForbidden).JSON(Error{Code: LoginError, Msg: msg})
+	return ErrorResponse(c, fiber.StatusForbidden, LoginError, msg)
 }

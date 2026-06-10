@@ -27,6 +27,7 @@
 
 ```sh
 git submodule update --init --recursive
+cp config.example.yaml config.yaml
 make run
 ```
 
@@ -44,13 +45,23 @@ make run      # run the backend
 make fmt      # gofmt backend Go files
 make vet      # run go vet ./...
 make test     # run go test ./...
+make check    # run vet and tests
+make coverage # generate Go coverage summary
+make admin-test  # run admin frontend tests
+make admin-build # build admin frontend into static/admin
 make tidy     # run go mod tidy
 make clean    # remove built binaries
 ```
 
 ## Configuration
 
-`config.yaml` is read at startup. Database type can be `sqlite` or `postgresql`; an empty or unknown value falls back to SQLite using `database.db_name`.
+`config.yaml` is read at startup and is intentionally not tracked. Start from the example:
+
+```sh
+cp config.example.yaml config.yaml
+```
+
+Database type can be `sqlite` or `postgresql`; an empty, `mysql`, or unknown value falls back to SQLite using `database.db_name`.
 
 Minimal local SQLite config:
 
@@ -65,6 +76,26 @@ database:
 app_config:
   allow_register: true
 ```
+
+## API Response Shape
+
+JSON APIs return a common envelope:
+
+```json
+{ "code": 0, "msg": "ok", "data": {}, "meta": {} }
+```
+
+Pagination responses put the list in `data` and page details in `meta.total`, `meta.page`, and `meta.page_size`. Errors use lowercase `code` and `msg`.
+
+## Admin Frontend
+
+The admin app lives in the `fe/myecho-admin` submodule and uses npm. Build it into the backend static directory with:
+
+```sh
+make admin-build
+```
+
+The backend serves `/admin/*` only when `static/admin/index.html` exists; missing admin build output returns a clear 404.
 
 ## Theme Packages
 

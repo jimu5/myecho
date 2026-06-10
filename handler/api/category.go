@@ -17,7 +17,7 @@ func CategoryAll(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(&res)
+	return handler.Success(c, &res)
 }
 
 func CategoryArticleAll(c *fiber.Ctx) error {
@@ -25,7 +25,7 @@ func CategoryArticleAll(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(&result)
+	return handler.Success(c, &result)
 }
 
 func CategoryLinkAll(c *fiber.Ctx) error {
@@ -33,7 +33,7 @@ func CategoryLinkAll(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(&result)
+	return handler.Success(c, &result)
 }
 
 func getCategoryFromCategoryCreateRequest(c *fiber.Ctx) (mysql.CategoryModel, error) {
@@ -56,7 +56,7 @@ func ArticleCategoryCreate(c *fiber.Ctx) error {
 	if err = service.S.Category.CreateByType(&category, model.CategoryTypeArticle); err != nil {
 		return err
 	}
-	return c.Status(fiber.StatusCreated).JSON(&category)
+	return handler.SuccessWithStatus(c, fiber.StatusCreated, &category)
 }
 
 func LinkCategoryCreate(c *fiber.Ctx) error {
@@ -67,7 +67,7 @@ func LinkCategoryCreate(c *fiber.Ctx) error {
 	if err = service.S.Category.CreateByType(&category, model.CategoryTypeLink); err != nil {
 		return err
 	}
-	return c.Status(fiber.StatusCreated).JSON(&category)
+	return handler.SuccessWithStatus(c, fiber.StatusCreated, &category)
 }
 
 func CategoryUpdate(c *fiber.Ctx) error {
@@ -85,7 +85,7 @@ func CategoryUpdate(c *fiber.Ctx) error {
 	if result := connect.Database.Table("categories").Model(&category).Updates(&req); result.Error != nil {
 		return InternalErrorResponse(c, InternalSQLError, result.Error.Error())
 	}
-	return c.JSON(&category)
+	return handler.Success(c, &category)
 }
 
 func CategoryDelete(c *fiber.Ctx) error {
@@ -99,7 +99,7 @@ func CategoryDelete(c *fiber.Ctx) error {
 	if err := deleteAlterRelated(&category); err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
-	return c.SendStatus(fiber.StatusNoContent)
+	return handler.SuccessWithStatus(c, fiber.StatusOK, nil)
 }
 
 func deleteAlterRelated(deletedCategory *mysql.CategoryModel) error {

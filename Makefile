@@ -1,4 +1,4 @@
-.PHONY: all build run fmt vet test tidy clean help
+.PHONY: all build run fmt vet test coverage check tidy admin-test admin-build clean help
 
 APP = myecho
 
@@ -47,6 +47,21 @@ tidy:
 test:
 	@go test ./...
 
+coverage:
+	@go test ./... -coverprofile=coverage.out
+	@go tool cover -func=coverage.out
+
+check: vet test
+
+admin-test:
+	@cd fe/myecho-admin && npm test -- --watchAll=false
+
+admin-build:
+	@cd fe/myecho-admin && npm run build
+	@rm -rf static/admin
+	@mkdir -p static
+	@cp -R fe/myecho-admin/build static/admin
+
 ## 清理二进制文件
 clean:
 	@if [ -f ./bin/${APP}-linux64 ] ; then rm ./bin/${APP}-linux64; fi
@@ -62,6 +77,10 @@ help:
 	@echo "make fmt - 格式化 Go 代码"
 	@echo "make vet - 执行 go vet"
 	@echo "make test - 执行 Go 单元测试"
+	@echo "make coverage - 生成 Go 覆盖率报告"
+	@echo "make check - 执行 Go vet 和测试"
+	@echo "make admin-test - 执行后台前端测试"
+	@echo "make admin-build - 构建后台前端到 static/admin"
 	@echo "make tidy - 执行go mod tidy"
 	@echo "make run - 直接运行 Go 代码"
 	@echo "make clean - 移除编译的二进制文件"

@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.7'
+          cache: true
+      - run: cp config.example.yaml config.yaml
+      - run: make vet
+      - run: make test
+
+  admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: fe/myecho-admin/package-lock.json
+      - run: npm ci
+        working-directory: fe/myecho-admin
+      - run: npm test -- --watchAll=false
+        working-directory: fe/myecho-admin
+      - run: npm run build
+        working-directory: fe/myecho-admin

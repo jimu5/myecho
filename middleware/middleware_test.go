@@ -102,8 +102,8 @@ func TestCustom404ErrorHandlerAPIRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("status = %d, want 404", resp.StatusCode)
 	}
 }
 

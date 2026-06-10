@@ -22,6 +22,10 @@ func (m *MysqlSettingMap) Set(key string, value *mysql.SettingModel) {
 	m.Store(key, *value)
 }
 
+func (m *MysqlSettingMap) Delete(key string) {
+	m.Map.Delete(key)
+}
+
 func (m *MysqlSettingMap) GetStringValue(key string) string {
 	v, ok := m.Get(key)
 	if !ok {

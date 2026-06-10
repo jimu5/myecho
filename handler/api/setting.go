@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gofiber/fiber/v2"
 	"myecho/dal/mysql"
+	"myecho/handler"
 	"myecho/handler/api/errors"
 	"myecho/handler/rtype"
 	"myecho/service"
@@ -24,7 +25,7 @@ func SettingCreate(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(&result)
+	return handler.Success(c, &result)
 }
 
 func SettingUpdate(c *fiber.Ctx) error {
@@ -40,7 +41,7 @@ func SettingUpdate(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(&result)
+	return handler.Success(c, &result)
 }
 
 func SettingRetrieve(c *fiber.Ctx) error {
@@ -52,7 +53,7 @@ func SettingRetrieve(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(&result)
+	return handler.Success(c, &result)
 }
 
 func SettingAll(c *fiber.Ctx) error {
@@ -60,7 +61,7 @@ func SettingAll(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(&result)
+	return handler.Success(c, &result)
 }
 
 func SettingDelete(c *fiber.Ctx) error {
@@ -71,5 +72,5 @@ func SettingDelete(c *fiber.Ctx) error {
 	if err := service.S.Setting.DeleteByKey(key); err != nil {
 		return err
 	}
-	return nil
+	return handler.Success(c, nil)
 }

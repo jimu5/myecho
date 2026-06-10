@@ -1,7 +1,8 @@
 package rtype
 
-type CommonResp[T any] struct {
-	Code int    `json:"code"`
-	Msg  string `json:"msg"`
-	Data *T     `json:"data"`
+type CommonResp struct {
+	Code int                    `json:"code"`
+	Msg  string                 `json:"msg"`
+	Data interface{}            `json:"data"`
+	Meta map[string]interface{} `json:"meta"`
 }

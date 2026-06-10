@@ -16,7 +16,7 @@ func LinkCreate(c *fiber.Ctx) error {
 	if err := service.S.Link.Create(&link); err != nil {
 		return err
 	}
-	return nil
+	return handler.SuccessWithStatus(c, fiber.StatusCreated, &link)
 }
 
 func LinkUpdate(c *fiber.Ctx) error {
@@ -30,7 +30,10 @@ func LinkUpdate(c *fiber.Ctx) error {
 	}
 	link.ID = id
 	err = service.S.Link.UpdateByID(id, &link)
-	return c.JSON(&link)
+	if err != nil {
+		return err
+	}
+	return handler.Success(c, &link)
 }
 
 func LinkDelete(c *fiber.Ctx) error {
@@ -42,7 +45,7 @@ func LinkDelete(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.SendStatus(fiber.StatusNoContent)
+	return handler.SuccessWithStatus(c, fiber.StatusOK, nil)
 }
 
 func LinkAll(c *fiber.Ctx) error {
@@ -56,5 +59,5 @@ func LinkAll(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(&result)
+	return handler.Success(c, &result)
 }

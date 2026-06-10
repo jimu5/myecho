@@ -31,8 +31,10 @@ func CommentCreate(c *fiber.Ctx) error {
 		comment.AuthorName = c.Locals("user").(*model.User).NickName
 		comment.AuthorEmail = c.Locals("user").(*model.User).Email
 	}
-	connect.Database.Save(&comment)
-	return c.Status(fiber.StatusCreated).JSON(res)
+	if err := connect.Database.Save(&comment).Error; err != nil {
+		return err
+	}
+	return handler.SuccessWithStatus(c, fiber.StatusCreated, &comment)
 }
 
 // 更新评论
@@ -54,7 +56,7 @@ func CommentUpdate(c *fiber.Ctx) error {
 	if err := connect.Database.Model(&comment).Updates(&comment).Error; err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
-	return c.Status(fiber.StatusOK).JSON(comment)
+	return handler.Success(c, &comment)
 }
 
 // 获取文章评论
@@ -65,6 +67,8 @@ func ArticleCommentList(c *fiber.Ctx) error {
 	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
-	connect.Database.Table("comments").Where("article_uid = ?", article.UID).Find(&comments)
-	return c.Status(fiber.StatusOK).JSON(comments)
+	if err := connect.Database.Table("comments").Where("article_uid = ?", article.UID).Find(&comments).Error; err != nil {
+		return err
+	}
+	return handler.Success(c, comments)
 }

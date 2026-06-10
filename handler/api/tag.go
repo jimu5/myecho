@@ -12,8 +12,10 @@ import (
 
 func TagListAll(c *fiber.Ctx) error {
 	var tags []model.Tag
-	connect.Database.Table("tags").Find(&tags)
-	return c.JSON(&tags)
+	if err := connect.Database.Table("tags").Find(&tags).Error; err != nil {
+		return err
+	}
+	return handler.Success(c, &tags)
 }
 
 func TagCreate(c *fiber.Ctx) error {
@@ -27,8 +29,10 @@ func TagCreate(c *fiber.Ctx) error {
 	res := model.Tag{
 		Name: req.Name,
 	}
-	connect.Database.Table("tags").Create(&res)
-	return c.Status(fiber.StatusCreated).JSON(&res)
+	if err := connect.Database.Table("tags").Create(&res).Error; err != nil {
+		return err
+	}
+	return handler.SuccessWithStatus(c, fiber.StatusCreated, &res)
 }
 
 func TagUpdate(c *fiber.Ctx) error {
@@ -44,8 +48,10 @@ func TagUpdate(c *fiber.Ctx) error {
 		return NotFoundErrorResponse(c, err.Error())
 	}
 	tag.Name = req.Name
-	connect.Database.Table("tags").Save(&tag)
-	return c.JSON(&tag)
+	if err := connect.Database.Table("tags").Save(&tag).Error; err != nil {
+		return err
+	}
+	return handler.Success(c, &tag)
 }
 
 func TagDelete(c *fiber.Ctx) error {
@@ -53,17 +59,21 @@ func TagDelete(c *fiber.Ctx) error {
 	if err := handler.DetailPreHandleByParam(c, &tag); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
-	connect.Database.Table("tags").Delete(&tag)
-	deleteAlterDelete(&tag)
-	return c.SendStatus(fiber.StatusNoContent)
+	if err := connect.Database.Table("tags").Delete(&tag).Error; err != nil {
+		return err
+	}
+	if err := deleteAlterDelete(&tag); err != nil {
+		return err
+	}
+	return handler.SuccessWithStatus(c, fiber.StatusOK, nil)
 }
 
-func deleteAlterDelete(tag *model.Tag) {
-	connect.Database.Table("articles").Association("Tags").Delete(tag)
+func deleteAlterDelete(tag *model.Tag) error {
+	return connect.Database.Exec("DELETE FROM article_tags WHERE tag_uid = ?", tag.UID).Error
 }
 
 func FindTags(tags []*model.Tag) {
-	connect.Database.Table("tags").Find(&tags)
+	_ = connect.Database.Table("tags").Find(&tags).Error
 }
 
 func FindTagsByUID(uids []string) ([]*model.Tag, error) {

@@ -3,6 +3,7 @@ package theme
 import (
 	"fmt"
 	"myecho/dal/mysql"
+	"myecho/handler"
 	"myecho/handler/api/errors"
 	"myecho/model"
 	"myecho/service"
@@ -24,7 +25,7 @@ func CreateTheme(c *fiber.Ctx) error {
 	if err := service.S.Theme.CreateTheme(&theme); err != nil {
 		return err
 	}
-	return c.JSON(&theme)
+	return handler.Success(c, &theme)
 }
 
 // UploadTheme 上传并安装主题压缩包
@@ -50,7 +51,7 @@ func UploadTheme(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(buildThemeResponse(theme))
+	return handler.Success(c, buildThemeResponse(theme))
 }
 
 // GetAllThemes 获取所有主题
@@ -74,7 +75,7 @@ func GetAllThemes(c *fiber.Ctx) error {
 		respThemes = append(respThemes, respTheme)
 	}
 
-	return c.JSON(respThemes)
+	return handler.Success(c, respThemes)
 }
 
 // GetTheme 获取单个主题
@@ -92,10 +93,10 @@ func GetTheme(c *fiber.Ctx) error {
 	modelTheme := (*model.Theme)(theme)
 	config, err := modelTheme.GetConfig()
 	if err == nil {
-		return c.JSON(buildThemeResponseWithConfig(theme, config))
+		return handler.Success(c, buildThemeResponseWithConfig(theme, config))
 	}
 
-	return c.JSON(&theme)
+	return handler.Success(c, &theme)
 }
 
 // UpdateTheme 更新主题
@@ -152,7 +153,7 @@ func UpdateTheme(c *fiber.Ctx) error {
 	if err := service.S.Theme.UpdateTheme(theme); err != nil {
 		return err
 	}
-	return c.JSON(&theme)
+	return handler.Success(c, &theme)
 }
 
 // DeleteTheme 删除主题
@@ -164,7 +165,7 @@ func DeleteTheme(c *fiber.Ctx) error {
 	if err := service.S.Theme.DeleteTheme(id); err != nil {
 		return err
 	}
-	return c.JSON(fiber.Map{"message": "删除成功"})
+	return handler.Success(c, fiber.Map{"message": "删除成功"})
 }
 
 // ActivateTheme 激活主题
@@ -176,7 +177,7 @@ func ActivateTheme(c *fiber.Ctx) error {
 	if err := service.S.Theme.ActivateTheme(id); err != nil {
 		return err
 	}
-	return c.JSON(fiber.Map{"message": "激活成功"})
+	return handler.Success(c, fiber.Map{"message": "激活成功"})
 }
 
 // GetActiveTheme 获取当前激活的主题
@@ -190,10 +191,10 @@ func GetActiveTheme(c *fiber.Ctx) error {
 	modelTheme := (*model.Theme)(theme)
 	config, err := modelTheme.GetConfig()
 	if err == nil {
-		return c.JSON(buildThemeResponseWithConfig(theme, config))
+		return handler.Success(c, buildThemeResponseWithConfig(theme, config))
 	}
 
-	return c.JSON(&theme)
+	return handler.Success(c, &theme)
 }
 
 // UpdateThemeConfig 更新主题配置
@@ -231,7 +232,7 @@ func UpdateThemeConfig(c *fiber.Ctx) error {
 	if err := service.S.Theme.UpdateTheme(theme); err != nil {
 		return err
 	}
-	return c.JSON(&theme)
+	return handler.Success(c, &theme)
 }
 
 func buildThemeResponse(theme *mysql.ThemeModel) map[string]interface{} {

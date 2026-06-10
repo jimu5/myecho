@@ -55,13 +55,14 @@ func ConnectDB() {
 func getDialectorFromYamlConfig() gorm.Dialector {
 	dbConfig := yaml_config.Yaml.Database
 	var dsn string
-	switch yaml_config.Yaml.Database.Type {
+	switch dbConfig.Type {
 	case "sqlite":
 		dsn = dbConfig.DBName + ".db"
 		return sqlite.Open(dsn)
 	case "mysql":
-		//	TODO: 待补充
-		return nil
+		// mysql is not wired yet; keep the documented local fallback instead of returning a nil dialector.
+		dsn = dbConfig.DBName + ".db"
+		return sqlite.Open(dsn)
 	case "postgresql":
 		dsn = fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai", dbConfig.Host, dbConfig.User, dbConfig.Password, dbConfig.DBName, dbConfig.Port)
 		return postgres.Open(dsn)

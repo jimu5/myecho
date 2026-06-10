@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"myecho/config/static_config"
 	"myecho/dal"
 	"myecho/dal/mysql"
 	"myecho/handler"
@@ -30,7 +31,7 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return handler.PaginateData(c, pageInfo.Total, res)
+	return handler.PaginateData(c, pageInfo, res)
 }
 
 type ArticleAllListQueryParam struct {
@@ -50,41 +51,77 @@ func ArticleAllList(c *fiber.Ctx) error {
 	sqlCommonParam := mysql.ArticleCommonQueryParam{
 		CategoryUID: queryParam.CategoryUID,
 	}
-	topStatus := mysql.ARTICLE_STATUS_TOP
 	if queryParam.Status != nil {
 		sqlCommonParam.Status = queryParam.Status
 		total, err = dal.MySqlDB.Article.CountAll(sqlCommonParam)
-	} else {
-		total, err = dal.MySqlDB.Article.CountAll(sqlCommonParam)
-		sqlCommonParam.Status = &topStatus
+		if err != nil {
+			return err
+		}
+		articles, pageParam, err := handler.PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlCommonParam)
+		if err != nil {
+			return err
+		}
+		pageInfo := mysql.PageInfo{Total: total}
+		pageInfo.FillInfoFromParam(&pageParam)
+		res := rtype.MultiModelToArticleResponse(articles)
+		return handler.PaginateData(c, pageInfo, res)
 	}
+
+	total, err = dal.MySqlDB.Article.CountAll(sqlCommonParam)
 	if err != nil {
 		return err
 	}
-	sqlParam := mysql.PageFindArticleByNotStatusParam{
-		ArticleCommonQueryParam: sqlCommonParam,
-	}
-	topArticles, pageParam, err := handler.PageFind(c, dal.MySqlDB.Article.PageFindByCommonParam, sqlCommonParam)
+	topStatus := mysql.ARTICLE_STATUS_TOP
+	topSQLParam := sqlCommonParam
+	topSQLParam.Status = &topStatus
+	topTotal, err := dal.MySqlDB.Article.CountAll(topSQLParam)
 	if err != nil {
 		return err
 	}
-	if queryParam.Status != nil {
-		res := rtype.MultiModelToArticleResponse(topArticles)
-		return handler.PaginateData(c, total, res)
-	}
-	pageParam.PageSize = pageParam.PageSize - len(topArticles)
-	if pageParam.PageSize == 0 {
-		res := rtype.MultiModelToArticleResponse(topArticles)
-		return handler.PaginateData(c, total, res)
-	}
-	restArticles, err := dal.MySqlDB.Article.PageFindByNotVisibility(&pageParam, sqlParam)
+	pageParam, err := handler.ParsePageFindParam(c)
 	if err != nil {
 		return err
 	}
-	articles := topArticles
-	articles = append(articles, restArticles...)
+	if pageParam.Page < 1 {
+		pageParam.Page = 1
+	}
+	if pageParam.PageSize < 1 {
+		pageParam.PageSize = static_config.PageSize
+	}
+	pageInfo := mysql.PageInfo{Total: total}
+	pageInfo.FillInfoFromParam(&pageParam)
+	offset := (pageParam.Page - 1) * pageParam.PageSize
+	articles := make([]*mysql.ArticleModel, 0, pageParam.PageSize)
+	if offset < int(topTotal) {
+		topParam := pageParam
+		topParam.UseForceOffset = true
+		topParam.ForceOffset = offset
+		topParam.PageSize = min(pageParam.PageSize, int(topTotal)-offset)
+		topArticles, err := dal.MySqlDB.Article.PageFindByCommonParam(&topParam, topSQLParam)
+		if err != nil {
+			return err
+		}
+		articles = append(articles, topArticles...)
+	}
+	restLimit := pageParam.PageSize - len(articles)
+	if restLimit > 0 {
+		restOffset := offset - int(topTotal)
+		if restOffset < 0 {
+			restOffset = 0
+		}
+		restParam := pageParam
+		restParam.UseForceOffset = true
+		restParam.ForceOffset = restOffset
+		restParam.PageSize = restLimit
+		sqlParam := mysql.PageFindArticleByNotStatusParam{ArticleCommonQueryParam: topSQLParam}
+		restArticles, err := dal.MySqlDB.Article.PageFindByNotVisibility(&restParam, sqlParam)
+		if err != nil {
+			return err
+		}
+		articles = append(articles, restArticles...)
+	}
 	res := rtype.MultiModelToArticleResponse(articles)
-	return handler.PaginateData(c, total, res)
+	return handler.PaginateData(c, pageInfo, res)
 }
 
 func ArticleRetrieve(c *fiber.Ctx) error {
@@ -105,7 +142,7 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 		return err
 	}
 	res := rtype.ModelToArticleResponse(&article)
-	return c.JSON(&res)
+	return handler.Success(c, &res)
 }
 
 func ArticleCreate(c *fiber.Ctx) error {
@@ -140,7 +177,7 @@ func ArticleCreate(c *fiber.Ctx) error {
 		return err
 	}
 	res := rtype.ModelToArticleResponse(&article)
-	return c.Status(fiber.StatusCreated).JSON(res)
+	return handler.SuccessWithStatus(c, fiber.StatusCreated, res)
 }
 
 // 更新文章
@@ -177,7 +214,7 @@ func ArticleUpdate(c *fiber.Ctx) error {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
 	res := rtype.ModelToArticleResponse(&article)
-	return c.Status(fiber.StatusOK).JSON(&res)
+	return handler.Success(c, &res)
 }
 
 // 删除文章
@@ -189,7 +226,7 @@ func ArticleDelete(c *fiber.Ctx) error {
 	if err := dal.MySqlDB.Article.DeleteByID(article.ID); err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
-	return c.SendStatus(fiber.StatusNoContent)
+	return handler.SuccessWithStatus(c, fiber.StatusOK, nil)
 }
 
 func getTagsByUID(tagUIDs []string) ([]*model.Tag, error) {

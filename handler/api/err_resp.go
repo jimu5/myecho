@@ -21,6 +21,7 @@ const (
 	LoginErrorMsg        = "账号或密码错误"
 	UnauthorizedErrorMsg = "未登录"
 	CanNotRegister       = "禁止注册"
+	SuccessMsg           = "ok"
 )
 
 type Error struct {
@@ -28,27 +29,31 @@ type Error struct {
 	Msg  string `json:"msg"`
 }
 
+func ErrorResponse(c *fiber.Ctx, status, code int, msg string) error {
+	return c.Status(status).JSON(Error{Code: code, Msg: msg})
+}
+
 // 解析失败返回
 func ParseErrorResponse(c *fiber.Ctx, msg string) error {
-	return c.Status(400).JSON(Error{Code: ParseError, Msg: msg})
+	return ErrorResponse(c, fiber.StatusBadRequest, ParseError, msg)
 }
 
 // 未找到返回
 func NotFoundErrorResponse(c *fiber.Ctx, msg string) error {
-	return c.Status(404).JSON(Error{Code: 404, Msg: msg})
+	return ErrorResponse(c, fiber.StatusNotFound, NotFound, msg)
 }
 
 // 验证失败返回
 func ValidateErrorResponse(c *fiber.Ctx, msg string) error {
-	return c.Status(403).JSON(Error{Code: ValidateError, Msg: msg})
+	return ErrorResponse(c, fiber.StatusForbidden, ValidateError, msg)
 }
 
 // 鉴权失败返回
 func UnauthorizedErrorResponse(c *fiber.Ctx) error {
-	return c.Status(401).JSON(Error{Code: Unauthorized, Msg: UnauthorizedErrorMsg})
+	return ErrorResponse(c, fiber.StatusUnauthorized, Unauthorized, UnauthorizedErrorMsg)
 }
 
 // 内部错误
 func InternalErrorResponse(c *fiber.Ctx, code int, msg string) error {
-	return c.Status(500).JSON(Error{Code: code, Msg: msg})
+	return ErrorResponse(c, fiber.StatusInternalServerError, code, msg)
 }

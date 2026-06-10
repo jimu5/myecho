@@ -76,12 +76,12 @@ func respToMap(data interface{}) fiber.Map {
 		"Data":     data,
 		"Settings": config.MySqlSettingModelCache,
 	}
-	
+
 	// 获取当前激活的主题
 	theme, err := service.S.Theme.GetActiveTheme()
 	if err == nil && theme != nil {
 		resp["Theme"] = theme
 	}
-	
+
 	return resp
 }

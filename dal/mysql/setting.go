@@ -101,32 +101,44 @@ func (s *SettingRepo) GetAll() ([]*SettingModel, error) {
 
 func (s *SettingRepo) GetByKey(key string) (SettingModel, error) {
 	var result SettingModel
-	err := db.Model(&SettingModel{}).Where("key = ?", key).Find(&result).Error
+	err := db.Model(&SettingModel{}).Where("key = ?", key).First(&result).Error
 	return result, err
 }
 
 func (s *SettingRepo) UpdateValueAndDesc(key, value, desc string) (SettingModel, error) {
-	err := db.Model(&SettingModel{}).Where("key = ?", key).Save(map[string]interface{}{
+	result := db.Model(&SettingModel{}).Where("key = ?", key).Updates(map[string]interface{}{
 		"value":       value,
 		"description": desc,
-		"key":         key,
-	}).Error
-	if err != nil {
-		return SettingModel{}, err
+	})
+	if result.Error != nil {
+		return SettingModel{}, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return SettingModel{}, gorm.ErrRecordNotFound
 	}
 	return s.GetByKey(key)
 }
 
 func (s *SettingRepo) UpdateValueAndType(key, typeValue, value string) (SettingModel, error) {
-	err := db.Model(&SettingModel{}).Where("key = ?", key).Updates(map[string]interface{}{"type": typeValue, "value": value}).Error
-	if err != nil {
-		return SettingModel{}, nil
+	result := db.Model(&SettingModel{}).Where("key = ?", key).Updates(map[string]interface{}{"type": typeValue, "value": value})
+	if result.Error != nil {
+		return SettingModel{}, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return SettingModel{}, gorm.ErrRecordNotFound
 	}
 	return s.GetByKey(key)
 }
 
 func (s *SettingRepo) DeleteByKey(key string) error {
-	return db.Model(&SettingModel{}).Where("key = ?", key).Delete(&SettingModel{}).Error
+	result := db.Model(&SettingModel{}).Where("key = ?", key).Delete(&SettingModel{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // 初始化默认设置

@@ -1,8 +1,6 @@
 package api
 
 import (
-	"crypto/tls"
-	"io"
 	"log"
 	"mime/multipart"
 	"myecho/dal"
@@ -11,16 +9,11 @@ import (
 	"myecho/handler/rtype"
 	"myecho/service"
 	"myecho/utils"
-	"net/http"
 	"os"
 	"path"
 
 	"github.com/gofiber/fiber/v2"
 )
-
-var httpClient = &http.Client{
-	Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
-}
 
 func VditorFileUpload(c *fiber.Ctx) error {
 	form, err := c.MultipartForm()
@@ -49,7 +42,7 @@ func VditorFileUpload(c *fiber.Ctx) error {
 		ErrFiles: failedFileName,
 		SuccMap:  successFileMap,
 	}
-	return c.JSON(handler.GetSuccessCommonResp(resp))
+	return handler.Success(c, resp)
 }
 
 func FileSingleUpload(c *fiber.Ctx) error {
@@ -59,7 +52,7 @@ func FileSingleUpload(c *fiber.Ctx) error {
 	}
 	files := form.File["file"]
 	if len(files) == 0 {
-		return nil
+		return ParseErrorResponse(c, "file is required")
 	}
 	file := files[0]
 	fileModel := mysql.GenFileModel(utils.ParseFileFullName(file.Filename))
@@ -67,7 +60,7 @@ func FileSingleUpload(c *fiber.Ctx) error {
 		return err
 	}
 	fileResp := service.ModelToFile(&fileModel)
-	return c.JSON(&fileResp)
+	return handler.Success(c, &fileResp)
 
 }
 
@@ -79,22 +72,10 @@ func FileSaveByLinkUrl(c *fiber.Ctx) error {
 	}
 	filename, extName := utils.ParseFileFullName(path.Base(reqBody.Url))
 	fileModel := mysql.GenFileModel(filename, extName)
-	out, err := os.Create(fileModel.GetTempSavePath()) // 保存在临时文件
+	err := utils.DownloadRemoteFile(reqBody.Url, fileModel.GetTempSavePath(), utils.DefaultMaxRemoteFileBytes)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
-
-	resp, err := httpClient.Get(reqBody.Url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return err
-	}
-	out.Close()
 	err = duplicateSaveTempFileModel(&fileModel)
 	if err != nil {
 		return err
@@ -103,7 +84,7 @@ func FileSaveByLinkUrl(c *fiber.Ctx) error {
 		OriginalURL: reqBody.Url,
 		URL:         fileModel.GetUrlPath(),
 	}
-	return c.JSON(handler.GetSuccessCommonResp(res))
+	return handler.Success(c, res)
 }
 
 func FilePageList(c *fiber.Ctx) error {
@@ -115,7 +96,7 @@ func FilePageList(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return handler.PaginateData(c, pageInfo.Total, files)
+	return handler.PaginateData(c, pageInfo, files)
 }
 
 func FileInfoUpdate(c *fiber.Ctx) error {
@@ -131,7 +112,7 @@ func FileInfoUpdate(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(&file)
+	return handler.Success(c, &file)
 }
 
 func FileDelete(c *fiber.Ctx) error {
@@ -143,7 +124,7 @@ func FileDelete(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.SendStatus(fiber.StatusNoContent)
+	return handler.SuccessWithStatus(c, fiber.StatusOK, nil)
 }
 
 // TODO: 修改这些逻辑代码到 service 层
@@ -164,6 +145,9 @@ func duplicateSaveTempFileModel(fileModel *mysql.FileModel) error {
 	}
 	fileModel.MD5 = fileMD5
 	sampleFileModels, err := dal.MySqlDB.File.FindFilesByMD5s([]string{fileMD5})
+	if err != nil {
+		return err
+	}
 	if len(sampleFileModels) != 0 {
 		delErr := os.Remove(fileModel.GetTempSavePath())
 		if delErr != nil {

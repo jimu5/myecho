@@ -1,10 +1,12 @@
 package service
 
 import (
+	"fmt"
 	"myecho/dal"
 	"myecho/dal/mysql"
 	"myecho/model"
 	"myecho/utils"
+	"os"
 )
 
 type FilePageListParam struct {
@@ -18,7 +20,8 @@ type UpdateFileParam struct {
 }
 
 func (ufp *UpdateFileParam) FillModel(fileModel *mysql.FileModel) {
-	fileModel.Name, fileModel.ExtensionName = utils.ParseFileFullName(ufp.FullName)
+	name, _ := utils.ParseFileFullName(ufp.FullName)
+	fileModel.Name = name
 	fileModel.Note = ufp.Note
 }
 
@@ -80,7 +83,7 @@ func (fs *FileService) Delete(id uint) error {
 		return err
 	}
 	err = file.HardDelete()
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return dal.MySqlDB.File.Delete(id)
@@ -89,7 +92,11 @@ func (fs *FileService) Delete(id uint) error {
 func (fs *FileService) UpdateFile(id uint, param *UpdateFileParam) (File, error) {
 	file, err := dal.MySqlDB.File.Get(id)
 	if err != nil {
-		return File{}, nil
+		return File{}, err
+	}
+	_, extName := utils.ParseFileFullName(param.FullName)
+	if extName != "" && extName != file.ExtensionName {
+		return File{}, fmt.Errorf("file extension cannot be changed")
 	}
 	param.FillModel(&file)
 	err = dal.MySqlDB.File.UpdateBasicInfo(&file)

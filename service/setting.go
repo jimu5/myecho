@@ -1,20 +1,14 @@
 package service
 
 import (
-	"crypto/tls"
-	"io"
 	"myecho/config"
 	"myecho/config/static_config"
 	"myecho/dal"
 	"myecho/dal/mysql"
 	"myecho/handler/api/errors"
-	"net/http"
+	"myecho/utils"
 	"os"
 )
-
-var httpClient = &http.Client{
-	Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
-}
 
 type SettingService struct {
 }
@@ -60,31 +54,30 @@ func (s *SettingService) DeleteByKey(key string) error {
 	if yes := dal.MySqlDB.Setting.CheckIsInitKey(key); yes {
 		return errors.ErrDeleteSettingKeyIsDefault
 	}
-	return dal.MySqlDB.Setting.DeleteByKey(key)
+	if err := dal.MySqlDB.Setting.DeleteByKey(key); err != nil {
+		return err
+	}
+	if config.MySqlSettingModelCache != nil {
+		config.MySqlSettingModelCache.Delete(key)
+	}
+	return nil
 }
 
 func cacheSetting(model *mysql.SettingModel) {
-	config.MySqlSettingModelCache.Set(model.Key, model)
+	if config.MySqlSettingModelCache != nil {
+		config.MySqlSettingModelCache.Set(model.Key, model)
+	}
 }
 
 func saveIcon(key, value string) error {
 	if key != "SiteFaviconIcon" {
 		return nil
 	}
-	os.Remove(static_config.StorageIconPath)
-	out, err := os.Create(static_config.StorageIconPath) // 保存在临时文件
-	if err != nil {
+	tmpPath := static_config.StorageIconPath + ".tmp"
+	_ = os.Remove(tmpPath)
+	if err := utils.DownloadRemoteFile(value, tmpPath, utils.DefaultMaxRemoteFileBytes); err != nil {
 		return err
 	}
-	defer out.Close()
-	resp, err := httpClient.Get(value)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	_, err = io.Copy(out, resp.Body)
-	if err != nil {
-		return err
-	}
-	return err
+	_ = os.Remove(static_config.StorageIconPath)
+	return os.Rename(tmpPath, static_config.StorageIconPath)
 }

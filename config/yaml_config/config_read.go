@@ -34,4 +34,17 @@ func ReadYAMLConfig() {
 	if err != nil {
 		panic(err)
 	}
+	fillDefaultConfig()
+}
+
+func fillDefaultConfig() {
+	if Yaml.Database == nil {
+		Yaml.Database = &Database{}
+	}
+	if Yaml.Database.DBName == "" {
+		Yaml.Database.DBName = "myecho"
+	}
+	if Yaml.APPConfig == nil {
+		Yaml.APPConfig = &APPConfig{}
+	}
 }

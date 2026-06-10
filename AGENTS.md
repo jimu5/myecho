@@ -31,25 +31,32 @@ make build    # build current platform binary
 make fmt      # gofmt repository Go files, excluding the frontend submodule
 make vet      # go vet ./...
 make test     # go test ./...
+make check    # go vet ./... and go test ./...
+make coverage # go test ./... with coverage summary
+make admin-test  # run admin frontend tests with npm
+make admin-build # build admin frontend into static/admin
 make tidy     # go mod tidy
 ```
 
-The application expects `config.yaml` in the repository root. The default config falls back to SQLite when `database.type` is empty or unknown.
+The application expects a local `config.yaml` in the repository root. Copy it from `config.example.yaml`; the real file is ignored and should not be committed. The default config falls back to SQLite when `database.type` is empty, `mysql`, or unknown.
 
 ## Development Rules
 
 - Keep business logic in `service`; keep persistence concerns in `dal` and `model`.
 - Keep request/response shapes in `handler/rtype` and validation close to `handler/api/validator`.
+- JSON API success responses use `{code,msg,data,meta}` with `code=0`; errors use lowercase `code/msg`.
 - Do not edit generated Swagger files in `docs` by hand unless the task is explicitly about generated API docs.
 - Do not make cross-cutting refactors while implementing focused fixes.
 - Preserve the Fiber middleware order in `main.go` unless the change depends on ordering.
 - Avoid touching `fe/myecho-admin` from the parent repository unless the task explicitly asks for frontend work; it is a submodule.
+- When touching `fe/myecho-admin`, use npm and keep `package-lock.json` as the only lockfile.
 - Add or update focused tests when changing shared helpers, service behavior, validators, or data access code.
 - Use `gofmt` on changed Go files before finishing.
 
 ## Testing Notes
 
 - `make test` is the default verification command for backend changes.
+- `make check` is the preferred local backend preflight before handing work back.
+- Frontend changes should run `make admin-test`; run `make admin-build` when changing build or `/admin` serving behavior.
 - Some packages may require a usable `config.yaml` and local SQLite/PostgreSQL access because initialization reads runtime config.
 - Tests should avoid depending on persistent local state. Prefer temporary SQLite database names when adding integration-style tests.
-

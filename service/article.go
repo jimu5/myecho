@@ -2,6 +2,7 @@ package service
 
 import (
 	"log"
+	"myecho/config/static_config"
 	"myecho/dal"
 	"myecho/dal/mysql"
 )
@@ -37,21 +38,45 @@ func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam)
 	pageInfo.Total = total
 	pageParam := param.PageFindParam
 	pageInfo.FillInfoFromParam(&pageParam)
-	topArticles, err := dal.MySqlDB.Article.PageFindByCommonParam(&pageParam, sqlParam)
-	if err != nil {
-		return pageInfo, nil, err
+	if pageParam.Page < 1 {
+		pageParam.Page = 1
 	}
-	pageParam.ForceOffset = pageParam.PageSize*(pageParam.Page-1) - int(topTotal) // 注意这里 topTotal 位数
-	if pageParam.ForceOffset < 0 {
-		pageParam.ForceOffset = 0
+	if pageParam.PageSize < 1 {
+		pageParam.PageSize = static_config.PageSize
 	}
+	pageOffset := (pageParam.Page - 1) * pageParam.PageSize
+
+	articles := make([]*mysql.ArticleModel, 0, pageParam.PageSize)
+	if pageOffset < int(topTotal) {
+		topParam := pageParam
+		topParam.UseForceOffset = true
+		topParam.ForceOffset = pageOffset
+		topParam.PageSize = min(pageParam.PageSize, int(topTotal)-pageOffset)
+		topArticles, err := dal.MySqlDB.Article.PageFindByCommonParam(&topParam, sqlParam)
+		if err != nil {
+			return pageInfo, nil, err
+		}
+		articles = append(articles, topArticles...)
+	}
+
+	restLimit := pageParam.PageSize - len(articles)
+	if restLimit == 0 {
+		return pageInfo, articles, nil
+	}
+	restOffset := pageOffset - int(topTotal)
+	if restOffset < 0 {
+		restOffset = 0
+	}
+	restParam := pageParam
+	restParam.UseForceOffset = true
+	restParam.ForceOffset = restOffset
+	restParam.PageSize = restLimit
 	status = mysql.ARTILCE_STATUS_PUBLIC
 	sqlParam.Status = &status
-	restArticles, err := dal.MySqlDB.Article.PageFindByCommonParam(&pageParam, sqlParam)
+	restArticles, err := dal.MySqlDB.Article.PageFindByCommonParam(&restParam, sqlParam)
 	if err != nil {
 		return pageInfo, nil, err
 	}
-	articles := topArticles
 	articles = append(articles, restArticles...)
 	return pageInfo, articles, nil
 }

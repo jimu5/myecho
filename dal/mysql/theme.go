@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	ErrThemeNotExist       = errors.New("主题不存在")
-	ErrThemeActiveExists   = errors.New("已有激活的主题")
-	ErrThemeCantDeleteActive = errors.New("无法删除激活状态的主题")
+	ErrThemeNotExist          = errors.New("主题不存在")
+	ErrThemeActiveExists      = errors.New("已有激活的主题")
+	ErrThemeCantDeleteActive  = errors.New("无法删除激活状态的主题")
 	ErrThemeCantDeleteDefault = errors.New("无法删除默认主题")
 )
 
@@ -87,13 +87,26 @@ func (s *ThemeRepo) Delete(id int64) error {
 
 // ActivateTheme 激活主题
 func (s *ThemeRepo) ActivateTheme(id int64) error {
-	// 先禁用当前激活的主题
-	err := db.Model(&ThemeModel{}).Where("is_active = ?", true).Update("is_active", false).Error
-	if err != nil {
-		return err
-	}
-	// 激活指定主题
-	return db.Model(&ThemeModel{}).Where("id = ?", id).Update("is_active", true).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		var theme ThemeModel
+		if err := tx.Where("id = ?", id).First(&theme).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return ErrThemeNotExist
+			}
+			return err
+		}
+		if err := tx.Model(&ThemeModel{}).Where("is_active = ?", true).Update("is_active", false).Error; err != nil {
+			return err
+		}
+		result := tx.Model(&ThemeModel{}).Where("id = ?", id).Update("is_active", true)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return ErrThemeNotExist
+		}
+		return nil
+	})
 }
 
 // InitDefaultTheme 初始化默认主题

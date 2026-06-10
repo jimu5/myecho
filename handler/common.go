@@ -18,8 +18,30 @@ type Pagination struct {
 	Data  interface{} `json:"data"`
 }
 
-func PaginateData(c *fiber.Ctx, total int64, data interface{}) error {
-	return c.Status(200).JSON(Pagination{Total: total, Data: data})
+func Success(c *fiber.Ctx, data interface{}) error {
+	return SuccessWithStatus(c, fiber.StatusOK, data)
+}
+
+func SuccessWithStatus(c *fiber.Ctx, status int, data interface{}) error {
+	return c.Status(status).JSON(rtype.CommonResp{
+		Code: 0,
+		Msg:  "ok",
+		Data: data,
+		Meta: map[string]interface{}{},
+	})
+}
+
+func PaginateData(c *fiber.Ctx, pageInfo mysql.PageInfo, data interface{}) error {
+	return c.Status(fiber.StatusOK).JSON(rtype.CommonResp{
+		Code: 0,
+		Msg:  "ok",
+		Data: data,
+		Meta: map[string]interface{}{
+			"total":     pageInfo.Total,
+			"page":      pageInfo.Page,
+			"page_size": pageInfo.PageSize,
+		},
+	})
 }
 
 func DetailPreHandleByParam[T any](c *fiber.Ctx, model *T) error {
@@ -70,8 +92,11 @@ func GetUserFromCtx(c *fiber.Ctx) *model.User {
 	return user
 }
 
-func GetSuccessCommonResp[T any](data *T) rtype.CommonResp[T] {
-	return rtype.CommonResp[T]{
+func GetSuccessCommonResp(data interface{}) rtype.CommonResp {
+	return rtype.CommonResp{
+		Code: 0,
+		Msg:  "ok",
 		Data: data,
+		Meta: map[string]interface{}{},
 	}
 }

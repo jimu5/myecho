@@ -54,18 +54,18 @@ func TestUpdateFileParamFillModelAndModelConversions(t *testing.T) {
 		MD5:           "md5",
 		Note:          "old note",
 	}
-	(&UpdateFileParam{FullName: "report.pdf", Note: "new note"}).FillModel(fileModel)
-	if fileModel.Name != "report" || fileModel.ExtensionName != ".pdf" || fileModel.Note != "new note" {
+	(&UpdateFileParam{FullName: "report.txt", Note: "new note"}).FillModel(fileModel)
+	if fileModel.Name != "report" || fileModel.ExtensionName != ".txt" || fileModel.Note != "new note" {
 		t.Fatalf("FillModel() = %+v", fileModel)
 	}
 
 	dto := ModelToFile(fileModel)
-	if dto.ID != fileModel.ID || dto.FullName != "report.pdf" || dto.UUID != fileModel.UUID || dto.Note != fileModel.Note {
+	if dto.ID != fileModel.ID || dto.FullName != "report.txt" || dto.UUID != fileModel.UUID || dto.Note != fileModel.Note {
 		t.Fatalf("ModelToFile() = %+v", dto)
 	}
 
 	files := MModelToFiles([]*mysql.FileModel{fileModel})
-	if len(files) != 1 || files[0].FullName != "report.pdf" {
+	if len(files) != 1 || files[0].FullName != "report.txt" {
 		t.Fatalf("MModelToFiles() = %+v", files)
 	}
 }
