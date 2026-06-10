@@ -23,6 +23,10 @@ var (
 	ErrCommentAuthorEmailEmpty = errs.New("评论者邮箱为空")
 	ErrCommentContentEmpty     = errs.New("评论内容为空")
 	ErrCommentArticleIDEmpty   = errs.New("文章ID为空")
+	ErrCommentArticleClosed    = errs.New("文章未开放评论")
+	ErrCommentArticleHidden    = errs.New("文章不可评论")
+	ErrCommentStatus           = errs.New("评论状态有误")
+	ErrCommentBatchEmpty       = errs.New("评论批量操作不能为空")
 	ErrArticleID               = errs.New("文章ID不存在")
 	ErrParentCommentID         = errs.New("父级评论ID错误")
 

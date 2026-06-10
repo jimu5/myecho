@@ -6,6 +6,8 @@ import (
 	"myecho/config/static_config"
 	"myecho/dal"
 	"myecho/dal/mysql"
+	"strings"
+	"time"
 )
 
 type ArticleService struct {
@@ -13,6 +15,10 @@ type ArticleService struct {
 
 type ArticleDisplayListQueryParam struct {
 	CategoryUID *string `query:"category_uid"`
+	Keyword     *string `query:"keyword"`
+	TagUID      *string `query:"tag_uid"`
+	DateFrom    string  `query:"date_from"`
+	DateTo      string  `query:"date_to"`
 	mysql.PageFindParam
 }
 
@@ -27,10 +33,11 @@ var ErrArticleNotDisplayable = errors.New("article is not displayable")
 func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql.PageInfo, []*mysql.ArticleModel, error) {
 	status := mysql.ARTICLE_STATUS_TOP
 	pageInfo := mysql.PageInfo{}
-	sqlParam := mysql.ArticleCommonQueryParam{
-		CategoryUID: param.CategoryUID,
-		Status:      &status,
+	sqlParam, err := BuildArticleCommonQueryParam(param.CategoryUID, param.Keyword, param.TagUID, param.DateFrom, param.DateTo)
+	if err != nil {
+		return pageInfo, nil, err
 	}
+	sqlParam.Status = &status
 	total, err := dal.MySqlDB.Article.CountDisplayable(sqlParam)
 	if err != nil {
 		return pageInfo, nil, err
@@ -105,4 +112,42 @@ func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (mysq
 
 func isArticleDisplayable(status int8) bool {
 	return status == int8(mysql.ARTILCE_STATUS_PUBLIC) || status == int8(mysql.ARTICLE_STATUS_TOP)
+}
+
+func BuildArticleCommonQueryParam(categoryUID, keyword, tagUID *string, dateFrom, dateTo string) (mysql.ArticleCommonQueryParam, error) {
+	param := mysql.ArticleCommonQueryParam{
+		CategoryUID: categoryUID,
+		Keyword:     keyword,
+		TagUID:      tagUID,
+	}
+	from, err := parseArticleQueryDate(dateFrom, false)
+	if err != nil {
+		return param, err
+	}
+	to, err := parseArticleQueryDate(dateTo, true)
+	if err != nil {
+		return param, err
+	}
+	param.DateFrom = from
+	param.DateTo = to
+	return param, nil
+}
+
+func parseArticleQueryDate(value string, endOfDay bool) (*time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	layouts := []string{time.RFC3339, "2006-01-02T15:04:05Z07:00", "2006-01-02 15:04:05", "2006-01-02"}
+	for _, layout := range layouts {
+		t, err := time.ParseInLocation(layout, value, time.Local)
+		if err != nil {
+			continue
+		}
+		if endOfDay && layout == "2006-01-02" {
+			t = t.Add(24*time.Hour - time.Nanosecond)
+		}
+		return &t, nil
+	}
+	return nil, errors.New("date format must be YYYY-MM-DD or RFC3339")
 }

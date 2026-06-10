@@ -26,6 +26,12 @@ type ArticleRequest struct {
 	TagUIDs        []string  `json:"tag_uids"`
 }
 
+type ArticleBatchReq struct {
+	IDs    []uint `json:"ids"`
+	Action string `json:"action"`
+	Status int8   `json:"status"`
+}
+
 func (a *ArticleRequest) SetSummary() {
 	strByte := []byte(a.Content)
 	originDoc := goldmark.DefaultParser().Parse(text.NewReader(strByte))

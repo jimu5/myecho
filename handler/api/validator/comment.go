@@ -46,3 +46,10 @@ func ValidateParentCommentID(id uint) error {
 	}
 	return nil
 }
+
+func ValidateCommentStatus(status model.CommentStatus) error {
+	if !model.IsValidCommentStatus(status) {
+		return errors.ErrCommentStatus
+	}
+	return nil
+}

@@ -2,7 +2,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#f6f8f4">
 <link rel="icon" href="/favicon.ico" />
+<link rel="alternate" type="application/rss+xml" title="{{ Settings.GetStringValue("SiteTitle") }} RSS" href="/rss.xml">
 <meta name="keyword" content="{{ Settings.GetStringValue("SiteIndexMetaKeyword") }}">
+{{ if Meta.Description }}
+<meta name="description" content="{{ Meta.Description }}">
+{{ end }}
+{{ if Meta.Canonical }}
+<link rel="canonical" href="{{ Meta.Canonical }}">
+{{ end }}
+{{ if Meta.OGTitle }}
+<meta property="og:title" content="{{ Meta.OGTitle }}">
+{{ end }}
+{{ if Meta.Description }}
+<meta property="og:description" content="{{ Meta.Description }}">
+{{ end }}
+{{ if Meta.OGType }}
+<meta property="og:type" content="{{ Meta.OGType }}">
+{{ end }}
+{{ if Meta.OGURL }}
+<meta property="og:url" content="{{ Meta.OGURL }}">
+{{ end }}
 <link type="text/css" rel="stylesheet" href="/static/css/style.css">
 
 {* 加载激活的主题样式和脚本 *}
@@ -22,8 +41,6 @@
 
 <script src="/static/js/lib/dayjs@1.11.7.min.js"></script>
 <script src="/static/js/main.js" defer></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.3/viewer.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.3/viewer.min.js"></script>
 
 {* cdn *}
 {*<script src="https://unpkg.com/dayjs@1.11.7/dayjs.min.js"></script>*}

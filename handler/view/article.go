@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"errors"
 	"github.com/gofiber/fiber/v2"
+	"myecho/dal/connect"
 	"myecho/dal/mysql"
 	"myecho/handler"
 	"myecho/handler/api"
+	"myecho/handler/rtype"
+	"myecho/model"
 	"myecho/service"
 	"myecho/utils"
 )
@@ -21,7 +24,11 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 		return err
 	}
 	pageInfoResp := getPageInfoRespByMysqlPageInfo(c, &pageInfo)
-	return c.Render("index", respToMap(Pagination{PageInfo: pageInfoResp, PageData: data}))
+	return c.Render("index", respToMap(Pagination{PageInfo: pageInfoResp, PageData: data}, PageMeta{
+		Description: "最近更新的文章列表",
+		Canonical:   absoluteURL(c),
+		OGTitle:     "最近更新",
+	}))
 }
 
 func ArticleRetrieve(c *fiber.Ctx) error {
@@ -47,5 +54,31 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 		return err
 	}
 	res.Detail.Content = buf.String()
-	return c.Render("article", respToMap(res))
+	comments, err := approvedComments(res.UID)
+	if err != nil {
+		return err
+	}
+	data := respToMap(res, PageMeta{
+		Description: res.Summary,
+		Canonical:   absoluteURL(c),
+		OGTitle:     res.Title,
+		OGType:      "article",
+	})
+	data["Comments"] = comments
+	data["IsAllowComment"] = isAllowComment(res.IsAllowComment)
+	return c.Render("article", data)
+}
+
+func isAllowComment(value *bool) bool {
+	return value == nil || *value
+}
+
+func approvedComments(articleUID string) ([]rtype.CommentResponse, error) {
+	comments := make([]rtype.CommentResponse, 0)
+	err := connect.Database.Table("comments").
+		Where("article_uid = ?", articleUID).
+		Where("status IS NULL OR status = ? OR status = ?", int8(model.CommentStatusLegacyApproved), int8(model.CommentStatusApproved)).
+		Order("post_time asc, created_at asc").
+		Find(&comments).Error
+	return comments, err
 }

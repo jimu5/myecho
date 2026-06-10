@@ -2,10 +2,19 @@
 <article class="article-block">
   <div class="article-block-meta">
     <span>{{ .PostTime.Format("January 2, 2006") }}</span>
+    {{ if .Category }}
+    <a href="/?category_uid={{ .CategoryUID }}">{{ .Category.Name }}</a>
+    {{ end }}
+    <span>{{ .ReadCount }} 次阅读</span>
   </div>
   <h2>
     <a href="/articles/{{ .ID }}">{{ .Title }}</a>
   </h2>
+  <div class="article-block-tags">
+    {{ range .Tags }}
+    <span>{{ .Name }}</span>
+    {{ end }}
+  </div>
   <div class="article-block-summary">
     {{ .Summary }}
   </div>

@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/gofiber/fiber/v2"
@@ -120,8 +121,8 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 		t.Fatalf("create tag: %v", err)
 	}
 	repo := &mysql.ArticleDBRepo{}
-	publicArticle := &mysql.ArticleModel{Title: "Public", CategoryUID: category.UID, Status: int8(mysql.ARTILCE_STATUS_PUBLIC), AuthorID: admin.ID, Detail: &model.ArticleDetail{Content: "public"}}
-	draftArticle := &mysql.ArticleModel{Title: "Draft", CategoryUID: category.UID, Status: int8(mysql.ARTICLE_STATUS_DRAFT), AuthorID: admin.ID, Detail: &model.ArticleDetail{Content: "draft"}}
+	publicArticle := &mysql.ArticleModel{Title: "Public", CategoryUID: category.UID, Status: int8(mysql.ARTILCE_STATUS_PUBLIC), AuthorID: admin.ID, PostTime: time.Date(2026, 5, 1, 10, 0, 0, 0, time.Local), Detail: &model.ArticleDetail{Content: "public"}}
+	draftArticle := &mysql.ArticleModel{Title: "Draft", CategoryUID: category.UID, Status: int8(mysql.ARTICLE_STATUS_DRAFT), AuthorID: admin.ID, PostTime: time.Date(2026, 5, 2, 10, 0, 0, 0, time.Local), Detail: &model.ArticleDetail{Content: "draft"}}
 	if err := repo.Create(publicArticle); err != nil {
 		t.Fatalf("create public article: %v", err)
 	}
@@ -131,8 +132,10 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 
 	app := fiber.New()
 	app.Use(middleware.CommonErrorHandler)
+	app.Get("/all_articles", ArticleAllList)
 	app.Get("/articles/:id", ArticleRetrieve)
 	app.Post("/articles", middleware.Authentication, middleware.AdminRequired, ArticleCreate)
+	app.Post("/articles/batch", middleware.Authentication, middleware.AdminRequired, ArticleBatch)
 	app.Patch("/articles/:id", middleware.Authentication, middleware.AdminRequired, ArticleUpdate)
 	app.Delete("/articles/:id", middleware.Authentication, middleware.AdminRequired, ArticleDelete)
 
@@ -152,6 +155,30 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("draft admin status = %d, want 200", resp.StatusCode)
 	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/all_articles?keyword=Public&page=1&page_size=10", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("all articles keyword status = %d, want 200", resp.StatusCode)
+	}
+	wrapped := decodeAPIResp(t, resp)
+	if wrapped.Meta["total"].(float64) != 1 {
+		t.Fatalf("keyword total = %v, want 1", wrapped.Meta["total"])
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/all_articles?status=4&page=1&page_size=10", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("all articles status filter = %d, want 200", resp.StatusCode)
+	}
+	wrapped = decodeAPIResp(t, resp)
+	if wrapped.Meta["total"].(float64) != 1 {
+		t.Fatalf("draft total = %v, want 1", wrapped.Meta["total"])
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/all_articles?date_from=2026-05-01&date_to=2026-05-01&page=1&page_size=10", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("all articles date filter = %d, want 200", resp.StatusCode)
+	}
+	wrapped = decodeAPIResp(t, resp)
+	if wrapped.Meta["total"].(float64) != 1 {
+		t.Fatalf("date total = %v, want 1", wrapped.Meta["total"])
+	}
 
 	createBody := `{"title":"Created","content":"hello","category_uid":"cat-article","status":1,"tag_uids":["tag-go"]}`
 	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles", normal.Token, createBody)
@@ -162,7 +189,7 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 	if resp.StatusCode != fiber.StatusCreated {
 		t.Fatalf("admin create status = %d, want 201", resp.StatusCode)
 	}
-	wrapped := decodeAPIResp(t, resp)
+	wrapped = decodeAPIResp(t, resp)
 	var created rtype.ArticleResponse
 	if err := json.Unmarshal(wrapped.Data, &created); err != nil {
 		t.Fatalf("decode created article: %v", err)
@@ -170,11 +197,23 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 	if created.ID == 0 || created.Title != "Created" {
 		t.Fatalf("created article = %+v", created)
 	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/all_articles?tag_uid=tag-go&page=1&page_size=10", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("all articles tag filter = %d, want 200", resp.StatusCode)
+	}
+	wrapped = decodeAPIResp(t, resp)
+	if wrapped.Meta["total"].(float64) != 1 {
+		t.Fatalf("tag total = %v, want 1", wrapped.Meta["total"])
+	}
 
 	updateBody := `{"title":"Updated","content":"new body","category_uid":"cat-article","status":1,"tag_uids":["tag-go"]}`
 	resp = doJSONRequest(t, app, fiber.MethodPatch, "/articles/3", admin.Token, updateBody)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("update status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/batch", admin.Token, `{"ids":[3],"action":"status","status":4}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("batch status = %d, want 200", resp.StatusCode)
 	}
 	resp = doJSONRequest(t, app, fiber.MethodDelete, "/articles/3", admin.Token, "")
 	if resp.StatusCode != fiber.StatusOK {
@@ -196,7 +235,10 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	app.Delete("/tags/:id", TagDelete)
 	app.Post("/articles/:id/comments", CommentCreate)
 	app.Get("/articles/:id/comments", ArticleCommentList)
+	app.Get("/comments", CommentAllList)
 	app.Patch("/comments/:id", CommentUpdate)
+	app.Post("/comments/batch", CommentBatch)
+	app.Delete("/comments/:id", CommentDelete)
 
 	resp := doJSONRequest(t, app, fiber.MethodPost, "/article/categories", "", `{"name":"Tech"}`)
 	if resp.StatusCode != fiber.StatusCreated {
@@ -232,20 +274,74 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 		t.Fatalf("tag update status = %d, want 200", resp.StatusCode)
 	}
 
-	article := &mysql.ArticleModel{Title: "Commented", CategoryUID: category.UID, Status: int8(mysql.ARTILCE_STATUS_PUBLIC), Detail: &model.ArticleDetail{Content: "body"}}
+	allowComment := true
+	closedComment := false
+	article := &mysql.ArticleModel{Title: "Commented", CategoryUID: category.UID, Status: int8(mysql.ARTILCE_STATUS_PUBLIC), IsAllowComment: &allowComment, Detail: &model.ArticleDetail{Content: "body"}}
 	if err := (&mysql.ArticleDBRepo{}).Create(article); err != nil {
 		t.Fatalf("create article: %v", err)
+	}
+	closedArticle := &mysql.ArticleModel{Title: "Closed", CategoryUID: category.UID, Status: int8(mysql.ARTILCE_STATUS_PUBLIC), IsAllowComment: &closedComment, Detail: &model.ArticleDetail{Content: "closed"}}
+	if err := (&mysql.ArticleDBRepo{}).Create(closedArticle); err != nil {
+		t.Fatalf("create closed article: %v", err)
+	}
+	draftArticle := &mysql.ArticleModel{Title: "Draft", CategoryUID: category.UID, Status: int8(mysql.ARTICLE_STATUS_DRAFT), IsAllowComment: &allowComment, Detail: &model.ArticleDetail{Content: "draft"}}
+	if err := (&mysql.ArticleDBRepo{}).Create(draftArticle); err != nil {
+		t.Fatalf("create draft article: %v", err)
 	}
 	commentBody := `{"author_name":"alice","author_email":"alice@example.com","content":"hello"}`
 	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/1/comments", "", commentBody)
 	if resp.StatusCode != fiber.StatusCreated {
 		t.Fatalf("comment create status = %d, want 201", resp.StatusCode)
 	}
+	commentResp := decodeAPIResp(t, resp)
+	var createdComment model.Comment
+	if err := json.Unmarshal(commentResp.Data, &createdComment); err != nil {
+		t.Fatalf("decode comment: %v", err)
+	}
+	if createdComment.Status == nil || *createdComment.Status != int8(model.CommentStatusPending) {
+		t.Fatalf("created comment status = %v, want pending", createdComment.Status)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/2/comments", "", commentBody)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("closed article comment status = %d, want 403", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/3/comments", "", commentBody)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("draft article comment status = %d, want 403", resp.StatusCode)
+	}
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/articles/1/comments", "", "")
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("comment list status = %d, want 200", resp.StatusCode)
 	}
-	resp = doJSONRequest(t, app, fiber.MethodPatch, "/comments/1", "", `{"author_name":"bob","author_email":"bob@example.com","content":"updated"}`)
+	commentListResp := decodeAPIResp(t, resp)
+	var publicComments []rtype.CommentResponse
+	if err := json.Unmarshal(commentListResp.Data, &publicComments); err != nil {
+		t.Fatalf("decode public comments: %v", err)
+	}
+	if len(publicComments) != 0 {
+		t.Fatalf("pending public comments len = %d, want 0", len(publicComments))
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/comments?status=1&page=1&page_size=10", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("admin pending comments status = %d, want 200", resp.StatusCode)
+	}
+	commentListResp = decodeAPIResp(t, resp)
+	if commentListResp.Meta["total"].(float64) != 1 {
+		t.Fatalf("pending total = %v, want 1", commentListResp.Meta["total"])
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/comments/batch", "", `{"ids":[1],"action":"status","status":2}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("comment batch approve status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/articles/1/comments", "", "")
+	commentListResp = decodeAPIResp(t, resp)
+	if err := json.Unmarshal(commentListResp.Data, &publicComments); err != nil {
+		t.Fatalf("decode approved public comments: %v", err)
+	}
+	if len(publicComments) != 1 {
+		t.Fatalf("approved public comments len = %d, want 1", len(publicComments))
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPatch, "/comments/1", "", `{"author_name":"bob","author_email":"bob@example.com","content":"updated","status":2}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("comment update status = %d, want 200", resp.StatusCode)
 	}

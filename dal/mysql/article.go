@@ -6,6 +6,7 @@ import (
 	"myecho/model"
 	"myecho/utils"
 	"strings"
+	"time"
 )
 
 type ArticleDBRepo struct {
@@ -98,6 +99,10 @@ const (
 type ArticleCommonQueryParam struct {
 	CategoryUID *string
 	Status      *ArticleStatus
+	Keyword     *string
+	TagUID      *string
+	DateFrom    *time.Time
+	DateTo      *time.Time
 }
 
 type PageFindArticleByNotStatusParam struct {
@@ -107,6 +112,9 @@ type PageFindArticleByNotStatusParam struct {
 func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryParam) (*gorm.DB, error) {
 	SqlPrefix := make([]string, 0)
 	SqlValue := make([]interface{}, 0)
+	if param.TagUID != nil && len(*param.TagUID) != 0 {
+		db = db.Joins("JOIN article_tags ON article_tags.article_uid = articles.uid AND article_tags.tag_uid = ?", *param.TagUID)
+	}
 	if param.CategoryUID != nil && len(*param.CategoryUID) != 0 {
 		sql := "category_uid in (?)"
 		allUID := make([]string, 0)
@@ -123,6 +131,19 @@ func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryP
 		sql := "status = ?"
 		SqlPrefix = append(SqlPrefix, sql)
 		SqlValue = append(SqlValue, *param.Status)
+	}
+	if param.Keyword != nil && strings.TrimSpace(*param.Keyword) != "" {
+		keyword := "%" + strings.TrimSpace(*param.Keyword) + "%"
+		SqlPrefix = append(SqlPrefix, "(title LIKE ? OR summary LIKE ?)")
+		SqlValue = append(SqlValue, keyword, keyword)
+	}
+	if param.DateFrom != nil {
+		SqlPrefix = append(SqlPrefix, "post_time >= ?")
+		SqlValue = append(SqlValue, *param.DateFrom)
+	}
+	if param.DateTo != nil {
+		SqlPrefix = append(SqlPrefix, "post_time <= ?")
+		SqlValue = append(SqlValue, *param.DateTo)
 	}
 	return db.Where(strings.Join(SqlPrefix, queryAND), SqlValue...), nil
 }
@@ -230,6 +251,28 @@ func (a *ArticleDBRepo) AddReadCountByID(id uint, addCount uint) error {
 	}
 	if result.RowsAffected == 0 {
 		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+func (a *ArticleDBRepo) BatchUpdateStatus(ids []uint, status ArticleStatus) error {
+	for _, id := range ids {
+		article, err := a.FindByID(id)
+		if err != nil {
+			return err
+		}
+		if err := db.Model(&article).Update("status", int8(status)).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (a *ArticleDBRepo) BatchDelete(ids []uint) error {
+	for _, id := range ids {
+		if err := a.DeleteByID(id); err != nil {
+			return err
+		}
 	}
 	return nil
 }

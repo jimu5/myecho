@@ -2,6 +2,20 @@ package model
 
 import "time"
 
+type CommentStatus int8
+
+const (
+	CommentStatusLegacyApproved CommentStatus = 0
+	CommentStatusPending        CommentStatus = 1
+	CommentStatusApproved       CommentStatus = 2
+	CommentStatusRejected       CommentStatus = 3
+	CommentStatusSpam           CommentStatus = 4
+)
+
+func IsValidCommentStatus(status CommentStatus) bool {
+	return status >= CommentStatusPending && status <= CommentStatusSpam
+}
+
 // 评论
 type Comment struct {
 	BaseModel

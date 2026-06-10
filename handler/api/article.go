@@ -7,6 +7,7 @@ import (
 	"myecho/dal"
 	"myecho/dal/mysql"
 	"myecho/handler"
+	apierrors "myecho/handler/api/errors"
 	"myecho/handler/api/validator"
 	"myecho/handler/rtype"
 	"myecho/middleware"
@@ -40,6 +41,10 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 type ArticleAllListQueryParam struct {
 	CategoryUID *string              `query:"category_uid"`
 	Status      *mysql.ArticleStatus `query:"status"`
+	Keyword     *string              `query:"keyword"`
+	TagUID      *string              `query:"tag_uid"`
+	DateFrom    string               `query:"date_from"`
+	DateTo      string               `query:"date_to"`
 }
 
 func ArticleAllList(c *fiber.Ctx) error {
@@ -51,8 +56,9 @@ func ArticleAllList(c *fiber.Ctx) error {
 	if err = c.QueryParser(&queryParam); err != nil {
 		return err
 	}
-	sqlCommonParam := mysql.ArticleCommonQueryParam{
-		CategoryUID: queryParam.CategoryUID,
+	sqlCommonParam, err := service.BuildArticleCommonQueryParam(queryParam.CategoryUID, queryParam.Keyword, queryParam.TagUID, queryParam.DateFrom, queryParam.DateTo)
+	if err != nil {
+		return ValidateErrorResponse(c, err.Error())
 	}
 	if queryParam.Status != nil {
 		sqlCommonParam.Status = queryParam.Status
@@ -125,6 +131,33 @@ func ArticleAllList(c *fiber.Ctx) error {
 	}
 	res := rtype.MultiModelToArticleResponse(articles)
 	return handler.PaginateData(c, pageInfo, res)
+}
+
+func ArticleBatch(c *fiber.Ctx) error {
+	req := rtype.ArticleBatchReq{}
+	if err := c.BodyParser(&req); err != nil {
+		return ParseErrorResponse(c, err.Error())
+	}
+	if len(req.IDs) == 0 {
+		return ValidateErrorResponse(c, apierrors.ErrInvalidParams.Error())
+	}
+	switch req.Action {
+	case "delete":
+		if err := dal.MySqlDB.Article.BatchDelete(req.IDs); err != nil {
+			return InternalErrorResponse(c, InternalSQLError, err.Error())
+		}
+	case "status", "update_status", "":
+		status := mysql.ArticleStatus(req.Status)
+		if status < mysql.ARTILCE_STATUS_PUBLIC || status > mysql.ARTICLE_STATUS_RECYCLE {
+			return ValidateErrorResponse(c, apierrors.ErrInvalidParams.Error())
+		}
+		if err := dal.MySqlDB.Article.BatchUpdateStatus(req.IDs, status); err != nil {
+			return InternalErrorResponse(c, InternalSQLError, err.Error())
+		}
+	default:
+		return ValidateErrorResponse(c, apierrors.ErrInvalidParams.Error())
+	}
+	return handler.Success(c, nil)
 }
 
 func ArticleRetrieve(c *fiber.Ctx) error {

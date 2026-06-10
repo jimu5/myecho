@@ -18,10 +18,14 @@ func SetupApiRouter(app *fiber.App) {
 		{
 			apiRoute.Get("/all_articles", mw.Authentication, mw.AdminRequired, api.ArticleAllList)
 			apiRoute.Post("/articles", mw.Authentication, mw.AdminRequired, api.ArticleCreate)
+			apiRoute.Post("/articles/batch", mw.Authentication, mw.AdminRequired, api.ArticleBatch)
 			apiRoute.Patch("/articles/:id", mw.Authentication, mw.AdminRequired, api.ArticleUpdate)
 			apiRoute.Delete("/articles/:id", mw.Authentication, mw.AdminRequired, api.ArticleDelete)
 
+			apiRoute.Get("/comments", mw.Authentication, mw.AdminRequired, api.CommentAllList)
 			apiRoute.Patch("/comments/:id", mw.Authentication, mw.AdminRequired, api.CommentUpdate)
+			apiRoute.Post("/comments/batch", mw.Authentication, mw.AdminRequired, api.CommentBatch)
+			apiRoute.Delete("/comments/:id", mw.Authentication, mw.AdminRequired, api.CommentDelete)
 
 			apiRoute.Post("/article/categories", mw.Authentication, mw.AdminRequired, api.ArticleCategoryCreate)
 			apiRoute.Post("/link/categories", mw.Authentication, mw.AdminRequired, api.LinkCategoryCreate)

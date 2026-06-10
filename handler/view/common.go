@@ -22,6 +22,14 @@ type Pagination struct {
 	PageData interface{}  `json:"page_data"`
 }
 
+type PageMeta struct {
+	Description string
+	Canonical   string
+	OGTitle     string
+	OGType      string
+	OGURL       string
+}
+
 func GetFavicon(c *fiber.Ctx) error {
 	err := c.SendFile(static_config.StorageIconPath)
 	if err != nil {
@@ -70,11 +78,22 @@ func genRawUrl(path, query string) string {
 	return path + "?" + query
 }
 
-func respToMap(data interface{}) fiber.Map {
+func respToMap(data interface{}, meta ...PageMeta) fiber.Map {
+	pageMeta := PageMeta{}
+	if len(meta) > 0 {
+		pageMeta = meta[0]
+	}
+	if pageMeta.OGType == "" {
+		pageMeta.OGType = "website"
+	}
+	if pageMeta.OGURL == "" {
+		pageMeta.OGURL = pageMeta.Canonical
+	}
 	// 创建响应map
 	resp := fiber.Map{
 		"Data":     data,
 		"Settings": config.MySqlSettingModelCache,
+		"Meta":     pageMeta,
 	}
 
 	// 获取当前激活的主题
@@ -84,4 +103,8 @@ func respToMap(data interface{}) fiber.Map {
 	}
 
 	return resp
+}
+
+func absoluteURL(c *fiber.Ctx) string {
+	return c.Protocol() + "://" + c.Hostname() + c.Path()
 }
