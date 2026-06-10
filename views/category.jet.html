@@ -8,16 +8,22 @@
 
 <body>
   {{ include "components/header" }}
-  <div class="container">
-    <h1>Categories</h1>
+  <main class="container page-content">
+    <section class="page-heading">
+      <p class="page-kicker">Archive</p>
+      <h1>分类</h1>
+    </section>
     <ul class="category-list">
       {{ range Data }}
       <li>
-        <a href="/?category_name={{ .Name }}&category_uid={{ .UID }}">{{ .Name }} ({{ .TotalCount }})</a>
+        <a href="/?category_name={{ .Name }}&category_uid={{ .UID }}">
+          <span class="category-name">{{ .Name }}</span>
+          <span class="category-count">{{ .TotalCount }} 篇</span>
+        </a>
       </li>
       {{ end }}
     </ul>
-  </div>
+  </main>
   {{ include "components/footer" RequestTimeDuration }}
 </body>
 

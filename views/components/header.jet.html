@@ -1,22 +1,23 @@
-<header>
-  <div class="container">
-    <div class="logo">
-      <a href="/">{{ Settings.GetStringValue("SiteTitle") }}</a>
-    </div>
-    <nav id="nav">
-      <button class="menu-toggle" aria-label="Toggle navigation">
+<header class="site-header">
+  <div class="container header-inner">
+    <a class="site-mark" href="/" aria-label="{{ Settings.GetStringValue("SiteTitle") }} 首页">
+      <span class="site-mark-symbol" aria-hidden="true"></span>
+      <span class="site-mark-title">{{ Settings.GetStringValue("SiteTitle") }}</span>
+    </a>
+    <nav id="nav" class="site-nav" aria-label="主导航">
+      <button class="menu-toggle" aria-label="打开导航菜单" aria-expanded="false" aria-controls="primary-menu">
         <span class="hamburger"></span>
       </button>
-      <div class="nav-links">
+      <div class="nav-links" id="primary-menu">
           <ul>
             <li>
-              <a href="/">Home</a>
+              <a href="/">首页</a>
             </li>
             <li>
-              <a href="/article/categories">Categories</a>
+              <a href="/article/categories">分类</a>
             </li>
             <li>
-              <a href="/links">Links</a>
+              <a href="/links">友链</a>
             </li>
           </ul>
       </div>

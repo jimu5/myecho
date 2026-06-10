@@ -1,29 +1,16 @@
 {{ range . }}
-<div class="article-block">
-  <a href="/articles/{{ .ID }}">
-    <h2>
-      {{ .Title }}
-    </h2>
-  </a>
-  <div class="article-meta">
-      <span>{{ .PostTime.Format("January 2, 2006") }}</span>
+<article class="article-block">
+  <div class="article-block-meta">
+    <span>{{ .PostTime.Format("January 2, 2006") }}</span>
   </div>
+  <h2>
+    <a href="/articles/{{ .ID }}">{{ .Title }}</a>
+  </h2>
   <div class="article-block-summary">
     {{ .Summary }}
   </div>
   <div class="article-block-actions">
-    <a href="/articles/{{ .ID }}">Read more</a>
+    <a href="/articles/{{ .ID }}" aria-label="阅读全文：{{ .Title }}">阅读全文</a>
   </div>
-</div>
+</article>
 {{ end }}
-
-<script>
-  document.addEventListener('DOMContentLoaded', function() {
-    const summaries = document.querySelectorAll('.article-block-summary');
-    summaries.forEach(summary => {
-      if (summary.scrollHeight > summary.clientHeight) {
-        summary.classList.add('truncated');
-      }
-    });
-  });
-</script>

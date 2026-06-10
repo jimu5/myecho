@@ -8,12 +8,15 @@
 
 <body>
   {{ include "components/header" }}
-  <div class="container">
-    <h1>Links</h1>
+  <main class="container page-content">
+    <section class="page-heading">
+      <p class="page-kicker">Neighbors</p>
+      <h1>友链</h1>
+    </section>
     <div class="link-list">
       {{ range Data }}
-      <a href="{{ .URL }}" target="_blank" class="link-card">
-        <div class="link-card-image" style="background-image: url({{ .IconURL }});"></div>
+      <a href="{{ .URL }}" target="_blank" rel="noopener noreferrer" class="link-card">
+        <div class="link-card-image" style="background-image: url('{{ .IconURL }}');"></div>
         <div class="link-card-content">
           <h3>{{ .Name }}</h3>
           <p>{{ .Description }}</p>
@@ -21,7 +24,7 @@
       </a>
       {{ end }}
     </div>
-  </div>
+  </main>
   {{ include "components/footer" RequestTimeDuration }}
 </body>
 

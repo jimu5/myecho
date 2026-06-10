@@ -8,10 +8,16 @@
 
 <body>
   {{ include "components/header" }}
-  <div class="container index-content">
-    {{ include "components/articles" Data.PageData}}
+  <main class="container page-content index-content">
+    <section class="page-heading index-heading">
+      <p class="page-kicker">Journal</p>
+      <h1>最近更新</h1>
+    </section>
+    <section class="article-list" aria-label="文章列表">
+      {{ include "components/articles" Data.PageData}}
+    </section>
     {{ include "components/pagination" Data.PageInfo}}
-  </div>
+  </main>
   {{ include "components/footer" RequestTimeDuration }}
 </body>
 
