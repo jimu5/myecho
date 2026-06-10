@@ -201,6 +201,7 @@
       const commentForm = document.getElementById('comment_form');
       if (commentForm) {
         const message = commentForm.querySelector('.comment-form-message');
+        const submitButton = commentForm.querySelector('button[type="submit"]');
         commentForm.addEventListener('submit', function(event) {
           event.preventDefault();
           const formData = new FormData(commentForm);
@@ -210,6 +211,9 @@
             author_url: formData.get('author_url'),
             content: formData.get('content'),
           };
+          if (submitButton) {
+            submitButton.disabled = true;
+          }
           message.textContent = '提交中...';
           fetch('/api/articles/{{ Data.ID }}/comments', {
             method: 'POST',
@@ -223,6 +227,10 @@
             message.textContent = '评论已提交，等待审核后展示。';
           }).catch(function() {
             message.textContent = '提交失败，请稍后重试。';
+          }).finally(function() {
+            if (submitButton) {
+              submitButton.disabled = false;
+            }
           });
         });
       }

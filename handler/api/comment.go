@@ -170,35 +170,26 @@ func CommentBatch(c *fiber.Ctx) error {
 		if err := connect.Database.Delete(&model.Comment{}, req.IDs).Error; err != nil {
 			return InternalErrorResponse(c, InternalSQLError, err.Error())
 		}
+		return handler.Success(c, nil)
 	case "approve":
 		req.Status = model.CommentStatusApproved
-		fallthrough
 	case "reject":
-		if req.Action == "reject" {
-			req.Status = model.CommentStatusRejected
-		}
-		fallthrough
+		req.Status = model.CommentStatusRejected
 	case "spam":
-		if req.Action == "spam" {
-			req.Status = model.CommentStatusSpam
-		}
-		fallthrough
+		req.Status = model.CommentStatusSpam
 	case "pending":
-		if req.Action == "pending" {
-			req.Status = model.CommentStatusPending
-		}
-		fallthrough
+		req.Status = model.CommentStatusPending
 	case "status", "update_status", "":
-		if err := validator.ValidateCommentStatus(req.Status); err != nil {
-			return ValidateErrorResponse(c, err.Error())
-		}
-		if err := connect.Database.Model(&model.Comment{}).
-			Where("id in ?", req.IDs).
-			Update("status", int8(req.Status)).Error; err != nil {
-			return InternalErrorResponse(c, InternalSQLError, err.Error())
-		}
 	default:
 		return ValidateErrorResponse(c, apierrors.ErrInvalidParams.Error())
+	}
+	if err := validator.ValidateCommentStatus(req.Status); err != nil {
+		return ValidateErrorResponse(c, err.Error())
+	}
+	if err := connect.Database.Model(&model.Comment{}).
+		Where("id in ?", req.IDs).
+		Update("status", int8(req.Status)).Error; err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
 	return handler.Success(c, nil)
 }

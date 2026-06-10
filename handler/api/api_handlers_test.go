@@ -345,6 +345,17 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("comment update status = %d, want 200", resp.StatusCode)
 	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/comments/batch", "", `{"ids":[1],"action":"reject"}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("comment batch reject action status = %d, want 200", resp.StatusCode)
+	}
+	var rejected model.Comment
+	if err := connect.Database.First(&rejected, 1).Error; err != nil {
+		t.Fatalf("find rejected comment: %v", err)
+	}
+	if rejected.Status == nil || *rejected.Status != int8(model.CommentStatusRejected) {
+		t.Fatalf("rejected comment status = %v, want rejected", rejected.Status)
+	}
 
 	resp = doJSONRequest(t, app, fiber.MethodDelete, "/tags/1", "", "")
 	if resp.StatusCode != fiber.StatusOK {

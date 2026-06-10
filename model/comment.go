@@ -22,7 +22,7 @@ type Comment struct {
 	ArticleUID  string    `json:"-" gorm:"size:20;index"`
 	AuthorName  string    `json:"author_name" gorm:"size:64"`
 	AuthorEmail string    `json:"author_email" gorm:"size:64"`
-	AuthorIP    string    `json:"author_ip" gorm:"size:16"`
+	AuthorIP    string    `json:"author_ip" gorm:"size:45"`
 	AuthorUrl   string    `json:"author_url" gorm:"size:256"`
 	AuthorAgent string    `json:"author_agent" gorm:"size:256"`
 	Content     string    `json:"content" gorm:"type:text"`
