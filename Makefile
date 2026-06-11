@@ -4,10 +4,17 @@ APP = myecho
 PACKAGE_OS ?= linux
 PACKAGE_ARCH ?= amd64
 PACKAGE_CGO_ENABLED ?= 0
+PACKAGE_COMPRESS_BINARY ?= 0
+PACKAGE_GO_LDFLAGS ?=
+PACKAGE_UPX ?= upx
 DIST_DIR ?= dist
 PACKAGE_NAME = ${APP}-${PACKAGE_OS}-${PACKAGE_ARCH}
 PACKAGE_DIR = ${DIST_DIR}/${PACKAGE_NAME}
 PACKAGE_ARCHIVE = ${DIST_DIR}/${PACKAGE_NAME}.tar.gz
+
+ifneq (,$(filter ${PACKAGE_COMPRESS_BINARY},strip upx 1))
+PACKAGE_GO_LDFLAGS += -s -w
+endif
 
 ## linux: 编译打包linux
 .PHONY: linux
@@ -69,10 +76,26 @@ admin-build:
 	@mkdir -p static
 	@cp -R fe/myecho-admin/build static/admin
 
-package: admin-build
+.PHONY: validate-package-compression
+validate-package-compression:
+	@if [ "${PACKAGE_COMPRESS_BINARY}" != "0" ] && [ "${PACKAGE_COMPRESS_BINARY}" != "strip" ] && [ "${PACKAGE_COMPRESS_BINARY}" != "upx" ] && [ "${PACKAGE_COMPRESS_BINARY}" != "1" ]; then \
+		echo "unsupported PACKAGE_COMPRESS_BINARY=${PACKAGE_COMPRESS_BINARY}; use 0, strip, upx, or 1"; \
+		exit 1; \
+	fi
+	@if [ "${PACKAGE_COMPRESS_BINARY}" = "upx" ] || [ "${PACKAGE_COMPRESS_BINARY}" = "1" ]; then \
+		command -v "${PACKAGE_UPX}" >/dev/null 2>&1 || { \
+			echo "PACKAGE_COMPRESS_BINARY=${PACKAGE_COMPRESS_BINARY} requires ${PACKAGE_UPX}; install upx or set PACKAGE_UPX=/path/to/upx"; \
+			exit 1; \
+		}; \
+	fi
+
+package: validate-package-compression admin-build
 	@rm -rf ${PACKAGE_DIR} ${PACKAGE_ARCHIVE}
 	@mkdir -p ${PACKAGE_DIR}/static ${PACKAGE_DIR}/storage
-	@CGO_ENABLED=${PACKAGE_CGO_ENABLED} GOOS=${PACKAGE_OS} GOARCH=${PACKAGE_ARCH} go build -o ${PACKAGE_DIR}/${APP} .
+	@CGO_ENABLED=${PACKAGE_CGO_ENABLED} GOOS=${PACKAGE_OS} GOARCH=${PACKAGE_ARCH} go build -ldflags "${PACKAGE_GO_LDFLAGS}" -o ${PACKAGE_DIR}/${APP} .
+	@if [ "${PACKAGE_COMPRESS_BINARY}" = "upx" ] || [ "${PACKAGE_COMPRESS_BINARY}" = "1" ]; then \
+		"${PACKAGE_UPX}" --best --lzma "${PACKAGE_DIR}/${APP}"; \
+	fi
 	@cp config.example.yaml ${PACKAGE_DIR}/config.example.yaml
 	@cp -R views ${PACKAGE_DIR}/views
 	@cp -R static/admin ${PACKAGE_DIR}/static/admin
@@ -99,6 +122,8 @@ help:
 	@echo "make admin-test - 执行后台前端测试"
 	@echo "make admin-build - 构建后台前端到 static/admin"
 	@echo "make package - 一键构建后台前端、Linux 后端并打包到 dist/"
+	@echo "make package PACKAGE_COMPRESS_BINARY=strip - 去掉二进制调试符号以减小体积"
+	@echo "make package PACKAGE_COMPRESS_BINARY=upx - 使用 upx 压缩二进制"
 	@echo "make tidy - 执行go mod tidy"
 	@echo "make run - 直接运行 Go 代码"
 	@echo "make clean - 移除编译的二进制文件"
