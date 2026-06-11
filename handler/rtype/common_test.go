@@ -21,6 +21,12 @@ func TestCategoryCreateRequestToMysqlModel(t *testing.T) {
 	if got.Name != req.Name || got.FatherUID != req.FatherUID {
 		t.Fatalf("ToMysqlModel() = %+v, want name/father from request", got)
 	}
+	if err := (&CategoryCreateRequest{}).Validate(); !errors.Is(err, apierrors.ErrCategoryNameEmpty) {
+		t.Fatalf("Validate(empty name) error = %v, want ErrCategoryNameEmpty", err)
+	}
+	if err := (&CategoryCreateRequest{Name: "Go"}).Validate(); err != nil {
+		t.Fatalf("Validate(valid) error = %v", err)
+	}
 }
 
 func TestLinkQueryParamToDALParam(t *testing.T) {

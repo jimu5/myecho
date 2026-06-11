@@ -4,10 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
 
+	"github.com/glebarez/sqlite"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 
+	"myecho/dal/connect"
 	"myecho/dal/mysql"
 	apierrors "myecho/handler/api/errors"
 	"myecho/model"
@@ -125,6 +129,57 @@ func TestDetailPreHandleByParamRejectsInvalidID(t *testing.T) {
 				t.Fatalf("status = %d, want %d", resp.StatusCode, fiber.StatusNotFound)
 			}
 		})
+	}
+}
+
+func TestGetIDByParamValidatesExistingRecord(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "test.db")), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&model.Category{}); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	connect.Database = db
+	category := &model.Category{Name: "Tech", UID: "tech"}
+	if err := db.Create(category).Error; err != nil {
+		t.Fatalf("create category: %v", err)
+	}
+
+	app := fiber.New()
+	app.Get("/categories/:id", func(c *fiber.Ctx) error {
+		id, err := GetIDByParam(c, &model.Category{})
+		if err != nil {
+			return err
+		}
+		return Success(c, id)
+	})
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/categories/1", nil))
+	if err != nil {
+		t.Fatalf("valid app.Test() error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("valid status = %d, want 200", resp.StatusCode)
+	}
+
+	app = fiber.New(fiber.Config{ErrorHandler: func(c *fiber.Ctx, err error) error {
+		if errors.Is(err, apierrors.ErrorIDNotFound) {
+			return c.SendStatus(fiber.StatusNotFound)
+		}
+		return c.SendStatus(fiber.StatusInternalServerError)
+	}})
+	app.Get("/categories/:id", func(c *fiber.Ctx) error {
+		_, err := GetIDByParam(c, &model.Category{})
+		return err
+	})
+	for _, path := range []string{"/categories/bad", "/categories/999"} {
+		resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, path, nil))
+		if err != nil {
+			t.Fatalf("missing app.Test(%s) error = %v", path, err)
+		}
+		if resp.StatusCode != fiber.StatusNotFound {
+			t.Fatalf("%s status = %d, want 404", path, resp.StatusCode)
+		}
 	}
 }
 

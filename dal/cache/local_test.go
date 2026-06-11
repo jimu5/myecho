@@ -1,9 +1,15 @@
 package cache
 
 import (
+	"path/filepath"
 	"testing"
 
+	"github.com/glebarez/sqlite"
+	"gorm.io/gorm"
+
+	"myecho/dal/connect"
 	"myecho/dal/mysql"
+	"myecho/model"
 )
 
 func TestMysqlSettingMapSetGetDelete(t *testing.T) {
@@ -30,5 +36,25 @@ func TestMysqlSettingMapSetGetDelete(t *testing.T) {
 	}
 	if gotString := settingMap.GetStringValue("SiteTitle"); gotString != "" {
 		t.Fatalf("GetStringValue(missing) = %q, want empty", gotString)
+	}
+}
+
+func TestInitSettingCacheLoadsSettings(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "test.db")), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&model.Setting{}); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	connect.Database = db
+	mysql.InitDB()
+	if err := (&mysql.SettingRepo{}).Create(&mysql.SettingModel{Key: "SiteTitle", Value: "Myecho"}); err != nil {
+		t.Fatalf("create setting: %v", err)
+	}
+
+	settingMap := InitSettingCache()
+	if got := settingMap.GetStringValue("SiteTitle"); got != "Myecho" {
+		t.Fatalf("GetStringValue(SiteTitle) = %q, want Myecho", got)
 	}
 }

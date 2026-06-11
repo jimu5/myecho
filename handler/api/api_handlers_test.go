@@ -13,6 +13,7 @@ import (
 	"myecho/handler/rtype"
 	"myecho/middleware"
 	"myecho/model"
+	"myecho/utils"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -30,6 +31,12 @@ type apiTestResp struct {
 	Msg  string          `json:"msg"`
 	Data json.RawMessage `json:"data"`
 	Meta map[string]any  `json:"meta"`
+}
+
+type apiRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn apiRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
 
 func setupAPITestDB(t *testing.T) {
@@ -133,6 +140,7 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 	app := fiber.New()
 	app.Use(middleware.CommonErrorHandler)
 	app.Get("/all_articles", ArticleAllList)
+	app.Get("/articles", ArticleDisplayList)
 	app.Get("/articles/:id", ArticleRetrieve)
 	app.Post("/articles", middleware.Authentication, middleware.AdminRequired, ArticleCreate)
 	app.Post("/articles/batch", middleware.Authentication, middleware.AdminRequired, ArticleBatch)
@@ -142,6 +150,10 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 	resp := doJSONRequest(t, app, fiber.MethodGet, "/articles/1?no_read=true", "", "")
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("public retrieve status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/articles?page=1&page_size=10", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("public article list status = %d, want 200", resp.StatusCode)
 	}
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/articles/2?no_read=true", "", "")
 	if resp.StatusCode != fiber.StatusNotFound {
@@ -215,9 +227,17 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("batch status = %d, want 200", resp.StatusCode)
 	}
-	resp = doJSONRequest(t, app, fiber.MethodDelete, "/articles/3", admin.Token, "")
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/batch", admin.Token, `{"ids":[3],"action":"invalid"}`)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("batch invalid action status = %d, want 403", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/batch", admin.Token, `{"ids":[3],"action":"delete"}`)
 	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("delete status = %d, want 200", resp.StatusCode)
+		t.Fatalf("batch delete status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodDelete, "/articles/3", admin.Token, "")
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("delete status = %d, want 404 after batch delete", resp.StatusCode)
 	}
 }
 
@@ -226,7 +246,10 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	app := fiber.New()
 	app.Use(middleware.CommonErrorHandler)
 	app.Post("/article/categories", ArticleCategoryCreate)
+	app.Post("/link/categories", LinkCategoryCreate)
+	app.Get("/categories", CategoryAll)
 	app.Get("/article/categories/all", CategoryArticleAll)
+	app.Get("/link/categories/all", CategoryLinkAll)
 	app.Patch("/categories/:id", CategoryUpdate)
 	app.Delete("/categories/:id", CategoryDelete)
 	app.Post("/tags", TagCreate)
@@ -239,6 +262,7 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	app.Patch("/comments/:id", CommentUpdate)
 	app.Post("/comments/batch", CommentBatch)
 	app.Delete("/comments/:id", CommentDelete)
+	app.Delete("/api/comments/:id", CommentDelete)
 
 	resp := doJSONRequest(t, app, fiber.MethodPost, "/article/categories", "", `{"name":"Tech"}`)
 	if resp.StatusCode != fiber.StatusCreated {
@@ -252,23 +276,44 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	if category.UID == "" || category.Type != model.CategoryTypeArticle {
 		t.Fatalf("category = %+v", category)
 	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/link/categories", "", `{"name":"Friends"}`)
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("link category create status = %d, want 201", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/categories", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("category all status = %d, want 200", resp.StatusCode)
+	}
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/article/categories/all", "", "")
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("category list status = %d, want 200", resp.StatusCode)
 	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/link/categories/all", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("link category list status = %d, want 200", resp.StatusCode)
+	}
 	resp = doJSONRequest(t, app, fiber.MethodPatch, "/categories/1", "", `{"name":"Tech Updated"}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("category update status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPatch, "/categories/999", "", `{"name":"Missing"}`)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("category missing update status = %d, want 403", resp.StatusCode)
 	}
 
 	resp = doJSONRequest(t, app, fiber.MethodPost, "/tags", "", `{"name":"Go"}`)
 	if resp.StatusCode != fiber.StatusCreated {
 		t.Fatalf("tag create status = %d, want 201", resp.StatusCode)
 	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/tags", "", `{}`)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("tag invalid create status = %d, want 403", resp.StatusCode)
+	}
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/tags/all", "", "")
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("tag list status = %d, want 200", resp.StatusCode)
 	}
+	FindTags([]*model.Tag{})
 	resp = doJSONRequest(t, app, fiber.MethodPatch, "/tags/1", "", `{"name":"Golang"}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("tag update status = %d, want 200", resp.StatusCode)
@@ -329,6 +374,14 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	if commentListResp.Meta["total"].(float64) != 1 {
 		t.Fatalf("pending total = %v, want 1", commentListResp.Meta["total"])
 	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/comments?article_id=1&page=1&page_size=10", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("admin comments by article_id status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/comments?article_uid="+article.UID+"&page=1&page_size=10", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("admin comments by article_uid status = %d, want 200", resp.StatusCode)
+	}
 	resp = doJSONRequest(t, app, fiber.MethodPost, "/comments/batch", "", `{"ids":[1],"action":"status","status":2}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("comment batch approve status = %d, want 200", resp.StatusCode)
@@ -356,6 +409,26 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	if rejected.Status == nil || *rejected.Status != int8(model.CommentStatusRejected) {
 		t.Fatalf("rejected comment status = %v, want rejected", rejected.Status)
 	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/comments/batch", "", `{"ids":[1],"action":"spam"}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("comment batch spam action status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/comments/batch", "", `{"ids":[1],"action":"pending"}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("comment batch pending action status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/comments/batch", "", `{"ids":[],"action":"approve"}`)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("comment batch empty status = %d, want 403", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodDelete, "/comments/1", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("comment delete status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodDelete, "/api/comments/999", "", "")
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("comment missing delete status = %d, want 400", resp.StatusCode)
+	}
 
 	resp = doJSONRequest(t, app, fiber.MethodDelete, "/tags/1", "", "")
 	if resp.StatusCode != fiber.StatusOK {
@@ -364,6 +437,10 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	resp = doJSONRequest(t, app, fiber.MethodDelete, "/categories/1", "", "")
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("category delete status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodDelete, "/categories/999", "", "")
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("category missing delete status = %d, want 404", resp.StatusCode)
 	}
 }
 
@@ -377,6 +454,7 @@ func TestSettingAndLinkHandlers(t *testing.T) {
 	app.Use(middleware.CommonErrorHandler)
 	app.Post("/settings", SettingCreate)
 	app.Get("/settings/:key", SettingRetrieve)
+	app.Get("/api/settings/:key", SettingRetrieve)
 	app.Get("/settings", SettingAll)
 	app.Patch("/settings/:key", SettingUpdate)
 	app.Delete("/settings/:key", SettingDelete)
@@ -400,6 +478,17 @@ func TestSettingAndLinkHandlers(t *testing.T) {
 	resp = doJSONRequest(t, app, fiber.MethodPatch, "/settings/SiteName", "", `{"value":"New","description":"desc"}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("setting update status = %d, want 200", resp.StatusCode)
+	}
+	if err := connect.Database.Create(&mysql.SettingModel{Key: "ThemePreviewTokenSecret", Value: "secret"}).Error; err != nil {
+		t.Fatalf("create hidden setting: %v", err)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/api/settings/ThemePreviewTokenSecret", "", "")
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("hidden setting retrieve status = %d, want 400", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/settings", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("setting all with hidden status = %d, want 200", resp.StatusCode)
 	}
 
 	linkBody := `{"name":"Go","description":"golang","url":"https://go.dev","category_uid":"cat-link"}`
@@ -431,9 +520,27 @@ func TestFileHandlersUploadListUpdateDelete(t *testing.T) {
 	app := fiber.New()
 	app.Use(middleware.CommonErrorHandler)
 	app.Post("/files/upload", FileSingleUpload)
+	app.Post("/api/files/upload", FileSingleUpload)
+	app.Post("/files/vditor_upload", VditorFileUpload)
+	app.Post("/api/files/vditor_upload", VditorFileUpload)
+	app.Post("/save_url_file", FileSaveByLinkUrl)
+	app.Post("/api/save_url_file", FileSaveByLinkUrl)
 	app.Get("/files", FilePageList)
 	app.Put("/files/:id", FileInfoUpdate)
 	app.Delete("/files/:id", FileDelete)
+
+	resp := doJSONRequest(t, app, fiber.MethodPost, "/api/files/upload", "", "")
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("empty upload status = %d, want 400", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/api/files/vditor_upload", "", "")
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("empty vditor upload status = %d, want 400", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/api/save_url_file", "", `{}`)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("empty save url file status = %d, want 400", resp.StatusCode)
+	}
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -449,7 +556,7 @@ func TestFileHandlersUploadListUpdateDelete(t *testing.T) {
 	}
 	req := httptest.NewRequest(fiber.MethodPost, "/files/upload", body)
 	req.Header.Set(fiber.HeaderContentType, writer.FormDataContentType())
-	resp, err := app.Test(req)
+	resp, err = app.Test(req)
 	if err != nil {
 		t.Fatalf("upload app.Test() error = %v", err)
 	}
@@ -466,6 +573,47 @@ func TestFileHandlersUploadListUpdateDelete(t *testing.T) {
 	}
 	if uploaded.ID == 0 || uploaded.FullName != "report.txt" {
 		t.Fatalf("uploaded = %+v", uploaded)
+	}
+
+	vditorBody := &bytes.Buffer{}
+	vditorWriter := multipart.NewWriter(vditorBody)
+	for i := 0; i < 2; i++ {
+		part, err := vditorWriter.CreateFormFile("file[]", "dup.txt")
+		if err != nil {
+			t.Fatalf("CreateFormFile(file[]) error = %v", err)
+		}
+		if _, err := io.WriteString(part, "duplicate content"); err != nil {
+			t.Fatalf("write vditor file: %v", err)
+		}
+	}
+	if err := vditorWriter.Close(); err != nil {
+		t.Fatalf("close vditor multipart: %v", err)
+	}
+	req = httptest.NewRequest(fiber.MethodPost, "/files/vditor_upload", vditorBody)
+	req.Header.Set(fiber.HeaderContentType, vditorWriter.FormDataContentType())
+	resp, err = app.Test(req)
+	if err != nil {
+		t.Fatalf("vditor upload app.Test() error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("vditor upload status = %d, want 200", resp.StatusCode)
+	}
+
+	oldRemoteClient := utils.RemoteFileHTTPClient
+	utils.RemoteFileHTTPClient = &http.Client{Transport: apiRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode:    http.StatusOK,
+			Status:        "200 OK",
+			Body:          io.NopCloser(bytes.NewBufferString("remote file")),
+			ContentLength: int64(len("remote file")),
+			Header:        make(http.Header),
+			Request:       req,
+		}, nil
+	})}
+	t.Cleanup(func() { utils.RemoteFileHTTPClient = oldRemoteClient })
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/save_url_file", "", `{"url":"http://93.184.216.34/remote.txt"}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("save url file status = %d, want 200", resp.StatusCode)
 	}
 
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/files?name=report", "", "")

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"os"
@@ -18,6 +19,7 @@ func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 func TestValidateRemoteFileURLRejectsUnsafeHosts(t *testing.T) {
 	for _, rawURL := range []string{
 		"ftp://example.com/file.txt",
+		"http:///file.txt",
 		"http://localhost/file.txt",
 		"http://127.0.0.1/file.txt",
 		"http://10.0.0.1/file.txt",
@@ -89,6 +91,24 @@ func TestDownloadRemoteFileRejectsStatusAndSize(t *testing.T) {
 	if err := DownloadRemoteFile("http://93.184.216.34/large.txt", filepath.Join(t.TempDir(), "large.txt"), 3); err == nil {
 		t.Fatal("DownloadRemoteFile(size) expected an error")
 	}
+
+	RemoteFileHTTPClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode:    http.StatusOK,
+			Status:        "200 OK",
+			Body:          io.NopCloser(strings.NewReader("stream too large")),
+			ContentLength: -1,
+			Header:        make(http.Header),
+			Request:       req,
+		}, nil
+	})}
+	destPath := filepath.Join(t.TempDir(), "stream.txt")
+	if err := DownloadRemoteFile("http://93.184.216.34/stream.txt", destPath, 3); err == nil {
+		t.Fatal("DownloadRemoteFile(stream size) expected an error")
+	}
+	if _, err := os.Stat(destPath); !os.IsNotExist(err) {
+		t.Fatalf("oversized stream should remove destination, stat err = %v", err)
+	}
 }
 
 func TestDownloadRemoteFileRejectsUnsafeRedirect(t *testing.T) {
@@ -113,5 +133,21 @@ func TestDownloadRemoteFileRejectsUnsafeRedirect(t *testing.T) {
 
 	if err := DownloadRemoteFile("http://93.184.216.34/redirect.txt", filepath.Join(t.TempDir(), "redirect.txt"), 10); err == nil {
 		t.Fatal("DownloadRemoteFile(unsafe redirect) expected an error")
+	}
+}
+
+func TestRemoteFileClientAndDialerGuards(t *testing.T) {
+	oldClient := RemoteFileHTTPClient
+	t.Cleanup(func() { RemoteFileHTTPClient = oldClient })
+	RemoteFileHTTPClient = nil
+	client := remoteFileHTTPClient()
+	if client.Timeout == 0 || client.Transport == nil {
+		t.Fatalf("remoteFileHTTPClient() = %+v, want default timeout and transport", client)
+	}
+	if _, err := remoteFileDialContext(context.Background(), "tcp", "bad-address"); err == nil {
+		t.Fatal("remoteFileDialContext(bad address) expected error")
+	}
+	if _, err := remoteFileDialContext(context.Background(), "tcp", "127.0.0.1:80"); err == nil {
+		t.Fatal("remoteFileDialContext(loopback) expected error")
 	}
 }
