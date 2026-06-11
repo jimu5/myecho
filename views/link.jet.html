@@ -22,6 +22,12 @@
           <p>{{ .Description }}</p>
         </div>
       </a>
+      {{ else }}
+      <div class="empty-state link-empty">
+        <span class="empty-state-mark" aria-hidden="true"></span>
+        <h2>还没有友链</h2>
+        <p>等站点主人补上朋友们的入口，这里会更热闹。</p>
+      </div>
       {{ end }}
     </div>
   </main>

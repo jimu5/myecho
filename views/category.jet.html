@@ -21,6 +21,12 @@
           <span class="category-count">{{ .TotalCount }} 篇</span>
         </a>
       </li>
+      {{ else }}
+      <li class="empty-state category-empty">
+        <span class="empty-state-mark" aria-hidden="true"></span>
+        <h2>还没有分类</h2>
+        <p>文章分类建立后，会在这里形成清晰的归档入口。</p>
+      </li>
       {{ end }}
     </ul>
   </main>

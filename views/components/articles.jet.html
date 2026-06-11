@@ -22,4 +22,10 @@
     <a href="/articles/{{ .ID }}" aria-label="阅读全文：{{ .Title }}">阅读全文</a>
   </div>
 </article>
+{{ else }}
+<div class="empty-state">
+  <span class="empty-state-mark" aria-hidden="true"></span>
+  <h2>还没有公开文章</h2>
+  <p>新的记录会出现在这里。先泡杯茶，等下一次回声。</p>
+</div>
 {{ end }}

@@ -53,6 +53,10 @@
           </header>
           <p>{{ .Content }}</p>
         </article>
+        {{ else }}
+        <div class="comment-empty">
+          还没有评论。读完如果有想法，可以留下第一声回响。
+        </div>
         {{ end }}
       </div>
       {{ if IsAllowComment }}
