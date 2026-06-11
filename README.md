@@ -51,6 +51,7 @@ make check    # run vet and tests
 make coverage # generate Go coverage summary
 make admin-test  # run admin frontend tests
 make admin-build # build admin frontend into static/admin
+make package  # build admin + linux backend and create dist/myecho-linux-amd64.tar.gz
 make tidy     # run go mod tidy
 make clean    # remove built binaries
 ```
@@ -109,6 +110,22 @@ make admin-build
 ```
 
 The backend serves `/admin/*` only when `static/admin/index.html` exists; missing admin build output returns a clear 404.
+
+## Deployment Package
+
+Create a Linux amd64 deployment archive with:
+
+```sh
+make package
+```
+
+The archive is written to `dist/myecho-linux-amd64.tar.gz` and contains the backend binary, `config.example.yaml`, `views/`, `static/admin/`, and an empty `storage/` directory. On the server, extract it, copy `config.example.yaml` to `config.yaml`, edit the config, and run `./myecho -port :2999`.
+
+You can override the target platform when needed:
+
+```sh
+make package PACKAGE_OS=linux PACKAGE_ARCH=arm64
+```
 
 ## Theme Packages
 

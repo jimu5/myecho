@@ -1,6 +1,13 @@
-.PHONY: all build run fmt vet test coverage check tidy admin-test admin-build clean help
+.PHONY: all build run fmt vet test coverage check tidy admin-test admin-build package clean help
 
 APP = myecho
+PACKAGE_OS ?= linux
+PACKAGE_ARCH ?= amd64
+PACKAGE_CGO_ENABLED ?= 0
+DIST_DIR ?= dist
+PACKAGE_NAME = ${APP}-${PACKAGE_OS}-${PACKAGE_ARCH}
+PACKAGE_DIR = ${DIST_DIR}/${PACKAGE_NAME}
+PACKAGE_ARCHIVE = ${DIST_DIR}/${PACKAGE_NAME}.tar.gz
 
 ## linux: 编译打包linux
 .PHONY: linux
@@ -62,6 +69,16 @@ admin-build:
 	@mkdir -p static
 	@cp -R fe/myecho-admin/build static/admin
 
+package: admin-build
+	@rm -rf ${PACKAGE_DIR} ${PACKAGE_ARCHIVE}
+	@mkdir -p ${PACKAGE_DIR}/static ${PACKAGE_DIR}/storage
+	@CGO_ENABLED=${PACKAGE_CGO_ENABLED} GOOS=${PACKAGE_OS} GOARCH=${PACKAGE_ARCH} go build -o ${PACKAGE_DIR}/${APP} .
+	@cp config.example.yaml ${PACKAGE_DIR}/config.example.yaml
+	@cp -R views ${PACKAGE_DIR}/views
+	@cp -R static/admin ${PACKAGE_DIR}/static/admin
+	@tar -czf ${PACKAGE_ARCHIVE} -C ${DIST_DIR} ${PACKAGE_NAME}
+	@echo "package created: ${PACKAGE_ARCHIVE}"
+
 ## 清理二进制文件
 clean:
 	@if [ -f ./bin/${APP}-linux64 ] ; then rm ./bin/${APP}-linux64; fi
@@ -81,6 +98,7 @@ help:
 	@echo "make check - 执行 Go vet 和测试"
 	@echo "make admin-test - 执行后台前端测试"
 	@echo "make admin-build - 构建后台前端到 static/admin"
+	@echo "make package - 一键构建后台前端、Linux 后端并打包到 dist/"
 	@echo "make tidy - 执行go mod tidy"
 	@echo "make run - 直接运行 Go 代码"
 	@echo "make clean - 移除编译的二进制文件"

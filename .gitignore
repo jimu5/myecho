@@ -31,6 +31,7 @@ myecho.exe
 storage
 config.yaml
 bin
+dist/
 myecho.db
 .vscode/settings.json
 .DS_Store
