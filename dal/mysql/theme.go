@@ -120,20 +120,24 @@ func (s *ThemeRepo) InitDefaultTheme() error {
 
 	// 创建默认主题
 	defaultTheme := &ThemeModel{
-		Name:        "default",
-		DisplayName: "默认主题",
-		Author:      "Myecho",
-		Version:     "1.0.0",
-		Description: "博客系统默认主题",
-		Preview:     "",
-		CSS:         ":root {\n  --font-color: #1a1a1a;\n  --bg-color: #ffffff;\n  --primary-color: #000000;\n  --secondary-color: #e9e9e9;\n}",
-		JS:          "",
-		IsDefault:   true,
-		IsActive:    true,
+		Name:         "default",
+		DisplayName:  "默认主题",
+		Author:       "Myecho",
+		Version:      "1.0.0",
+		Description:  "博客系统默认主题",
+		Preview:      "",
+		CSS:          ":root {\n  --font-color: #1a1a1a;\n  --bg-color: #ffffff;\n  --primary-color: #000000;\n  --secondary-color: #e9e9e9;\n}",
+		JS:           "",
+		IsDefault:    true,
+		IsActive:     true,
+		HasTemplates: false,
 	}
 
 	// 设置默认配置 - 需要转换为 model.Theme 类型以调用方法
 	if err := (*model.Theme)(defaultTheme).SetConfig(make(map[string]interface{})); err != nil {
+		return err
+	}
+	if err := (*model.Theme)(defaultTheme).SetConfigSchema([]map[string]interface{}{}); err != nil {
 		return err
 	}
 

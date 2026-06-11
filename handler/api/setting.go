@@ -53,6 +53,9 @@ func SettingRetrieve(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	if service.IsHiddenSettingKey(result.Key) {
+		return errors.ErrSettingKey
+	}
 	return handler.Success(c, &result)
 }
 
@@ -61,7 +64,14 @@ func SettingAll(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return handler.Success(c, &result)
+	filtered := make([]*mysql.SettingModel, 0, len(result))
+	for _, setting := range result {
+		if setting != nil && service.IsHiddenSettingKey(setting.Key) {
+			continue
+		}
+		filtered = append(filtered, setting)
+	}
+	return handler.Success(c, &filtered)
 }
 
 func SettingDelete(c *fiber.Ctx) error {

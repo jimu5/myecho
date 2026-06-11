@@ -34,6 +34,8 @@ func SetupThemeRouter(app *fiber.App) {
 		themeGroup.Delete("/:id", theme.DeleteTheme)
 		// 激活主题
 		themeGroup.Post("/:id/activate", theme.ActivateTheme)
+		// 生成真实前台预览 token
+		themeGroup.Post("/:id/preview-token", theme.CreatePreviewToken)
 		// 更新主题配置
 		themeGroup.Patch("/:id/config", theme.UpdateThemeConfig)
 	}

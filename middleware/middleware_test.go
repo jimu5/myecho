@@ -3,7 +3,9 @@ package middleware
 import (
 	"errors"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,7 +14,9 @@ import (
 	"gorm.io/gorm"
 
 	"myecho/dal/connect"
+	"myecho/dal/mysql"
 	"myecho/model"
+	"myecho/service"
 )
 
 func TestIsPathSkipCache(t *testing.T) {
@@ -48,6 +52,44 @@ func TestCacheConfigKeyGeneratorUsesOriginalURL(t *testing.T) {
 	req := httptest.NewRequest("GET", "/api/items?page=1", nil)
 	if _, err := app.Test(req); err != nil {
 		t.Fatalf("app.Test() error = %v", err)
+	}
+}
+
+func TestCacheConfigKeyGeneratorIncludesActiveTheme(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "test.db")), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&model.Theme{}); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	connect.Database = db
+	mysql.InitDB()
+	theme := &mysql.ThemeModel{Name: "clean", DisplayName: "Clean", IsActive: true}
+	if err := service.S.Theme.CreateTheme(theme); err != nil {
+		t.Fatalf("CreateTheme() error = %v", err)
+	}
+	app := fiber.New()
+	app.Get("/page", func(c *fiber.Ctx) error {
+		if CacheConfig.Next(c) {
+			t.Fatal("CacheConfig.Next() should not skip normal page")
+		}
+		key := CacheConfig.KeyGenerator(c)
+		if !strings.Contains(key, "/page?x=1|theme:") {
+			t.Fatalf("KeyGenerator() = %q, want active theme marker", key)
+		}
+		c.Request().Header.SetCookie(service.ThemePreviewCookieName, "token")
+		if !CacheConfig.Next(c) {
+			t.Fatal("CacheConfig.Next() should skip theme preview cookie")
+		}
+		return nil
+	})
+	resp, err := app.Test(httptest.NewRequest("GET", "/page?x=1", nil))
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
 }
 
@@ -104,6 +146,46 @@ func TestCustom404ErrorHandlerAPIRoute(t *testing.T) {
 	}
 	if resp.StatusCode != fiber.StatusNotFound {
 		t.Fatalf("status = %d, want 404", resp.StatusCode)
+	}
+}
+
+func TestCustom404ErrorHandlerAdminFallback(t *testing.T) {
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	tempDir := t.TempDir()
+	if err := os.Chdir(tempDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldWD); err != nil {
+			t.Fatalf("restore cwd: %v", err)
+		}
+	})
+
+	app := fiber.New(fiber.Config{ErrorHandler: func(c *fiber.Ctx, err error) error {
+		return Custom404ErrorHandler(c)
+	}})
+	resp, err := app.Test(httptest.NewRequest("GET", "/admin/missing", nil))
+	if err != nil {
+		t.Fatalf("missing admin app.Test() error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("missing admin status = %d, want 404", resp.StatusCode)
+	}
+	if err := os.MkdirAll(filepath.Join("static", "admin"), 0755); err != nil {
+		t.Fatalf("mkdir admin build: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join("static", "admin", "index.html"), []byte("admin"), 0644); err != nil {
+		t.Fatalf("write admin index: %v", err)
+	}
+	resp, err = app.Test(httptest.NewRequest("GET", "/admin/dashboard", nil))
+	if err != nil {
+		t.Fatalf("admin fallback app.Test() error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("admin fallback status = %d, want 200", resp.StatusCode)
 	}
 }
 

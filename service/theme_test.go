@@ -2,9 +2,16 @@ package service
 
 import (
 	"archive/zip"
+	"encoding/base64"
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"myecho/dal/mysql"
+	"myecho/model"
 )
 
 func TestReadThemeManifestFromPackageRoot(t *testing.T) {
@@ -88,11 +95,13 @@ func TestInstallThemePackageCreatesAndUpdatesTheme(t *testing.T) {
 			"css": "style.css",
 			"js": "script.js",
 			"preview": "preview.png",
-			"config": {"color": "blue"}
+			"config": {"color": "blue"},
+			"config_schema": [{"key":"font","default":"serif"}]
 		}`,
-		"theme/style.css":   "body { color: blue; }",
-		"theme/script.js":   "window.theme = true;",
-		"theme/preview.png": "preview",
+		"theme/style.css":                "body { color: blue; }",
+		"theme/script.js":                "window.theme = true;",
+		"theme/preview.png":              "preview",
+		"theme/templates/index.jet.html": "theme template",
 	})
 
 	theme, err := (&ThemeService{}).InstallThemePackage(zipPath)
@@ -102,8 +111,15 @@ func TestInstallThemePackageCreatesAndUpdatesTheme(t *testing.T) {
 	if theme.Name != "upload_theme" || theme.DisplayName != "Upload Theme" {
 		t.Fatalf("theme = %+v", theme)
 	}
-	if theme.CSS == "" || theme.JS != "window.theme = true;" || theme.Preview != "/themes/upload_theme/preview.png" {
+	if theme.CSS == "" || theme.JS != "window.theme = true;" || theme.Preview != "/themes/upload_theme/preview.png" || !theme.HasTemplates {
 		t.Fatalf("unexpected theme assets: %+v", theme)
+	}
+	config, err := (*model.Theme)(theme).GetConfig()
+	if err != nil {
+		t.Fatalf("GetConfig() error = %v", err)
+	}
+	if config["color"] != "blue" || config["font"] != "serif" {
+		t.Fatalf("theme config defaults = %+v", config)
 	}
 	if _, err := os.Stat(filepath.Join(themeStorageDir, "upload_theme", "style.css")); err != nil {
 		t.Fatalf("theme asset not extracted: %v", err)
@@ -151,6 +167,172 @@ func TestThemeHelpersRejectInvalidInputs(t *testing.T) {
 	if got := themeJS(t.TempDir(), "../bad.js"); got != "" {
 		t.Fatalf("themeJS(traversal) = %q, want empty", got)
 	}
+}
+
+func TestThemePackageValidationAndTemplateHelpers(t *testing.T) {
+	manifest := &ThemeManifest{
+		Name: "schema_theme",
+		Config: map[string]interface{}{
+			"accent": "blue",
+		},
+		ConfigSchema: []map[string]interface{}{
+			{"key": "accent", "default": "red"},
+			{"key": "font", "default": "serif"},
+		},
+	}
+	if err := validateThemeManifest(manifest); err != nil {
+		t.Fatalf("validateThemeManifest() error = %v", err)
+	}
+	applyThemeConfigDefaults(manifest)
+	if manifest.Config["accent"] != "blue" || manifest.Config["font"] != "serif" {
+		t.Fatalf("applyThemeConfigDefaults() = %+v", manifest.Config)
+	}
+	if err := validateThemeManifest(&ThemeManifest{Name: "bad_schema", ConfigSchema: []map[string]interface{}{{"label": "Missing key"}}}); err == nil {
+		t.Fatal("validateThemeManifest() expected config_schema key error")
+	}
+
+	unsupportedZip := writeThemeZip(t, map[string]string{
+		"theme/theme.json": `{"name":"bad_file"}`,
+		"theme/shell.php":  "<?php echo 'nope';",
+	})
+	if err := validateThemePackage(unsupportedZip, "theme"); err == nil || !strings.Contains(err.Error(), "unsupported file type") {
+		t.Fatalf("validateThemePackage() error = %v, want unsupported file type", err)
+	}
+
+	themeDir := t.TempDir()
+	if packageHasTemplates(themeDir) {
+		t.Fatal("packageHasTemplates(empty) = true, want false")
+	}
+	if err := os.MkdirAll(filepath.Join(themeDir, "templates", "posts"), 0755); err != nil {
+		t.Fatalf("mkdir templates: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(themeDir, "templates", "posts", "show.jet.html"), []byte("template"), 0644); err != nil {
+		t.Fatalf("write template: %v", err)
+	}
+	if !packageHasTemplates(themeDir) {
+		t.Fatal("packageHasTemplates() = false, want true")
+	}
+
+	allowed := []string{"theme.json", "assets/app.css", "templates/index.jet.html", "fonts/site.woff2"}
+	for _, name := range allowed {
+		if !isAllowedThemeFile(name) {
+			t.Fatalf("isAllowedThemeFile(%q) = false, want true", name)
+		}
+	}
+	if isAllowedThemeFile("bin/run.sh") || isAllowedThemeFile("") {
+		t.Fatal("isAllowedThemeFile() accepted unsupported path")
+	}
+}
+
+func TestThemePreviewTokenLifecycleAndHelpers(t *testing.T) {
+	setupServiceTestDB(t)
+	svc := &ThemeService{}
+	theme := &mysql.ThemeModel{Name: "preview_theme", DisplayName: "Preview Theme"}
+	if err := svc.CreateTheme(theme); err != nil {
+		t.Fatalf("CreateTheme() error = %v", err)
+	}
+
+	token, expiresAt, err := svc.CreatePreviewToken(int64(theme.ID), time.Minute)
+	if err != nil {
+		t.Fatalf("CreatePreviewToken() error = %v", err)
+	}
+	if token == "" || !expiresAt.After(time.Now()) {
+		t.Fatalf("token = %q expiresAt = %v", token, expiresAt)
+	}
+	validated, err := svc.ValidatePreviewToken(token)
+	if err != nil {
+		t.Fatalf("ValidatePreviewToken() error = %v", err)
+	}
+	if validated.ID != theme.ID {
+		t.Fatalf("validated theme id = %d, want %d", validated.ID, theme.ID)
+	}
+	if _, _, err := svc.CreatePreviewToken(99999, time.Minute); err == nil {
+		t.Fatal("CreatePreviewToken(missing) expected error")
+	}
+	if _, err := svc.ValidatePreviewToken(token + "x"); err == nil {
+		t.Fatal("ValidatePreviewToken(tampered) expected error")
+	}
+	if _, err := svc.parsePreviewToken("not-a-token"); err == nil {
+		t.Fatal("parsePreviewToken(malformed) expected error")
+	}
+
+	secret, err := svc.getPreviewSecret()
+	if err != nil {
+		t.Fatalf("getPreviewSecret() error = %v", err)
+	}
+	payloadJSON, err := json.Marshal(ThemePreviewPayload{
+		ThemeID: theme.ID,
+		Expires: time.Now().Add(-time.Minute).Unix(),
+	})
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	payloadPart := base64.RawURLEncoding.EncodeToString(payloadJSON)
+	expiredToken := payloadPart + "." + signPreviewPayload([]byte(payloadPart), []byte(secret))
+	if _, err := svc.ValidatePreviewToken(expiredToken); err == nil {
+		t.Fatal("ValidatePreviewToken(expired) expected error")
+	}
+
+	random, err := randomSecret()
+	if err != nil {
+		t.Fatalf("randomSecret() error = %v", err)
+	}
+	if random == "" {
+		t.Fatal("randomSecret() returned empty secret")
+	}
+	if !IsHiddenSettingKey(themePreviewSecretKey) || IsHiddenSettingKey("SiteTitle") {
+		t.Fatal("IsHiddenSettingKey() mismatch")
+	}
+	if SafePreviewPath("") != "/" || SafePreviewPath("https://example.com") != "/" || SafePreviewPath("//example.com") != "/" {
+		t.Fatal("SafePreviewPath() failed unsafe path normalization")
+	}
+	if SafePreviewPath("/articles/1") != "/articles/1" {
+		t.Fatal("SafePreviewPath() rejected local path")
+	}
+	previewURL := PreviewURL("a+b&c", "/articles/1?draft=true")
+	if !strings.Contains(previewURL, "token=a%2Bb%26c") || !strings.Contains(previewURL, "path=%2Farticles%2F1%3Fdraft%3Dtrue") {
+		t.Fatalf("PreviewURL() = %q", previewURL)
+	}
+	if id, err := ParsePreviewID("42"); err != nil || id != 42 {
+		t.Fatalf("ParsePreviewID() = %d, %v", id, err)
+	}
+	if _, err := ParsePreviewID("0"); err == nil {
+		t.Fatal("ParsePreviewID(0) expected error")
+	}
+}
+
+func TestDeleteThemeRemovesCustomThemeDirectory(t *testing.T) {
+	setupServiceTestDB(t)
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(oldWD); err != nil {
+			t.Fatalf("restore cwd: %v", err)
+		}
+	})
+	theme := &mysql.ThemeModel{Name: "delete_me", DisplayName: "Delete Me"}
+	if err := serviceTheme().CreateTheme(theme); err != nil {
+		t.Fatalf("CreateTheme() error = %v", err)
+	}
+	themeDir := filepath.Join(themeStorageDir, theme.Name)
+	if err := os.MkdirAll(themeDir, 0755); err != nil {
+		t.Fatalf("mkdir theme dir: %v", err)
+	}
+	if err := serviceTheme().DeleteTheme(int64(theme.ID)); err != nil {
+		t.Fatalf("DeleteTheme() error = %v", err)
+	}
+	if _, err := os.Stat(themeDir); !os.IsNotExist(err) {
+		t.Fatalf("theme dir stat err = %v, want not exist", err)
+	}
+}
+
+func serviceTheme() *ThemeService {
+	return &ThemeService{}
 }
 
 func writeThemeZip(t *testing.T, files map[string]string) string {

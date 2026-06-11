@@ -24,7 +24,7 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 		return err
 	}
 	pageInfoResp := getPageInfoRespByMysqlPageInfo(c, &pageInfo)
-	return c.Render("index", respToMap(Pagination{PageInfo: pageInfoResp, PageData: data}, PageMeta{
+	return c.Render("index", respToMap(c, Pagination{PageInfo: pageInfoResp, PageData: data}, PageMeta{
 		Description: "最近更新的文章列表",
 		Canonical:   absoluteURL(c),
 		OGTitle:     "最近更新",
@@ -58,7 +58,7 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	data := respToMap(res, PageMeta{
+	data := respToMap(c, res, PageMeta{
 		Description: res.Summary,
 		Canonical:   absoluteURL(c),
 		OGTitle:     res.Title,

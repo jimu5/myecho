@@ -99,12 +99,13 @@ The backend serves `/admin/*` only when `static/admin/index.html` exists; missin
 
 ## Theme Packages
 
-Theme packages are uploaded from the admin theme page as `.zip` files. A package must contain `theme.json`; referenced assets are extracted under `storage/themes/<theme-name>` and served from `/themes/<theme-name>/`.
+Theme packages are uploaded from the admin theme page as `.zip` files. A package must contain `theme.json`; referenced assets are extracted under `storage/themes/<theme-name>` and served from `/themes/<theme-name>/`. Packages may also include Jet templates under `templates/`; missing templates automatically fall back to the built-in `views` directory.
 
 Example `theme.json`:
 
 ```json
 {
+  "schema_version": 1,
   "name": "clean_theme",
   "display_name": "Clean Theme",
   "author": "Myecho",
@@ -113,9 +114,16 @@ Example `theme.json`:
   "css": "style.css",
   "js": "script.js",
   "preview": "preview.png",
-  "config": {}
+  "config": {
+    "primaryColor": "#0f766e"
+  },
+  "config_schema": [
+    { "key": "primaryColor", "label": "Primary color", "type": "color", "default": "#0f766e" }
+  ]
 }
 ```
+
+Supported template override paths include `templates/index.jet.html`, `templates/article.jet.html`, `templates/category.jet.html`, `templates/link.jet.html`, and `templates/components/*.jet.html`. The admin theme preview uses a short-lived signed URL to render the real frontend with the selected theme before activation.
 
 ## AI Development Notes
 

@@ -15,6 +15,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/glebarez/sqlite"
@@ -34,7 +35,7 @@ func setupThemeHandlerTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&model.Theme{}); err != nil {
+	if err := db.AutoMigrate(&model.Theme{}, &model.Setting{}); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	connect.Database = db
@@ -72,11 +73,16 @@ func TestThemeHandlersCRUDAndConfig(t *testing.T) {
 	app.Patch("/api/themes/:id", UpdateTheme)
 	app.Patch("/api/themes/:id/config", UpdateThemeConfig)
 	app.Post("/api/themes/:id/activate", ActivateTheme)
+	app.Post("/api/themes/:id/preview-token", CreatePreviewToken)
 	app.Delete("/api/themes/:id", DeleteTheme)
 
 	resp := doThemeJSONRequest(t, app, fiber.MethodPost, "/api/themes", `{"name":"custom","display_name":"Custom"}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("create status = %d, want 200", resp.StatusCode)
+	}
+	resp = doThemeJSONRequest(t, app, fiber.MethodPost, "/api/themes", `{`)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("invalid create status = %d, want 400", resp.StatusCode)
 	}
 	resp = doThemeJSONRequest(t, app, fiber.MethodGet, "/api/themes", "")
 	if resp.StatusCode != fiber.StatusOK {
@@ -86,13 +92,38 @@ func TestThemeHandlersCRUDAndConfig(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("get status = %d, want 200", resp.StatusCode)
 	}
-	resp = doThemeJSONRequest(t, app, fiber.MethodPatch, "/api/themes/2", `{"display_name":"Updated","author":"Codex","config":{"size":"large"}}`)
+	resp = doThemeJSONRequest(t, app, fiber.MethodPatch, "/api/themes/2", `{"name":"custom","display_name":"Updated","author":"Codex","version":"2.0.0","description":"desc","preview":"preview.png","css":"style.css","js":"script.js","config":{"size":"large"},"config_schema":[{"key":"size","type":"text"}]}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("update status = %d, want 200", resp.StatusCode)
+	}
+	var wrapped themeTestResp
+	if err := json.NewDecoder(resp.Body).Decode(&wrapped); err != nil {
+		t.Fatalf("decode update response: %v", err)
+	}
+	var updatedData map[string]any
+	if err := json.Unmarshal(wrapped.Data, &updatedData); err != nil {
+		t.Fatalf("decode update data: %v", err)
+	}
+	if len(updatedData["config_schema"].([]any)) != 1 {
+		t.Fatalf("config_schema = %+v, want one field", updatedData["config_schema"])
 	}
 	resp = doThemeJSONRequest(t, app, fiber.MethodPatch, "/api/themes/2/config", `{"color":"blue"}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("config update status = %d, want 200", resp.StatusCode)
+	}
+	resp = doThemeJSONRequest(t, app, fiber.MethodPost, "/api/themes/2/preview-token?path=%2Farticles%2F2", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("preview token status = %d, want 200", resp.StatusCode)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&wrapped); err != nil {
+		t.Fatalf("decode preview token response: %v", err)
+	}
+	var previewData map[string]any
+	if err := json.Unmarshal(wrapped.Data, &previewData); err != nil {
+		t.Fatalf("decode preview token data: %v", err)
+	}
+	if previewData["token"] == "" || !strings.Contains(previewData["preview_url"].(string), "path=%2Farticles%2F2") {
+		t.Fatalf("preview token data = %+v", previewData)
 	}
 	resp = doThemeJSONRequest(t, app, fiber.MethodPost, "/api/themes/2/activate", "")
 	if resp.StatusCode != fiber.StatusOK {
@@ -115,6 +146,36 @@ func TestThemeHandlersCRUDAndConfig(t *testing.T) {
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Fatalf("bad id status = %d, want 400", resp.StatusCode)
 	}
+	badIDCases := []struct {
+		method string
+		path   string
+		body   string
+	}{
+		{method: fiber.MethodPatch, path: "/api/themes/bad", body: `{}`},
+		{method: fiber.MethodDelete, path: "/api/themes/bad"},
+		{method: fiber.MethodPost, path: "/api/themes/bad/activate"},
+		{method: fiber.MethodPost, path: "/api/themes/bad/preview-token"},
+		{method: fiber.MethodPatch, path: "/api/themes/bad/config", body: `{}`},
+	}
+	for _, tc := range badIDCases {
+		resp = doThemeJSONRequest(t, app, tc.method, tc.path, tc.body)
+		if resp.StatusCode != fiber.StatusBadRequest {
+			t.Fatalf("%s %s status = %d, want 400", tc.method, tc.path, resp.StatusCode)
+		}
+	}
+}
+
+func TestConfigSchemaFromValue(t *testing.T) {
+	schema, ok := configSchemaFromValue([]map[string]interface{}{{"key": "color", "type": "text"}})
+	if !ok || len(schema) != 1 || schema[0]["key"] != "color" {
+		t.Fatalf("configSchemaFromValue(valid) = %+v, %v", schema, ok)
+	}
+	if _, ok := configSchemaFromValue(make(chan int)); ok {
+		t.Fatal("configSchemaFromValue(unmarshalable) ok = true, want false")
+	}
+	if _, ok := configSchemaFromValue(map[string]interface{}{"key": "color"}); ok {
+		t.Fatal("configSchemaFromValue(object) ok = true, want false")
+	}
 }
 
 func TestUploadThemeHandler(t *testing.T) {
@@ -124,7 +185,15 @@ func TestUploadThemeHandler(t *testing.T) {
 	app.Use(middleware.CommonErrorHandler)
 	app.Post("/api/themes/upload", UploadTheme)
 
-	resp := postThemeUpload(t, app, "theme.txt", []byte("not zip"))
+	req := httptest.NewRequest(fiber.MethodPost, "/api/themes/upload", nil)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("missing upload app.Test() error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("missing upload file status = %d, want 400", resp.StatusCode)
+	}
+	resp = postThemeUpload(t, app, "theme.txt", []byte("not zip"))
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Fatalf("non zip status = %d, want 400", resp.StatusCode)
 	}

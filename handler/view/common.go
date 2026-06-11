@@ -5,6 +5,7 @@ import (
 	"myecho/config"
 	"myecho/config/static_config"
 	"myecho/dal/mysql"
+	"myecho/model"
 	"myecho/service"
 	"net/url"
 	"strconv"
@@ -78,7 +79,7 @@ func genRawUrl(path, query string) string {
 	return path + "?" + query
 }
 
-func respToMap(data interface{}, meta ...PageMeta) fiber.Map {
+func respToMap(c *fiber.Ctx, data interface{}, meta ...PageMeta) fiber.Map {
 	pageMeta := PageMeta{}
 	if len(meta) > 0 {
 		pageMeta = meta[0]
@@ -96,13 +97,35 @@ func respToMap(data interface{}, meta ...PageMeta) fiber.Map {
 		"Meta":     pageMeta,
 	}
 
-	// 获取当前激活的主题
-	theme, err := service.S.Theme.GetActiveTheme()
-	if err == nil && theme != nil {
+	theme, isPreview := resolveThemeForRequest(c)
+	if theme != nil {
 		resp["Theme"] = theme
+		resp["ThemeAssetBase"] = service.ThemeAssetBaseURL(theme.Name)
+		resp["IsThemePreview"] = isPreview
+		config, err := (*model.Theme)(theme).GetConfig()
+		if err != nil {
+			config = make(map[string]interface{})
+		}
+		resp["ThemeConfig"] = config
 	}
 
 	return resp
+}
+
+func resolveThemeForRequest(c *fiber.Ctx) (*mysql.ThemeModel, bool) {
+	if c != nil {
+		token := c.Cookies(service.ThemePreviewCookieName)
+		if token != "" {
+			if theme, err := service.S.Theme.ValidatePreviewToken(token); err == nil && theme != nil {
+				return theme, true
+			}
+		}
+	}
+	theme, err := service.S.Theme.GetActiveTheme()
+	if err == nil {
+		return theme, false
+	}
+	return nil, false
 }
 
 func absoluteURL(c *fiber.Ctx) string {

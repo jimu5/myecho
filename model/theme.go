@@ -14,17 +14,19 @@ import (
 
 type Theme struct {
 	BaseModel
-	Name        string `json:"name" gorm:"size:100;not null;uniqueIndex"`
-	DisplayName string `json:"display_name" gorm:"size:100;not null"`
-	Author      string `json:"author" gorm:"size:100"`
-	Version     string `json:"version" gorm:"size:20"`
-	Description string `json:"description" gorm:"type:text"`
-	Preview     string `json:"preview" gorm:"type:text"`
-	CSS         string `json:"css" gorm:"type:text"`
-	JS          string `json:"js" gorm:"type:text"`
-	IsDefault   bool   `json:"is_default" gorm:"default:false"`
-	IsActive    bool   `json:"is_active" gorm:"default:false"`
-	Config      []byte `json:"config" gorm:"type:text"` // 使用 []byte 存储JSON数据
+	Name         string `json:"name" gorm:"size:100;not null;uniqueIndex"`
+	DisplayName  string `json:"display_name" gorm:"size:100;not null"`
+	Author       string `json:"author" gorm:"size:100"`
+	Version      string `json:"version" gorm:"size:20"`
+	Description  string `json:"description" gorm:"type:text"`
+	Preview      string `json:"preview" gorm:"type:text"`
+	CSS          string `json:"css" gorm:"type:text"`
+	JS           string `json:"js" gorm:"type:text"`
+	IsDefault    bool   `json:"is_default" gorm:"default:false"`
+	IsActive     bool   `json:"is_active" gorm:"default:false"`
+	HasTemplates bool   `json:"has_templates" gorm:"default:false"`
+	Config       []byte `json:"config" gorm:"type:text"`        // 使用 []byte 存储JSON数据
+	ConfigSchema []byte `json:"config_schema" gorm:"type:text"` // 使用 []byte 存储JSON Schema-like字段配置
 }
 
 // GetConfig 解析 Config 字段为 map[string]interface{}
@@ -50,5 +52,31 @@ func (t *Theme) SetConfig(config map[string]interface{}) error {
 		return err
 	}
 	t.Config = jsonData
+	return nil
+}
+
+// GetConfigSchema 解析 ConfigSchema 字段为配置项列表。
+func (t *Theme) GetConfigSchema() ([]map[string]interface{}, error) {
+	if len(t.ConfigSchema) == 0 {
+		return []map[string]interface{}{}, nil
+	}
+	var schema []map[string]interface{}
+	if err := json.Unmarshal(t.ConfigSchema, &schema); err != nil {
+		return nil, err
+	}
+	return schema, nil
+}
+
+// SetConfigSchema 将配置项列表转换为 JSON 并存储。
+func (t *Theme) SetConfigSchema(schema []map[string]interface{}) error {
+	if schema == nil {
+		t.ConfigSchema = nil
+		return nil
+	}
+	jsonData, err := json.Marshal(schema)
+	if err != nil {
+		return err
+	}
+	t.ConfigSchema = jsonData
 	return nil
 }

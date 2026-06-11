@@ -10,7 +10,7 @@ func LinkAll(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.Render("link", respToMap(links, PageMeta{
+	return c.Render("link", respToMap(c, links, PageMeta{
 		Description: "友情链接",
 		Canonical:   absoluteURL(c),
 		OGTitle:     "友链",

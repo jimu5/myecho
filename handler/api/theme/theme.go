@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"encoding/json"
 	"fmt"
 	"myecho/dal/mysql"
 	"myecho/handler"
@@ -18,14 +19,32 @@ import (
 
 // CreateTheme 创建主题
 func CreateTheme(c *fiber.Ctx) error {
-	theme := mysql.ThemeModel{}
-	if err := c.BodyParser(&theme); err != nil {
+	req := themeRequest{}
+	if err := c.BodyParser(&req); err != nil {
+		return err
+	}
+	theme := mysql.ThemeModel{
+		Name:        req.Name,
+		DisplayName: req.DisplayName,
+		Author:      req.Author,
+		Version:     req.Version,
+		Description: req.Description,
+		Preview:     req.Preview,
+		CSS:         req.CSS,
+		JS:          req.JS,
+		IsDefault:   false,
+		IsActive:    false,
+	}
+	if err := (*model.Theme)(&theme).SetConfig(req.Config); err != nil {
+		return err
+	}
+	if err := (*model.Theme)(&theme).SetConfigSchema(req.ConfigSchema); err != nil {
 		return err
 	}
 	if err := service.S.Theme.CreateTheme(&theme); err != nil {
 		return err
 	}
-	return handler.Success(c, &theme)
+	return handler.Success(c, buildThemeResponse(&theme))
 }
 
 // UploadTheme 上传并安装主题压缩包
@@ -35,6 +54,9 @@ func UploadTheme(c *fiber.Ctx) error {
 		return err
 	}
 	if !strings.EqualFold(filepath.Ext(file.Filename), ".zip") {
+		return errors.ErrInvalidParams
+	}
+	if file.Size > service.MaxThemePackageBytes {
 		return errors.ErrInvalidParams
 	}
 	if err := os.MkdirAll("./storage/temp", 0755); err != nil {
@@ -149,11 +171,18 @@ func UpdateTheme(c *fiber.Ctx) error {
 			}
 		}
 	}
+	if configSchema, ok := updateData["config_schema"]; ok {
+		if schema, ok := configSchemaFromValue(configSchema); ok {
+			if err := (*model.Theme)(theme).SetConfigSchema(schema); err != nil {
+				return err
+			}
+		}
+	}
 
 	if err := service.S.Theme.UpdateTheme(theme); err != nil {
 		return err
 	}
-	return handler.Success(c, &theme)
+	return handler.Success(c, buildThemeResponse(theme))
 }
 
 // DeleteTheme 删除主题
@@ -232,7 +261,23 @@ func UpdateThemeConfig(c *fiber.Ctx) error {
 	if err := service.S.Theme.UpdateTheme(theme); err != nil {
 		return err
 	}
-	return handler.Success(c, &theme)
+	return handler.Success(c, buildThemeResponse(theme))
+}
+
+func CreatePreviewToken(c *fiber.Ctx) error {
+	id, err := strconv.ParseInt(c.Params("id"), 10, 64)
+	if err != nil {
+		return errors.ErrInvalidParams
+	}
+	token, expiresAt, err := service.S.Theme.CreatePreviewToken(id, service.ThemePreviewTokenTTL)
+	if err != nil {
+		return err
+	}
+	return handler.Success(c, fiber.Map{
+		"token":       token,
+		"expires_at":  expiresAt,
+		"preview_url": service.PreviewURL(token, c.Query("path", "/")),
+	})
 }
 
 func buildThemeResponse(theme *mysql.ThemeModel) map[string]interface{} {
@@ -244,20 +289,52 @@ func buildThemeResponse(theme *mysql.ThemeModel) map[string]interface{} {
 }
 
 func buildThemeResponseWithConfig(theme *mysql.ThemeModel, config map[string]interface{}) map[string]interface{} {
-	return map[string]interface{}{
-		"id":           theme.ID,
-		"name":         theme.Name,
-		"display_name": theme.DisplayName,
-		"author":       theme.Author,
-		"version":      theme.Version,
-		"description":  theme.Description,
-		"preview":      theme.Preview,
-		"css":          theme.CSS,
-		"js":           theme.JS,
-		"is_default":   theme.IsDefault,
-		"is_active":    theme.IsActive,
-		"config":       config,
-		"created_at":   theme.CreatedAt,
-		"updated_at":   theme.UpdatedAt,
+	configSchema, err := (*model.Theme)(theme).GetConfigSchema()
+	if err != nil {
+		configSchema = []map[string]interface{}{}
 	}
+	return map[string]interface{}{
+		"id":             theme.ID,
+		"name":           theme.Name,
+		"display_name":   theme.DisplayName,
+		"author":         theme.Author,
+		"version":        theme.Version,
+		"description":    theme.Description,
+		"preview":        theme.Preview,
+		"css":            theme.CSS,
+		"js":             theme.JS,
+		"is_default":     theme.IsDefault,
+		"is_active":      theme.IsActive,
+		"has_templates":  theme.HasTemplates,
+		"asset_base_url": service.ThemeAssetBaseURL(theme.Name),
+		"config":         config,
+		"config_schema":  configSchema,
+		"created_at":     theme.CreatedAt,
+		"updated_at":     theme.UpdatedAt,
+	}
+}
+
+type themeRequest struct {
+	Name         string                   `json:"name"`
+	DisplayName  string                   `json:"display_name"`
+	Author       string                   `json:"author"`
+	Version      string                   `json:"version"`
+	Description  string                   `json:"description"`
+	Preview      string                   `json:"preview"`
+	CSS          string                   `json:"css"`
+	JS           string                   `json:"js"`
+	Config       map[string]interface{}   `json:"config"`
+	ConfigSchema []map[string]interface{} `json:"config_schema"`
+}
+
+func configSchemaFromValue(value interface{}) ([]map[string]interface{}, bool) {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return nil, false
+	}
+	var schema []map[string]interface{}
+	if err := json.Unmarshal(raw, &schema); err != nil {
+		return nil, false
+	}
+	return schema, true
 }

@@ -2,10 +2,12 @@ package view_engine
 
 import (
 	"github.com/CloudyKit/jet/v6"
+	"github.com/CloudyKit/jet/v6/loaders/multi"
 	"github.com/fsnotify/fsnotify"
 	"github.com/gofiber/fiber/v2"
 	"io"
 	"log"
+	"myecho/dal/mysql"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,15 +18,22 @@ import (
 type HotReloadEngine struct {
 	sync.RWMutex
 	*jet.Set
-	viewDir string
-	ext     string
+	viewDir   string
+	ext       string
+	themeSets map[string]cachedThemeSet
+}
+
+type cachedThemeSet struct {
+	version int64
+	set     *jet.Set
 }
 
 // New creates a new instance of the HotReloadEngine
 func New(directory, extension string) *HotReloadEngine {
 	engine := &HotReloadEngine{
-		viewDir: directory,
-		ext:     extension,
+		viewDir:   directory,
+		ext:       extension,
+		themeSets: make(map[string]cachedThemeSet),
 	}
 	engine.Reload()
 	go engine.watchForChanges()
@@ -37,10 +46,9 @@ func (e *HotReloadEngine) Load() error {
 }
 
 func (e *HotReloadEngine) Render(out io.Writer, template string, data interface{}, layout ...string) error {
-	e.RLock()
-	defer e.RUnlock()
+	set := e.setForData(data)
 
-	t, err := e.GetTemplate(template)
+	t, err := set.GetTemplate(template)
 	if err != nil {
 		return err
 	}
@@ -66,6 +74,72 @@ func (e *HotReloadEngine) Reload() {
 		jet.NewOSFileSystemLoader(e.viewDir),
 		jet.InDevelopmentMode(), // This helps with debugging
 	)
+	e.themeSets = make(map[string]cachedThemeSet)
+}
+
+func (e *HotReloadEngine) setForData(data interface{}) *jet.Set {
+	theme := themeFromData(data)
+	if theme == nil || !theme.HasTemplates || !isSafeThemeName(theme.Name) {
+		e.RLock()
+		defer e.RUnlock()
+		return e.Set
+	}
+	return e.themeSet(theme)
+}
+
+func (e *HotReloadEngine) themeSet(theme *mysql.ThemeModel) *jet.Set {
+	version := theme.UpdatedAt.UnixNano()
+	e.RLock()
+	cached, ok := e.themeSets[theme.Name]
+	defaultSet := e.Set
+	e.RUnlock()
+	if ok && cached.version == version {
+		return cached.set
+	}
+
+	e.Lock()
+	defer e.Unlock()
+	if cached, ok := e.themeSets[theme.Name]; ok && cached.version == version {
+		return cached.set
+	}
+	themeTemplateDir := filepath.Join("storage", "themes", theme.Name, "templates")
+	if _, err := os.Stat(themeTemplateDir); err != nil {
+		return defaultSet
+	}
+	set := jet.NewSet(
+		multi.NewLoader(
+			jet.NewOSFileSystemLoader(themeTemplateDir),
+			jet.NewOSFileSystemLoader(e.viewDir),
+		),
+		jet.InDevelopmentMode(),
+	)
+	e.themeSets[theme.Name] = cachedThemeSet{version: version, set: set}
+	return set
+}
+
+func themeFromData(data interface{}) *mysql.ThemeModel {
+	d, ok := data.(fiber.Map)
+	if !ok {
+		return nil
+	}
+	theme, ok := d["Theme"].(*mysql.ThemeModel)
+	if ok {
+		return theme
+	}
+	return nil
+}
+
+func isSafeThemeName(name string) bool {
+	if strings.TrimSpace(name) == "" {
+		return false
+	}
+	for _, r := range name {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func (e *HotReloadEngine) watchForChanges() {

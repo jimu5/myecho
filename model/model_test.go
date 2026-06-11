@@ -111,3 +111,36 @@ func TestThemeSetConfigProducesJSON(t *testing.T) {
 		t.Fatalf("decoded config = %#v", decoded)
 	}
 }
+
+func TestThemeConfigSchemaRoundTripAndInvalidJSON(t *testing.T) {
+	theme := &Theme{}
+	empty, err := theme.GetConfigSchema()
+	if err != nil {
+		t.Fatalf("GetConfigSchema(empty) error = %v", err)
+	}
+	if len(empty) != 0 {
+		t.Fatalf("empty schema = %#v, want empty slice", empty)
+	}
+
+	schema := []map[string]interface{}{{"key": "color", "type": "text"}}
+	if err := theme.SetConfigSchema(schema); err != nil {
+		t.Fatalf("SetConfigSchema() error = %v", err)
+	}
+	got, err := theme.GetConfigSchema()
+	if err != nil {
+		t.Fatalf("GetConfigSchema() error = %v", err)
+	}
+	if len(got) != 1 || got[0]["key"] != "color" {
+		t.Fatalf("GetConfigSchema() = %#v", got)
+	}
+	if err := theme.SetConfigSchema(nil); err != nil {
+		t.Fatalf("SetConfigSchema(nil) error = %v", err)
+	}
+	if theme.ConfigSchema != nil {
+		t.Fatalf("SetConfigSchema(nil) left schema = %s", string(theme.ConfigSchema))
+	}
+	theme.ConfigSchema = []byte("{")
+	if _, err := theme.GetConfigSchema(); err == nil {
+		t.Fatal("GetConfigSchema(invalid) expected error")
+	}
+}
