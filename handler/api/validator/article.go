@@ -3,6 +3,7 @@ package validator
 import (
 	"myecho/handler/api/errors"
 	"myecho/handler/rtype"
+	"myecho/model"
 	"time"
 )
 
@@ -15,6 +16,12 @@ func ValidateArticleRequest(articleRequest *rtype.ArticleRequest) error {
 	}
 	if articleRequest.PostTime.IsZero() {
 		articleRequest.PostTime = time.Now()
+	}
+	if articleRequest.Type == 0 {
+		articleRequest.Type = model.ArticleTypePost
+	}
+	if !model.IsValidArticleType(articleRequest.Type) {
+		return errors.ErrInvalidParams
 	}
 	if err := ValidateCategoryUID(articleRequest.CategoryUID); err != nil {
 		return err

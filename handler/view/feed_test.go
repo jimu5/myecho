@@ -40,13 +40,17 @@ func setupFeedTestDB(t *testing.T) {
 func TestRSSAndSitemapOnlyIncludeDisplayableArticles(t *testing.T) {
 	setupFeedTestDB(t)
 	repo := &mysql.ArticleDBRepo{}
-	publicArticle := &mysql.ArticleModel{Title: "Public", Summary: "public summary", Status: int8(mysql.ARTILCE_STATUS_PUBLIC), PostTime: time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC), Detail: &model.ArticleDetail{Content: "public"}}
+	publicArticle := &mysql.ArticleModel{Title: "Public", Slug: "public-post", Type: model.ArticleTypePost, Summary: "public summary", Status: int8(mysql.ARTILCE_STATUS_PUBLIC), PostTime: time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC), Detail: &model.ArticleDetail{Content: "public"}}
 	draftArticle := &mysql.ArticleModel{Title: "Draft", Status: int8(mysql.ARTICLE_STATUS_DRAFT), PostTime: time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC), Detail: &model.ArticleDetail{Content: "draft"}}
+	pageArticle := &mysql.ArticleModel{Title: "About", Slug: "about", Type: model.ArticleTypePage, Status: int8(mysql.ARTILCE_STATUS_PUBLIC), PostTime: time.Date(2026, 5, 3, 10, 0, 0, 0, time.UTC), Detail: &model.ArticleDetail{Content: "about"}}
 	if err := repo.Create(publicArticle); err != nil {
 		t.Fatalf("create public article: %v", err)
 	}
 	if err := repo.Create(draftArticle); err != nil {
 		t.Fatalf("create draft article: %v", err)
+	}
+	if err := repo.Create(pageArticle); err != nil {
+		t.Fatalf("create page article: %v", err)
 	}
 
 	app := fiber.New()
@@ -58,7 +62,7 @@ func TestRSSAndSitemapOnlyIncludeDisplayableArticles(t *testing.T) {
 		t.Fatalf("rss app.Test() error = %v", err)
 	}
 	body := readRespBody(t, resp)
-	if !strings.Contains(body, "Public") || strings.Contains(body, "Draft") {
+	if !strings.Contains(body, "Public") || strings.Contains(body, "Draft") || strings.Contains(body, "About") {
 		t.Fatalf("rss body = %s", body)
 	}
 
@@ -67,7 +71,7 @@ func TestRSSAndSitemapOnlyIncludeDisplayableArticles(t *testing.T) {
 		t.Fatalf("sitemap app.Test() error = %v", err)
 	}
 	body = readRespBody(t, resp)
-	if !strings.Contains(body, "/articles/1") || strings.Contains(body, "/articles/2") {
+	if !strings.Contains(body, "/posts/public-post") || strings.Contains(body, "/articles/2") || strings.Contains(body, "/pages/about") {
 		t.Fatalf("sitemap body = %s", body)
 	}
 }

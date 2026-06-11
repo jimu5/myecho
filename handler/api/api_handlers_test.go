@@ -18,6 +18,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -92,6 +93,23 @@ func doJSONRequest(t *testing.T, app *fiber.App, method, target, token, body str
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 	if token != "" {
 		req.Header.Set("Authorization", "token "+token)
+	}
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test(%s %s) error = %v", method, target, err)
+	}
+	return resp
+}
+
+func doJSONRequestWithCookies(t *testing.T, app *fiber.App, method, target, token, body string, cookies ...*http.Cookie) *http.Response {
+	t.Helper()
+	req := httptest.NewRequest(method, target, bytes.NewBufferString(body))
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+	if token != "" {
+		req.Header.Set("Authorization", "token "+token)
+	}
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
 	}
 	resp, err := app.Test(req)
 	if err != nil {
@@ -241,6 +259,108 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 	}
 }
 
+func TestArticleSlugPageAndPasswordAPI(t *testing.T) {
+	setupAPITestDB(t)
+	admin := createAPIUser(t, "admin", "admin-token", model.Admin)
+	category := seedArticleCategory(t)
+	app := fiber.New()
+	app.Use(middleware.CommonErrorHandler)
+	app.Get("/articles", ArticleDisplayList)
+	app.Get("/articles/:id", ArticleRetrieve)
+	app.Post("/articles", middleware.Authentication, middleware.AdminRequired, ArticleCreate)
+	app.Post("/articles/:id/password", ArticlePasswordUnlock)
+
+	createPost := `{"title":"Hello World!","content":"secret body","category_uid":"` + category.UID + `","status":1,"type":1,"password":"open sesame"}`
+	resp := doJSONRequest(t, app, fiber.MethodPost, "/articles", admin.Token, createPost)
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("create password post status = %d, want 201", resp.StatusCode)
+	}
+	wrapped := decodeAPIResp(t, resp)
+	var created rtype.ArticleResponse
+	if err := json.Unmarshal(wrapped.Data, &created); err != nil {
+		t.Fatalf("decode created article: %v", err)
+	}
+	if created.Slug != "hello-world" || created.Type != model.ArticleTypePost || !created.IsPasswordProtected {
+		t.Fatalf("created slug/type/password = slug:%q type:%d protected:%v", created.Slug, created.Type, created.IsPasswordProtected)
+	}
+	if created.Detail != nil {
+		t.Fatalf("password protected create response leaked detail: %+v", created.Detail)
+	}
+
+	createDuplicate := `{"title":"Hello World!","content":"public body","category_uid":"` + category.UID + `","status":1,"type":1}`
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles", admin.Token, createDuplicate)
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("create duplicate slug post status = %d, want 201", resp.StatusCode)
+	}
+	wrapped = decodeAPIResp(t, resp)
+	var duplicate rtype.ArticleResponse
+	if err := json.Unmarshal(wrapped.Data, &duplicate); err != nil {
+		t.Fatalf("decode duplicate article: %v", err)
+	}
+	if duplicate.Slug != "hello-world-2" {
+		t.Fatalf("duplicate slug = %q, want hello-world-2", duplicate.Slug)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/2/password", "", `{"password":"anything"}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("unlock unprotected article status = %d, want 200", resp.StatusCode)
+	}
+	if len(resp.Cookies()) != 0 {
+		t.Fatal("unlock unprotected article should not set a cookie")
+	}
+
+	createPage := `{"title":"About","slug":"about","content":"about body","category_uid":"` + category.UID + `","status":1,"type":2}`
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles", admin.Token, createPage)
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("create page status = %d, want 201", resp.StatusCode)
+	}
+	wrapped = decodeAPIResp(t, resp)
+	var page rtype.ArticleResponse
+	if err := json.Unmarshal(wrapped.Data, &page); err != nil {
+		t.Fatalf("decode page article: %v", err)
+	}
+	if page.Type != model.ArticleTypePage || page.Slug != "about" {
+		t.Fatalf("page slug/type = %q/%d", page.Slug, page.Type)
+	}
+
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/articles?page=1&page_size=10", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("public post list status = %d, want 200", resp.StatusCode)
+	}
+	wrapped = decodeAPIResp(t, resp)
+	if wrapped.Meta["total"].(float64) != 2 {
+		t.Fatalf("public post total = %v, want 2", wrapped.Meta["total"])
+	}
+
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/articles/1?no_read=true", "", "")
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("locked article status = %d, want 403", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/1/password", "", `{"password":"wrong"}`)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("wrong password status = %d, want 403", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/1/password", "", `{"password":"open sesame"}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("correct password status = %d, want 200", resp.StatusCode)
+	}
+	cookies := resp.Cookies()
+	if len(cookies) == 0 {
+		t.Fatal("password unlock did not set a cookie")
+	}
+	resp = doJSONRequestWithCookies(t, app, fiber.MethodGet, "/articles/1?no_read=true", "", "", cookies[0])
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("unlocked article status = %d, want 200", resp.StatusCode)
+	}
+	wrapped = decodeAPIResp(t, resp)
+	var unlocked rtype.ArticleResponse
+	if err := json.Unmarshal(wrapped.Data, &unlocked); err != nil {
+		t.Fatalf("decode unlocked article: %v", err)
+	}
+	if unlocked.Detail == nil || unlocked.Detail.Content != "secret body" {
+		t.Fatalf("unlocked article detail = %+v", unlocked.Detail)
+	}
+}
+
 func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	setupAPITestDB(t)
 	app := fiber.New()
@@ -386,13 +506,49 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("comment batch approve status = %d, want 200", resp.StatusCode)
 	}
+	var countedArticle model.Article
+	if err := connect.Database.First(&countedArticle, article.ID).Error; err != nil {
+		t.Fatalf("find counted article: %v", err)
+	}
+	if countedArticle.CommentCount != 1 {
+		t.Fatalf("comment_count after approve = %d, want 1", countedArticle.CommentCount)
+	}
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/articles/1/comments", "", "")
+	rawPublicCommentBody := readResponseBody(t, resp)
+	if strings.Contains(rawPublicCommentBody, "author_email") || strings.Contains(rawPublicCommentBody, "alice@example.com") {
+		t.Fatalf("public comment response leaked email: %s", rawPublicCommentBody)
+	}
+	resp.Body = io.NopCloser(bytes.NewBufferString(rawPublicCommentBody))
 	commentListResp = decodeAPIResp(t, resp)
 	if err := json.Unmarshal(commentListResp.Data, &publicComments); err != nil {
 		t.Fatalf("decode approved public comments: %v", err)
 	}
 	if len(publicComments) != 1 {
 		t.Fatalf("approved public comments len = %d, want 1", len(publicComments))
+	}
+	replyBody := `{"author_name":"bob","author_email":"bob@example.com","content":"reply","parent_id":1}`
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/1/comments", "", replyBody)
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("same article reply status = %d, want 201", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/2/comments", "", replyBody)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("cross article reply status = %d, want 403", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/1/comments", "", `{"author_name":"bot","author_email":"bot@example.com","content":"spam","trap":"filled"}`)
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("honeypot comment status = %d, want 201", resp.StatusCode)
+	}
+	var botCount int64
+	if err := connect.Database.Model(&model.Comment{}).Where("author_name = ?", "bot").Count(&botCount).Error; err != nil {
+		t.Fatalf("count honeypot comments: %v", err)
+	}
+	if botCount != 0 {
+		t.Fatalf("honeypot comments saved = %d, want 0", botCount)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/1/comments", "", `{"author_name":"bad","author_email":"not-email","content":"hello"}`)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("invalid email comment status = %d, want 403", resp.StatusCode)
 	}
 	resp = doJSONRequest(t, app, fiber.MethodPatch, "/comments/1", "", `{"author_name":"bob","author_email":"bob@example.com","content":"updated","status":2}`)
 	if resp.StatusCode != fiber.StatusOK {
@@ -401,6 +557,12 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	resp = doJSONRequest(t, app, fiber.MethodPost, "/comments/batch", "", `{"ids":[1],"action":"reject"}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("comment batch reject action status = %d, want 200", resp.StatusCode)
+	}
+	if err := connect.Database.First(&countedArticle, article.ID).Error; err != nil {
+		t.Fatalf("find counted article after reject: %v", err)
+	}
+	if countedArticle.CommentCount != 0 {
+		t.Fatalf("comment_count after reject = %d, want 0", countedArticle.CommentCount)
 	}
 	var rejected model.Comment
 	if err := connect.Database.First(&rejected, 1).Error; err != nil {
@@ -442,6 +604,16 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	if resp.StatusCode != fiber.StatusNotFound {
 		t.Fatalf("category missing delete status = %d, want 404", resp.StatusCode)
 	}
+}
+
+func readResponseBody(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	defer resp.Body.Close()
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read response body: %v", err)
+	}
+	return string(data)
 }
 
 func TestSettingAndLinkHandlers(t *testing.T) {

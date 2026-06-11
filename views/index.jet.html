@@ -13,6 +13,10 @@
       <p class="page-kicker">Journal</p>
       <h1>最近更新</h1>
     </section>
+    <form class="article-search" action="/" method="get">
+      <input name="keyword" type="search" placeholder="搜索标题或摘要" aria-label="搜索标题或摘要">
+      <button type="submit">搜索</button>
+    </form>
     <section class="article-list" aria-label="文章列表">
       {{ include "components/articles" Data.PageData}}
     </section>

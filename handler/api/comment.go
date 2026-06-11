@@ -8,17 +8,59 @@ import (
 	"myecho/handler/api/validator"
 	"myecho/handler/rtype"
 	"myecho/model"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
 )
 
+var commentRateLimiter = newCommentRateLimiter(30, time.Minute)
+
+type commentRateState struct {
+	Count       int
+	WindowStart time.Time
+}
+
+type commentRateLimit struct {
+	sync.Mutex
+	limit  int
+	window time.Duration
+	hits   map[string]commentRateState
+}
+
+func newCommentRateLimiter(limit int, window time.Duration) *commentRateLimit {
+	return &commentRateLimit{limit: limit, window: window, hits: make(map[string]commentRateState)}
+}
+
+func (r *commentRateLimit) allow(key string, now time.Time) bool {
+	r.Lock()
+	defer r.Unlock()
+	state := r.hits[key]
+	if state.WindowStart.IsZero() || now.Sub(state.WindowStart) > r.window {
+		r.hits[key] = commentRateState{Count: 1, WindowStart: now}
+		return true
+	}
+	if state.Count >= r.limit {
+		return false
+	}
+	state.Count++
+	r.hits[key] = state
+	return true
+}
+
 func CommentCreate(c *fiber.Ctx) error {
 	var res rtype.CommentRequest
 	var article model.Article
 	if err := c.BodyParser(&res); err != nil {
 		return ParseErrorResponse(c, err.Error())
+	}
+	if strings.TrimSpace(res.Trap) != "" {
+		return handler.SuccessWithStatus(c, fiber.StatusCreated, nil)
+	}
+	if !commentRateLimiter.allow(c.IP(), time.Now()) {
+		return ValidateErrorResponse(c, apierrors.ErrInvalidParams.Error())
 	}
 	if err := validator.ValidateCommentRequest(&res); err != nil {
 		return ValidateErrorResponse(c, err.Error())
@@ -31,6 +73,9 @@ func CommentCreate(c *fiber.Ctx) error {
 	}
 	if article.IsAllowComment != nil && !*article.IsAllowComment {
 		return ValidateErrorResponse(c, apierrors.ErrCommentArticleClosed.Error())
+	}
+	if err := validator.ValidateParentCommentForArticle(res.ParentID, article.UID); err != nil {
+		return ValidateErrorResponse(c, err.Error())
 	}
 
 	pendingStatus := int8(model.CommentStatusPending)
@@ -49,6 +94,7 @@ func CommentCreate(c *fiber.Ctx) error {
 	if err := connect.Database.Save(&comment).Error; err != nil {
 		return err
 	}
+	_ = refreshApprovedCommentCount(article.UID)
 	return handler.SuccessWithStatus(c, fiber.StatusCreated, &comment)
 }
 
@@ -64,6 +110,7 @@ func CommentUpdate(c *fiber.Ctx) error {
 	if err := handler.DetailPreHandleByParam(c, &comment); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
+	articleUID := comment.ArticleUID
 	if r.Status != nil {
 		if err := validator.ValidateCommentStatus(*r.Status); err != nil {
 			return ValidateErrorResponse(c, err.Error())
@@ -87,11 +134,15 @@ func CommentUpdate(c *fiber.Ctx) error {
 		if err := validator.ValidateParentCommentID(r.ParentID); err != nil {
 			return ValidateErrorResponse(c, err.Error())
 		}
+		if err := validator.ValidateParentCommentForArticle(r.ParentID, comment.ArticleUID); err != nil {
+			return ValidateErrorResponse(c, err.Error())
+		}
 		comment.ParentID = r.ParentID
 	}
 	if err := connect.Database.Model(&comment).Updates(&comment).Error; err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
+	_ = refreshApprovedCommentCount(articleUID)
 	return handler.Success(c, &comment)
 }
 
@@ -110,7 +161,7 @@ func ArticleCommentList(c *fiber.Ctx) error {
 		Find(&comments).Error; err != nil {
 		return err
 	}
-	return handler.Success(c, comments)
+	return handler.Success(c, BuildCommentTree(comments))
 }
 
 func CommentAllList(c *fiber.Ctx) error {
@@ -151,9 +202,14 @@ func CommentDelete(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
+	var comment model.Comment
+	if err := connect.Database.First(&comment, id).Error; err != nil {
+		return err
+	}
 	if err := connect.Database.Delete(&model.Comment{}, id).Error; err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
+	_ = refreshApprovedCommentCount(comment.ArticleUID)
 	return handler.Success(c, nil)
 }
 
@@ -165,11 +221,16 @@ func CommentBatch(c *fiber.Ctx) error {
 	if len(req.IDs) == 0 {
 		return ValidateErrorResponse(c, apierrors.ErrCommentBatchEmpty.Error())
 	}
+	articleUIDs, err := commentArticleUIDs(req.IDs)
+	if err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
 	switch req.Action {
 	case "delete":
 		if err := connect.Database.Delete(&model.Comment{}, req.IDs).Error; err != nil {
 			return InternalErrorResponse(c, InternalSQLError, err.Error())
 		}
+		refreshApprovedCommentCounts(articleUIDs)
 		return handler.Success(c, nil)
 	case "approve":
 		req.Status = model.CommentStatusApproved
@@ -191,6 +252,7 @@ func CommentBatch(c *fiber.Ctx) error {
 		Update("status", int8(req.Status)).Error; err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
+	refreshApprovedCommentCounts(articleUIDs)
 	return handler.Success(c, nil)
 }
 
@@ -276,4 +338,83 @@ func normalizeCommentStatus(status *int8) int8 {
 		return int8(model.CommentStatusApproved)
 	}
 	return *status
+}
+
+func BuildCommentTree(comments []rtype.CommentResponse) []rtype.CommentResponse {
+	index := make(map[uint]*rtype.CommentResponse, len(comments))
+	children := make(map[uint][]*rtype.CommentResponse, len(comments))
+	roots := make([]*rtype.CommentResponse, 0, len(comments))
+	for i := range comments {
+		comments[i].Replies = nil
+		index[comments[i].ID] = &comments[i]
+	}
+	for i := range comments {
+		comment := &comments[i]
+		if comment.ParentID != 0 {
+			if _, ok := index[comment.ParentID]; ok {
+				children[comment.ParentID] = append(children[comment.ParentID], comment)
+				continue
+			}
+		}
+		roots = append(roots, comment)
+	}
+	var cloneWithReplies func(*rtype.CommentResponse) rtype.CommentResponse
+	cloneWithReplies = func(comment *rtype.CommentResponse) rtype.CommentResponse {
+		cloned := *comment
+		cloned.Replies = make([]rtype.CommentResponse, 0, len(children[comment.ID]))
+		for _, child := range children[comment.ID] {
+			cloned.Replies = append(cloned.Replies, cloneWithReplies(child))
+		}
+		if len(cloned.Replies) == 0 {
+			cloned.Replies = nil
+		}
+		return cloned
+	}
+	tree := make([]rtype.CommentResponse, 0, len(roots))
+	for _, root := range roots {
+		tree = append(tree, cloneWithReplies(root))
+	}
+	return tree
+}
+
+func commentArticleUIDs(ids []uint) ([]string, error) {
+	comments := make([]model.Comment, 0, len(ids))
+	if err := connect.Database.Where("id in ?", ids).Find(&comments).Error; err != nil {
+		return nil, err
+	}
+	seen := make(map[string]struct{}, len(comments))
+	result := make([]string, 0, len(comments))
+	for _, comment := range comments {
+		if comment.ArticleUID == "" {
+			continue
+		}
+		if _, ok := seen[comment.ArticleUID]; ok {
+			continue
+		}
+		seen[comment.ArticleUID] = struct{}{}
+		result = append(result, comment.ArticleUID)
+	}
+	return result, nil
+}
+
+func refreshApprovedCommentCounts(articleUIDs []string) {
+	for _, articleUID := range articleUIDs {
+		_ = refreshApprovedCommentCount(articleUID)
+	}
+}
+
+func refreshApprovedCommentCount(articleUID string) error {
+	if articleUID == "" {
+		return nil
+	}
+	var count int64
+	if err := connect.Database.Model(&model.Comment{}).
+		Where("article_uid = ?", articleUID).
+		Where(publicCommentStatusSQL()).
+		Count(&count).Error; err != nil {
+		return err
+	}
+	return connect.Database.Model(&model.Article{}).
+		Where("uid = ?", articleUID).
+		Update("comment_count", uint(count)).Error
 }

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+  <title>{{ Settings.GetStringValue("SiteTitle") }} - Archive</title>
+  {{ include "components/common_head" }}
+</head>
+
+<body>
+  {{ include "components/header" }}
+  <main class="container page-content">
+    <section class="page-heading">
+      <p class="page-kicker">Archive</p>
+      <h1>归档</h1>
+    </section>
+    <div class="archive-list">
+      {{ range Data }}
+      <section class="archive-group">
+        <h2>{{ .Month }}</h2>
+        <ul>
+          {{ range .Articles }}
+          <li>
+            <time>{{ .PostTime.Format("January 2") }}</time>
+            {{ if .Slug }}
+            <a href="/posts/{{ .Slug }}">{{ .Title }}</a>
+            {{ else }}
+            <a href="/articles/{{ .ID }}">{{ .Title }}</a>
+            {{ end }}
+          </li>
+          {{ end }}
+        </ul>
+      </section>
+      {{ else }}
+      <div class="empty-state">
+        <span class="empty-state-mark" aria-hidden="true"></span>
+        <h2>还没有归档</h2>
+        <p>公开文章发布后，会按月份汇总到这里。</p>
+      </div>
+      {{ end }}
+    </div>
+  </main>
+  {{ include "components/footer" RequestTimeDuration }}
+</body>
+
+</html>

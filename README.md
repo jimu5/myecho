@@ -2,6 +2,8 @@
 
 `myecho` is a Go blog application. The backend uses Fiber, GORM, Jet templates, Swagger docs, and a YAML runtime config. The admin frontend lives in the `fe/myecho-admin` Git submodule.
 
+Core blog features include posts, standalone pages, categories, tags, archive/search views, RSS, sitemap, comments with moderation, password-protected public content, media uploads, links, site settings, and installable Jet template themes.
+
 ## Repository Layout
 
 - `main.go`: application startup and middleware setup.
@@ -87,6 +89,17 @@ JSON APIs return a common envelope:
 
 Pagination responses put the list in `data` and page details in `meta.total`, `meta.page`, and `meta.page_size`. Errors use lowercase `code` and `msg`.
 
+## Public Routes
+
+- `/`: public post list with category, tag, keyword, and date filters.
+- `/articles/:id`: backward-compatible article detail route.
+- `/posts/:slug`: slug-based post detail route.
+- `/pages/:slug`: standalone page route; pages do not appear in the post list, RSS, or sitemap.
+- `/article/categories`, `/tags`, `/archive`, `/links`: discovery and link pages.
+- `/rss.xml`, `/sitemap.xml`: public feeds for displayable post content.
+
+Public/top posts with an article password are listed by title and summary, but their body is shown only after `POST /api/articles/:id/password` succeeds and sets the unlock cookie.
+
 ## Admin Frontend
 
 The admin app lives in the `fe/myecho-admin` submodule and uses npm. Build it into the backend static directory with:
@@ -123,7 +136,7 @@ Example `theme.json`:
 }
 ```
 
-Supported template override paths include `templates/index.jet.html`, `templates/article.jet.html`, `templates/category.jet.html`, `templates/link.jet.html`, and `templates/components/*.jet.html`. The admin theme preview uses a short-lived signed URL to render the real frontend with the selected theme before activation.
+Supported template override paths include `templates/index.jet.html`, `templates/article.jet.html`, `templates/article_password.jet.html`, `templates/category.jet.html`, `templates/tags.jet.html`, `templates/archive.jet.html`, `templates/link.jet.html`, and `templates/components/*.jet.html`. The admin theme preview uses a short-lived signed URL to render the real frontend with the selected theme before activation.
 
 ## AI Development Notes
 

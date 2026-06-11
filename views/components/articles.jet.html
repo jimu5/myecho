@@ -8,18 +8,26 @@
     <span>{{ .ReadCount }} 次阅读</span>
   </div>
   <h2>
+    {{ if .Slug }}
+    <a href="/posts/{{ .Slug }}">{{ .Title }}</a>
+    {{ else }}
     <a href="/articles/{{ .ID }}">{{ .Title }}</a>
+    {{ end }}
   </h2>
   <div class="article-block-tags">
     {{ range .Tags }}
-    <span>{{ .Name }}</span>
+    <a href="/?tag_uid={{ .UID }}">{{ .Name }}</a>
     {{ end }}
   </div>
   <div class="article-block-summary">
     {{ .Summary }}
   </div>
   <div class="article-block-actions">
+    {{ if .Slug }}
+    <a href="/posts/{{ .Slug }}" aria-label="阅读全文：{{ .Title }}">阅读全文</a>
+    {{ else }}
     <a href="/articles/{{ .ID }}" aria-label="阅读全文：{{ .Title }}">阅读全文</a>
+    {{ end }}
   </div>
 </article>
 {{ else }}

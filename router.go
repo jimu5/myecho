@@ -19,7 +19,11 @@ func SetupViewRouter(app *fiber.App) {
 		ViewRoute.Get("/rss.xml", view.RSS)
 		ViewRoute.Get("/sitemap.xml", view.Sitemap)
 		ViewRoute.Get("/articles/:id", view.ArticleRetrieve)
+		ViewRoute.Get("/posts/:slug", view.PostRetrieveBySlug)
+		ViewRoute.Get("/pages/:slug", view.PageRetrieveBySlug)
 		ViewRoute.Get("/article/categories", view.CategoryArticleAll)
+		ViewRoute.Get("/tags", view.TagArchive)
+		ViewRoute.Get("/archive", view.Archive)
 		ViewRoute.Get("/links", view.LinkAll)
 	}
 }

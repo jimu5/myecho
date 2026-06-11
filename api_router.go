@@ -61,6 +61,7 @@ func SetupApiRouter(app *fiber.App) {
 			// 文章相关
 			noNeedAuth.Get("/articles", api.ArticleDisplayList)
 			noNeedAuth.Get("/articles/:id", api.ArticleRetrieve)
+			noNeedAuth.Post("/articles/:id/password", api.ArticlePasswordUnlock)
 			noNeedAuth.Get("/articles/:id/comments", api.ArticleCommentList)
 			noNeedAuth.Post("/articles/:id/comments", api.CommentCreate)
 

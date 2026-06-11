@@ -1,13 +1,23 @@
 package service
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"log"
+	"myecho/config"
 	"myecho/config/static_config"
 	"myecho/dal"
 	"myecho/dal/mysql"
+	"myecho/model"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type ArticleService struct {
@@ -26,18 +36,28 @@ type ArticleRetrieveQueryParam struct {
 	ID               uint `json:"id"`
 	NoRead           bool `query:"no_read"`
 	IncludeNonPublic bool `json:"-"`
+	PasswordUnlocked bool `json:"-"`
 }
 
 var ErrArticleNotDisplayable = errors.New("article is not displayable")
+var ErrArticlePasswordRequired = errors.New("article password required")
+var ErrArticlePasswordInvalid = errors.New("article password invalid")
+
+const (
+	ArticlePasswordSecretKey    = "ArticlePasswordTokenSecret"
+	ArticlePasswordCookiePrefix = "myecho_article_unlock_"
+)
 
 func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam) (mysql.PageInfo, []*mysql.ArticleModel, error) {
 	status := mysql.ARTICLE_STATUS_TOP
+	articleType := model.ArticleTypePost
 	pageInfo := mysql.PageInfo{}
 	sqlParam, err := BuildArticleCommonQueryParam(param.CategoryUID, param.Keyword, param.TagUID, param.DateFrom, param.DateTo)
 	if err != nil {
 		return pageInfo, nil, err
 	}
 	sqlParam.Status = &status
+	sqlParam.Type = &articleType
 	total, err := dal.MySqlDB.Article.CountDisplayable(sqlParam)
 	if err != nil {
 		return pageInfo, nil, err
@@ -100,6 +120,9 @@ func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (mysq
 	if !param.IncludeNonPublic && !isArticleDisplayable(article.Status) {
 		return mysql.ArticleModel{}, ErrArticleNotDisplayable
 	}
+	if !param.IncludeNonPublic && article.Password != "" && !param.PasswordUnlocked {
+		return mysql.ArticleModel{}, ErrArticlePasswordRequired
+	}
 	if !param.NoRead {
 		go func() {
 			if err := dal.MySqlDB.Article.AddReadCountByID(article.ID, 1); err != nil {
@@ -108,6 +131,98 @@ func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (mysq
 		}()
 	}
 	return article, nil
+}
+
+func HashArticlePassword(password string) (string, error) {
+	password = strings.TrimSpace(password)
+	if password == "" {
+		return "", nil
+	}
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(hashedPassword), err
+}
+
+func CheckArticlePassword(storedPassword, password string) error {
+	if storedPassword == "" {
+		return nil
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(password)); err != nil {
+		return ErrArticlePasswordInvalid
+	}
+	return nil
+}
+
+func ArticlePasswordCookieName(articleID uint) string {
+	return fmt.Sprintf("%s%d", ArticlePasswordCookiePrefix, articleID)
+}
+
+func CreateArticlePasswordToken(article *mysql.ArticleModel) (string, error) {
+	if article == nil || article.ID == 0 || article.Password == "" {
+		return "", ErrArticlePasswordInvalid
+	}
+	secret, err := getArticlePasswordSecret()
+	if err != nil {
+		return "", err
+	}
+	return signArticlePassword(article.ID, article.Password, secret), nil
+}
+
+func ValidateArticlePasswordToken(article *mysql.ArticleModel, token string) bool {
+	if article == nil || article.ID == 0 || article.Password == "" || token == "" {
+		return false
+	}
+	secret, err := getArticlePasswordSecret()
+	if err != nil {
+		return false
+	}
+	expected := signArticlePassword(article.ID, article.Password, secret)
+	return hmac.Equal([]byte(expected), []byte(token))
+}
+
+func signArticlePassword(articleID uint, passwordHash, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(fmt.Sprintf("%d:%s", articleID, passwordHash)))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func getArticlePasswordSecret() (string, error) {
+	setting, err := dal.MySqlDB.Setting.GetByKey(ArticlePasswordSecretKey)
+	if err == nil && setting.Value != "" {
+		return setting.Value, nil
+	}
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return "", err
+	}
+	secret, err := randomArticleSecret()
+	if err != nil {
+		return "", err
+	}
+	setting = mysql.SettingModel{
+		Key:         ArticlePasswordSecretKey,
+		Value:       secret,
+		Type:        model.SettingModelTypeString,
+		Description: "Article password unlock token signing secret",
+		IsSystem:    true,
+	}
+	if err := dal.MySqlDB.Setting.Create(&setting); err != nil {
+		latest, latestErr := dal.MySqlDB.Setting.GetByKey(ArticlePasswordSecretKey)
+		if latestErr == nil && latest.Value != "" {
+			return latest.Value, nil
+		}
+		return "", err
+	}
+	if config.MySqlSettingModelCache != nil {
+		config.MySqlSettingModelCache.Set(setting.Key, &setting)
+	}
+	return secret, nil
+}
+
+func randomArticleSecret() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
 func isArticleDisplayable(status int8) bool {

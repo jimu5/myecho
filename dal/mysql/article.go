@@ -5,8 +5,10 @@ import (
 	"gorm.io/gorm/clause"
 	"myecho/model"
 	"myecho/utils"
+	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type ArticleDBRepo struct {
@@ -20,6 +22,9 @@ func (ArticleModel) TableName() string {
 func (article *ArticleModel) BeforeCreate(tx *gorm.DB) error {
 	if len(article.UID) == 0 {
 		article.UID = utils.GenUID20()
+	}
+	if err := article.prepareArticleFields(tx); err != nil {
+		return err
 	}
 	if article.Detail != nil {
 		if len(article.Detail.UID) == 0 {
@@ -42,10 +47,78 @@ func (article *ArticleModel) BeforeUpdate(tx *gorm.DB) error {
 	if article.ID == 0 {
 		return nil
 	}
+	if err := article.prepareArticleFields(tx); err != nil {
+		return err
+	}
 	if err := article.ReduceCategoryCount(tx); err != nil {
 		return err
 	}
 	return nil
+}
+
+func (article *ArticleModel) prepareArticleFields(tx *gorm.DB) error {
+	if article.Type == 0 {
+		article.Type = model.ArticleTypePost
+	}
+	if !model.IsValidArticleType(article.Type) {
+		article.Type = model.ArticleTypePost
+	}
+	baseSlug := normalizeArticleSlug(article.Slug)
+	if baseSlug == "" {
+		baseSlug = normalizeArticleSlug(article.Title)
+	}
+	if baseSlug == "" {
+		baseSlug = "post-" + article.UID
+	}
+	slug, err := uniqueArticleSlug(tx, baseSlug, article.Type, article.ID)
+	if err != nil {
+		return err
+	}
+	article.Slug = slug
+	return nil
+}
+
+func normalizeArticleSlug(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+			builder.WriteRune(r)
+			lastDash = false
+		case r >= '0' && r <= '9':
+			builder.WriteRune(r)
+			lastDash = false
+		case unicode.IsLetter(r) || unicode.IsNumber(r):
+			builder.WriteRune(r)
+			lastDash = false
+		default:
+			if !lastDash && builder.Len() > 0 {
+				builder.WriteByte('-')
+				lastDash = true
+			}
+		}
+	}
+	return strings.Trim(builder.String(), "-")
+}
+
+func uniqueArticleSlug(tx *gorm.DB, base string, articleType model.ArticleType, excludeID uint) (string, error) {
+	slug := base
+	for i := 2; ; i++ {
+		var count int64
+		query := tx.Model(&ArticleModel{}).Where("slug = ? AND type = ?", slug, articleType)
+		if excludeID != 0 {
+			query = query.Where("id <> ?", excludeID)
+		}
+		if err := query.Count(&count).Error; err != nil {
+			return "", err
+		}
+		if count == 0 {
+			return slug, nil
+		}
+		slug = base + "-" + strconv.Itoa(i)
+	}
 }
 
 func (article *ArticleModel) AfterUpdate(tx *gorm.DB) error {
@@ -66,7 +139,7 @@ func (article *ArticleModel) BeforeDelete(tx *gorm.DB) error {
 }
 
 func (article *ArticleModel) AddCategoryCount(tx *gorm.DB) error {
-	if article.Status == 1 && len(article.CategoryUID) != 0 {
+	if article.Status == 1 && article.Type == model.ArticleTypePost && len(article.CategoryUID) != 0 {
 		return tx.Model(&CategoryModel{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count + 1")).Error
 	}
 	return nil
@@ -77,7 +150,7 @@ func (article *ArticleModel) ReduceCategoryCount(tx *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	if oldArticle.Status == 1 && len(oldArticle.CategoryUID) != 0 {
+	if oldArticle.Status == 1 && oldArticle.Type == model.ArticleTypePost && len(oldArticle.CategoryUID) != 0 {
 		return tx.Model(&CategoryModel{}).Where("uid = ?", oldArticle.CategoryUID).Update("count", gorm.Expr("count - 1")).Error
 	}
 	return nil
@@ -99,6 +172,7 @@ const (
 type ArticleCommonQueryParam struct {
 	CategoryUID *string
 	Status      *ArticleStatus
+	Type        *model.ArticleType
 	Keyword     *string
 	TagUID      *string
 	DateFrom    *time.Time
@@ -131,6 +205,11 @@ func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryP
 		sql := "status = ?"
 		SqlPrefix = append(SqlPrefix, sql)
 		SqlValue = append(SqlValue, *param.Status)
+	}
+	if param.Type != nil {
+		sql := "type = ?"
+		SqlPrefix = append(SqlPrefix, sql)
+		SqlValue = append(SqlValue, *param.Type)
 	}
 	if param.Keyword != nil && strings.TrimSpace(*param.Keyword) != "" {
 		keyword := "%" + strings.TrimSpace(*param.Keyword) + "%"
@@ -235,6 +314,14 @@ func (a *ArticleDBRepo) Update(article *ArticleModel) error {
 func (a *ArticleDBRepo) FindByID(id uint) (ArticleModel, error) {
 	result := ArticleModel{}
 	err := db.Model(&ArticleModel{}).Preload(clause.Associations).First(&result, id).Error
+	return result, err
+}
+
+func (a *ArticleDBRepo) FindBySlug(slug string, articleType model.ArticleType) (ArticleModel, error) {
+	result := ArticleModel{}
+	err := db.Model(&ArticleModel{}).Preload(clause.Associations).
+		Where("slug = ? AND type = ?", slug, articleType).
+		First(&result).Error
 	return result, err
 }
 

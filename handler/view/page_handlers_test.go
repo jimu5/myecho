@@ -111,6 +111,102 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 	}
 }
 
+func TestPostPageTagAndArchiveViews(t *testing.T) {
+	setupViewThemeTestDB(t)
+	category := &mysql.CategoryModel{Name: "Tech", UID: "tech", Type: model.CategoryTypeArticle}
+	if err := (&mysql.CategoryRepo{}).Create(category); err != nil {
+		t.Fatalf("create category: %v", err)
+	}
+	tag := &model.Tag{Name: "Go", UID: "tag-go"}
+	if err := connect.Database.Create(tag).Error; err != nil {
+		t.Fatalf("create tag: %v", err)
+	}
+	repo := &mysql.ArticleDBRepo{}
+	post := &mysql.ArticleModel{
+		Title:       "Slug Post",
+		Slug:        "slug-post",
+		Type:        model.ArticleTypePost,
+		Summary:     "summary",
+		CategoryUID: category.UID,
+		Status:      int8(mysql.ARTILCE_STATUS_PUBLIC),
+		PostTime:    time.Date(2026, 6, 1, 10, 0, 0, 0, time.UTC),
+		Detail:      &model.ArticleDetail{Content: "post body"},
+		Tags:        []*model.Tag{tag},
+	}
+	page := &mysql.ArticleModel{
+		Title:    "About",
+		Slug:     "about",
+		Type:     model.ArticleTypePage,
+		Status:   int8(mysql.ARTILCE_STATUS_PUBLIC),
+		PostTime: time.Date(2026, 6, 2, 10, 0, 0, 0, time.UTC),
+		Detail:   &model.ArticleDetail{Content: "page body"},
+	}
+	if err := repo.Create(post); err != nil {
+		t.Fatalf("create post: %v", err)
+	}
+	if err := repo.Create(page); err != nil {
+		t.Fatalf("create page: %v", err)
+	}
+
+	postViews := &spyViews{}
+	app := fiber.New(fiber.Config{Views: postViews})
+	app.Get("/posts/:slug", PostRetrieveBySlug)
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/posts/slug-post?no_read=true", nil))
+	if err != nil {
+		t.Fatalf("post slug request error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK || postViews.template != "article" {
+		t.Fatalf("post slug status=%d template=%q", resp.StatusCode, postViews.template)
+	}
+	if got := postViews.data.(fiber.Map)["Data"].(mysql.ArticleModel); got.ID != post.ID {
+		t.Fatalf("post slug data = %+v, want id %d", got, post.ID)
+	}
+
+	pageViews := &spyViews{}
+	app = fiber.New(fiber.Config{Views: pageViews})
+	app.Get("/pages/:slug", PageRetrieveBySlug)
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodGet, "/pages/about?no_read=true", nil))
+	if err != nil {
+		t.Fatalf("page slug request error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK || pageViews.template != "article" {
+		t.Fatalf("page slug status=%d template=%q", resp.StatusCode, pageViews.template)
+	}
+	if got := pageViews.data.(fiber.Map)["Data"].(mysql.ArticleModel); got.ID != page.ID {
+		t.Fatalf("page slug data = %+v, want id %d", got, page.ID)
+	}
+
+	tagsViews := &spyViews{}
+	app = fiber.New(fiber.Config{Views: tagsViews})
+	app.Get("/tags", TagArchive)
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodGet, "/tags", nil))
+	if err != nil {
+		t.Fatalf("tags request error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK || tagsViews.template != "tags" {
+		t.Fatalf("tags status=%d template=%q", resp.StatusCode, tagsViews.template)
+	}
+	tagData := tagsViews.data.(fiber.Map)["Data"].([]TagArchiveItem)
+	if len(tagData) != 1 || tagData[0].UID != "tag-go" || tagData[0].Count != 1 {
+		t.Fatalf("tag archive data = %+v", tagData)
+	}
+
+	archiveViews := &spyViews{}
+	app = fiber.New(fiber.Config{Views: archiveViews})
+	app.Get("/archive", Archive)
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodGet, "/archive", nil))
+	if err != nil {
+		t.Fatalf("archive request error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK || archiveViews.template != "archive" {
+		t.Fatalf("archive status=%d template=%q", resp.StatusCode, archiveViews.template)
+	}
+	archiveData := archiveViews.data.(fiber.Map)["Data"].([]ArchiveGroup)
+	if len(archiveData) != 1 || archiveData[0].Month != "2026-06" || len(archiveData[0].Articles) != 1 {
+		t.Fatalf("archive data = %+v", archiveData)
+	}
+}
+
 func TestCategoryAndLinkPagesRenderData(t *testing.T) {
 	setupViewThemeTestDB(t)
 	articleCategory := &mysql.CategoryModel{Name: "Articles", UID: "article-cat", Type: model.CategoryTypeArticle}

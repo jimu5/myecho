@@ -1030,6 +1030,122 @@ footer p {
     color: var(--subtle-color);
 }
 
+.article-search,
+.password-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 0 0 28px;
+}
+
+.article-search input,
+.password-form input {
+    min-height: 44px;
+    flex: 1;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0 14px;
+    background: var(--card-color);
+    color: var(--text-color);
+}
+
+.article-search button,
+.password-form button {
+    min-height: 44px;
+    border: 0;
+    border-radius: 8px;
+    padding: 0 18px;
+    background: var(--link-hover-color);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.comment-trap {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.comment-replies {
+    margin-top: 14px;
+    padding-left: 18px;
+    border-left: 2px solid var(--border-color);
+}
+
+.comment-reply {
+    margin-top: 12px;
+    background: rgba(15, 118, 110, 0.04);
+}
+
+.tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.tag-cloud a {
+    display: inline-flex;
+    gap: 8px;
+    align-items: baseline;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 14px;
+    background: var(--card-color);
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+.tag-cloud a:hover {
+    border-color: rgba(15, 118, 110, 0.38);
+    color: var(--link-hover-color);
+}
+
+.tag-cloud small {
+    color: var(--muted-color);
+}
+
+.archive-list {
+    display: grid;
+    gap: 26px;
+}
+
+.archive-group h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+}
+
+.archive-group ul {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.archive-group li {
+    display: grid;
+    grid-template-columns: 112px minmax(0, 1fr);
+    gap: 14px;
+    align-items: baseline;
+}
+
+.archive-group time {
+    color: var(--muted-color);
+    font-size: 14px;
+}
+
+.archive-group a {
+    color: var(--text-color);
+    text-decoration: none;
+}
+
+.archive-group a:hover {
+    color: var(--link-hover-color);
+}
+
 /* Mobile */
 @media screen and (max-width: 720px) {
     .container,
@@ -1244,10 +1360,10 @@ footer p {
         margin-top: 32px;
     }
 
-    footer {
-        margin-top: 14px;
-        padding: 28px 0 34px;
-    }
+footer {
+    margin-top: 14px;
+    padding: 28px 0 34px;
+}
 }
 
 @media screen and (max-width: 420px) {

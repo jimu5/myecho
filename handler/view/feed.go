@@ -10,6 +10,7 @@ import (
 	"myecho/config"
 	"myecho/dal/connect"
 	"myecho/dal/mysql"
+	"myecho/model"
 )
 
 type rssDoc struct {
@@ -54,7 +55,7 @@ func RSS(c *fiber.Ctx) error {
 	baseURL := requestBaseURL(c)
 	items := make([]rssItem, 0, len(articles))
 	for _, article := range articles {
-		link := baseURL + "/articles/" + uintToString(article.ID)
+		link := baseURL + articlePublicPath(article)
 		items = append(items, rssItem{
 			Title:       article.Title,
 			Link:        link,
@@ -88,7 +89,7 @@ func Sitemap(c *fiber.Ctx) error {
 	}
 	for _, article := range articles {
 		urls = append(urls, sitemapURL{
-			Loc:     baseURL + "/articles/" + uintToString(article.ID),
+			Loc:     baseURL + articlePublicPath(article),
 			LastMod: article.UpdatedAt.Format("2006-01-02"),
 		})
 	}
@@ -101,10 +102,17 @@ func Sitemap(c *fiber.Ctx) error {
 func feedArticles() ([]mysql.ArticleModel, error) {
 	articles := make([]mysql.ArticleModel, 0)
 	err := connect.Database.Model(&mysql.ArticleModel{}).
-		Where("status in ?", []mysql.ArticleStatus{mysql.ARTILCE_STATUS_PUBLIC, mysql.ARTICLE_STATUS_TOP}).
+		Where("status in ? AND type = ?", displayableStatuses(), model.ArticleTypePost).
 		Order("post_time desc").
 		Find(&articles).Error
 	return articles, err
+}
+
+func articlePublicPath(article mysql.ArticleModel) string {
+	if article.Slug != "" {
+		return "/posts/" + article.Slug
+	}
+	return "/articles/" + uintToString(article.ID)
 }
 
 func writeXML(c *fiber.Ctx, payload interface{}) error {

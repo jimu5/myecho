@@ -638,7 +638,7 @@ func randomSecret() (string, error) {
 }
 
 func IsHiddenSettingKey(key string) bool {
-	return key == themePreviewSecretKey
+	return key == themePreviewSecretKey || key == ArticlePasswordSecretKey
 }
 
 func SafePreviewPath(value string) string {

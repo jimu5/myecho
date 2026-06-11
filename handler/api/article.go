@@ -41,6 +41,7 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 type ArticleAllListQueryParam struct {
 	CategoryUID *string              `query:"category_uid"`
 	Status      *mysql.ArticleStatus `query:"status"`
+	Type        *model.ArticleType   `query:"type"`
 	Keyword     *string              `query:"keyword"`
 	TagUID      *string              `query:"tag_uid"`
 	DateFrom    string               `query:"date_from"`
@@ -60,6 +61,7 @@ func ArticleAllList(c *fiber.Ctx) error {
 	if err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
+	sqlCommonParam.Type = queryParam.Type
 	if queryParam.Status != nil {
 		sqlCommonParam.Status = queryParam.Status
 		total, err = dal.MySqlDB.Article.CountAll(sqlCommonParam)
@@ -174,14 +176,18 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 	}
 	queryParam.ID = article.ID
 	queryParam.IncludeNonPublic = isAdminRequest(c)
+	queryParam.PasswordUnlocked = queryParam.IncludeNonPublic || service.ValidateArticlePasswordToken(&article, c.Cookies(service.ArticlePasswordCookieName(article.ID)))
 	article, err = service.S.Article.ArticleRetrieve(&queryParam)
 	if err != nil {
 		if stderrors.Is(err, service.ErrArticleNotDisplayable) {
 			return NotFoundErrorResponse(c, err.Error())
 		}
+		if stderrors.Is(err, service.ErrArticlePasswordRequired) {
+			return ValidateErrorResponse(c, err.Error())
+		}
 		return err
 	}
-	res := rtype.ModelToArticleResponse(&article)
+	res := rtype.ModelToUnlockedArticleResponse(&article)
 	return handler.Success(c, &res)
 }
 
@@ -201,6 +207,9 @@ func ArticleCreate(c *fiber.Ctx) error {
 	detail.Content = r.Content
 	r.SetSummary()
 	structAssign(&article, &r)
+	if err := setArticlePassword(&article, &r, ""); err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
 	article.Detail = &detail
 	user := handler.GetUserFromCtx(c)
 	article.AuthorID = user.ID
@@ -237,7 +246,11 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	}
 
 	r.SetSummary()
+	originPassword := article.Password
 	structAssign(&article, &r)
+	if err := setArticlePassword(&article, &r, originPassword); err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
 	article.Detail = &model.ArticleDetail{Content: r.Content}
 	tags, err := getTagsByUID(r.TagUIDs)
 	if err != nil {
@@ -255,6 +268,60 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	}
 	res := rtype.ModelToArticleResponse(&article)
 	return handler.Success(c, &res)
+}
+
+type ArticlePasswordRequest struct {
+	Password string `json:"password"`
+}
+
+func ArticlePasswordUnlock(c *fiber.Ctx) error {
+	var article mysql.ArticleModel
+	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
+		return NotFoundErrorResponse(c, err.Error())
+	}
+	if !isAPIArticleDisplayable(article.Status) {
+		return NotFoundErrorResponse(c, service.ErrArticleNotDisplayable.Error())
+	}
+	if article.Password == "" {
+		return handler.Success(c, nil)
+	}
+	var req ArticlePasswordRequest
+	if err := c.BodyParser(&req); err != nil {
+		return ParseErrorResponse(c, err.Error())
+	}
+	if err := service.CheckArticlePassword(article.Password, req.Password); err != nil {
+		return ValidateErrorResponse(c, err.Error())
+	}
+	token, err := service.CreateArticlePasswordToken(&article)
+	if err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
+	c.Cookie(&fiber.Cookie{
+		Name:     service.ArticlePasswordCookieName(article.ID),
+		Value:    token,
+		Path:     "/",
+		MaxAge:   60 * 60 * 24 * 30,
+		HTTPOnly: true,
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
+	return handler.Success(c, nil)
+}
+
+func setArticlePassword(article *mysql.ArticleModel, req *rtype.ArticleRequest, originPassword string) error {
+	if req.ClearPassword {
+		article.Password = ""
+		return nil
+	}
+	if strings.TrimSpace(req.Password) == "" {
+		article.Password = originPassword
+		return nil
+	}
+	hashedPassword, err := service.HashArticlePassword(req.Password)
+	if err != nil {
+		return err
+	}
+	article.Password = hashedPassword
+	return nil
 }
 
 // 删除文章
@@ -287,4 +354,8 @@ func isAdminRequest(c *fiber.Ctx) bool {
 		return false
 	}
 	return user.PermissionType == model.Admin
+}
+
+func isAPIArticleDisplayable(status int8) bool {
+	return status == int8(mysql.ARTILCE_STATUS_PUBLIC) || status == int8(mysql.ARTICLE_STATUS_TOP)
 }

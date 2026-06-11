@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+
+<head>
+  <title>{{ Settings.GetStringValue("SiteTitle") }} - Tags</title>
+  {{ include "components/common_head" }}
+</head>
+
+<body>
+  {{ include "components/header" }}
+  <main class="container page-content">
+    <section class="page-heading">
+      <p class="page-kicker">Tags</p>
+      <h1>标签</h1>
+    </section>
+    <div class="tag-cloud">
+      {{ range Data }}
+      <a href="/?tag_uid={{ .UID }}">
+        <span>{{ .Name }}</span>
+        <small>{{ .Count }} 篇</small>
+      </a>
+      {{ else }}
+      <div class="empty-state">
+        <span class="empty-state-mark" aria-hidden="true"></span>
+        <h2>还没有标签</h2>
+        <p>文章标签建立后，会在这里形成更细的阅读入口。</p>
+      </div>
+      {{ end }}
+    </div>
+  </main>
+  {{ include "components/footer" RequestTimeDuration }}
+</body>
+
+</html>

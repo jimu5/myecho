@@ -7,6 +7,17 @@ import (
 	"gorm.io/gorm"
 )
 
+type ArticleType int8
+
+const (
+	ArticleTypePost ArticleType = 1
+	ArticleTypePage ArticleType = 2
+)
+
+func IsValidArticleType(articleType ArticleType) bool {
+	return articleType == ArticleTypePost || articleType == ArticleTypePage
+}
+
 // 文章详情
 type ArticleDetail struct {
 	ID      uint   `gorm:"primarykey"`
@@ -21,6 +32,8 @@ type Article struct {
 	AuthorID       uint           `json:"author_id" gorm:"default:null"`
 	Author         *User          `json:"author"`
 	Title          string         `json:"title" gorm:"size:128"`
+	Slug           string         `json:"slug" gorm:"size:160;index"`
+	Type           ArticleType    `json:"type" gorm:"default:1;index"`
 	Summary        string         `json:"summary" gorm:"size:255"`
 	ReadCount      uint           `json:"read_count" gorm:"default:0"`
 	LikeCount      int            `json:"like_count" gorm:"default:0"`

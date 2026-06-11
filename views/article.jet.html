@@ -30,7 +30,7 @@
           <a href="/?category_uid={{ Data.CategoryUID }}" class="article-taxonomy-item">{{ Data.Category.Name }}</a>
           {{ end }}
           {{ range Data.Tags }}
-          <span class="article-taxonomy-item">{{ .Name }}</span>
+          <a href="/?tag_uid={{ .UID }}" class="article-taxonomy-item">{{ .Name }}</a>
           {{ end }}
         </div>
       </header>
@@ -52,6 +52,19 @@
             <span>{{ .PostTime.Format("January 2, 2006 15:04") }}</span>
           </header>
           <p>{{ .Content }}</p>
+          {{ if .Replies }}
+          <div class="comment-replies">
+            {{ range .Replies }}
+            <article class="comment-item comment-reply">
+              <header>
+                <strong>{{ .AuthorName }}</strong>
+                <span>{{ .PostTime.Format("January 2, 2006 15:04") }}</span>
+              </header>
+              <p>{{ .Content }}</p>
+            </article>
+            {{ end }}
+          </div>
+          {{ end }}
         </article>
         {{ else }}
         <div class="comment-empty">
@@ -79,6 +92,7 @@
           <span>内容</span>
           <textarea name="content" rows="5" required></textarea>
         </label>
+        <input class="comment-trap" name="trap" tabindex="-1" autocomplete="off" aria-hidden="true">
         <div class="comment-form-actions">
           <button type="submit">提交评论</button>
           <span class="comment-form-message" aria-live="polite"></span>
@@ -214,6 +228,7 @@
             author_email: formData.get('author_email'),
             author_url: formData.get('author_url'),
             content: formData.get('content'),
+            trap: formData.get('trap') || '',
           };
           if (submitButton) {
             submitButton.disabled = true;
