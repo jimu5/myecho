@@ -76,7 +76,7 @@ package: admin-build
 	@cp config.example.yaml ${PACKAGE_DIR}/config.example.yaml
 	@cp -R views ${PACKAGE_DIR}/views
 	@cp -R static/admin ${PACKAGE_DIR}/static/admin
-	@tar -czf ${PACKAGE_ARCHIVE} -C ${DIST_DIR} ${PACKAGE_NAME}
+	@COPYFILE_DISABLE=1 tar --no-xattrs -czf ${PACKAGE_ARCHIVE} -C ${DIST_DIR} ${PACKAGE_NAME}
 	@echo "package created: ${PACKAGE_ARCHIVE}"
 
 ## 清理二进制文件
