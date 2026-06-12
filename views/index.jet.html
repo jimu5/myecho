@@ -10,13 +10,27 @@
   {{ include "components/header" }}
   <main class="container page-content index-content">
     <section class="page-heading index-heading">
-      <p class="page-kicker">Journal</p>
-      <h1>最近更新</h1>
+      <div class="index-heading-main">
+        <div class="index-heading-title">
+          <p class="page-kicker">Journal</p>
+          <h1>最近更新</h1>
+        </div>
+        <div class="index-tools">
+          <form class="article-search" action="/" method="get" role="search" data-search-form>
+            <button class="article-search-toggle" type="button" aria-label="展开搜索" aria-expanded="false">
+              <span class="article-search-icon" aria-hidden="true"></span>
+              <span class="sr-only">搜索</span>
+            </button>
+            <div class="article-search-panel" hidden>
+              <input name="keyword" type="search" placeholder="搜索标题或摘要" aria-label="搜索标题或摘要" data-search-input>
+              <button class="article-search-submit" type="submit" aria-label="提交搜索">
+                <span class="article-search-submit-icon" aria-hidden="true"></span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </section>
-    <form class="article-search" action="/" method="get">
-      <input name="keyword" type="search" placeholder="搜索标题或摘要" aria-label="搜索标题或摘要">
-      <button type="submit">搜索</button>
-    </form>
     <section class="article-list" aria-label="文章列表">
       {{ include "components/articles" Data.PageData}}
     </section>

@@ -16,7 +16,12 @@
     <div class="link-list">
       {{ range Data }}
       <a href="{{ .URL }}" target="_blank" rel="noopener noreferrer" class="link-card">
-        <div class="link-card-image" style="background-image: url('{{ .IconURL }}');"></div>
+        <div class="link-card-image">
+          {{ if .IconURL }}
+          <img src="{{ .IconURL }}" alt="" loading="lazy" onload="this.nextElementSibling.hidden=true;" onerror="this.hidden=true;">
+          {{ end }}
+          <span class="link-card-fallback" aria-hidden="true"></span>
+        </div>
         <div class="link-card-content">
           <h3>{{ .Name }}</h3>
           <p>{{ .Description }}</p>
