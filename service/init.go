@@ -5,21 +5,23 @@ var (
 )
 
 type s struct {
-	Article  ArticleService
-	Setting  SettingService
-	Category CategoryService
-	Link     LinkService
-	File     FileService
-	Theme    ThemeService
+	Article    ArticleService
+	Setting    SettingService
+	Category   CategoryService
+	Link       LinkService
+	File       FileService
+	Theme      ThemeService
+	StaticPage StaticPageService
 }
 
 func newService() s {
 	return s{
-		Article:  ArticleService{},
-		Setting:  SettingService{},
-		Category: CategoryService{},
-		Link:     LinkService{},
-		File:     FileService{},
-		Theme:    ThemeService{},
+		Article:    ArticleService{},
+		Setting:    SettingService{},
+		Category:   CategoryService{},
+		Link:       LinkService{},
+		File:       FileService{},
+		Theme:      ThemeService{},
+		StaticPage: StaticPageService{},
 	}
 }

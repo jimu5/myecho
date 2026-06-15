@@ -44,6 +44,10 @@ func SetupApiRouter(app *fiber.App) {
 			apiRoute.Put("/links/:id", mw.Authentication, mw.AdminRequired, api.LinkUpdate)
 			apiRoute.Delete("/links/:id", mw.Authentication, mw.AdminRequired, api.LinkDelete)
 
+			apiRoute.Get("/static-pages", mw.Authentication, mw.AdminRequired, api.StaticPageList)
+			apiRoute.Post("/static-pages/upload", mw.Authentication, mw.AdminRequired, api.UploadStaticPage)
+			apiRoute.Delete("/static-pages/:name", mw.Authentication, mw.AdminRequired, api.DeleteStaticPage)
+
 			mos.Post("/files/vditor_upload", mw.Authentication, mw.AdminRequired, api.VditorFileUpload)
 			mos.Post("/files/upload", mw.Authentication, mw.AdminRequired, api.FileSingleUpload)
 			mos.Post("/save_url_file", mw.Authentication, mw.AdminRequired, api.FileSaveByLinkUrl)
