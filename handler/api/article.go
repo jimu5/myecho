@@ -13,6 +13,7 @@ import (
 	"myecho/middleware"
 	"myecho/model"
 	"myecho/service"
+	"myecho/utils"
 	"strings"
 )
 
@@ -204,6 +205,8 @@ func ArticleCreate(c *fiber.Ctx) error {
 	if err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
+	user := handler.GetUserFromCtx(c)
+	prepareArticleRequestForSave(&r, user)
 	detail.Content = r.Content
 	r.SetSummary()
 	structAssign(&article, &r)
@@ -211,7 +214,6 @@ func ArticleCreate(c *fiber.Ctx) error {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
 	article.Detail = &detail
-	user := handler.GetUserFromCtx(c)
 	article.AuthorID = user.ID
 	article.Author = user
 
@@ -241,10 +243,14 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
+	if r.ContentFormat == "" {
+		r.ContentFormat = model.NormalizeArticleContentFormat(article.ContentFormat)
+	}
 	if err := validator.ValidateArticleRequest(&r); err != nil {
 		return ValidateErrorResponse(c, err.Error())
 	}
 
+	prepareArticleRequestForSave(&r, handler.GetUserFromCtx(c))
 	r.SetSummary()
 	originPassword := article.Password
 	structAssign(&article, &r)
@@ -268,6 +274,17 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	}
 	res := rtype.ModelToArticleResponse(&article)
 	return handler.Success(c, &res)
+}
+
+func prepareArticleRequestForSave(req *rtype.ArticleRequest, user *model.User) {
+	req.ContentFormat = model.NormalizeArticleContentFormat(req.ContentFormat)
+	if req.ContentFormat != model.ArticleContentFormatHTML {
+		return
+	}
+	if user != nil && user.PermissionType == model.Admin {
+		return
+	}
+	req.Content = utils.SanitizeArticleHTML(req.Content)
 }
 
 type ArticlePasswordRequest struct {

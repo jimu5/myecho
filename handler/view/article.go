@@ -82,12 +82,13 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 		}
 		return err
 	}
-	// 解析成 markdown
-	var buf bytes.Buffer
-	if err = utils.MDParser.Convert([]byte(res.Detail.Content), &buf); err != nil {
-		return err
+	if res.Detail != nil {
+		content, err := renderArticleContent(res.Detail.Content, res.ContentFormat)
+		if err != nil {
+			return err
+		}
+		res.Detail.Content = content
 	}
-	res.Detail.Content = buf.String()
 	comments, err := approvedComments(res.UID)
 	if err != nil {
 		return err
@@ -101,6 +102,17 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 	data["Comments"] = comments
 	data["IsAllowComment"] = isAllowComment(res.IsAllowComment)
 	return c.Render("article", data)
+}
+
+func renderArticleContent(content string, contentFormat model.ArticleContentFormat) (string, error) {
+	if model.NormalizeArticleContentFormat(contentFormat) == model.ArticleContentFormatHTML {
+		return content, nil
+	}
+	var buf bytes.Buffer
+	if err := utils.MDParser.Convert([]byte(content), &buf); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 func isAllowComment(value *bool) bool {

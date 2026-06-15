@@ -48,6 +48,15 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 		IsAllowComment: boolPtr(true),
 		Detail:         &model.ArticleDetail{Content: "hello **world**"},
 	}
+	htmlArticle := &mysql.ArticleModel{
+		Title:         "HTML",
+		Summary:       "html summary",
+		CategoryUID:   category.UID,
+		Status:        int8(mysql.ARTILCE_STATUS_PUBLIC),
+		PostTime:      time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC),
+		ContentFormat: model.ArticleContentFormatHTML,
+		Detail:        &model.ArticleDetail{Content: `<section class="fancy"><style>.fancy{color:red}</style><h2>*Not Markdown*</h2></section>`},
+	}
 	draftArticle := &mysql.ArticleModel{
 		Title:    "Draft",
 		Status:   int8(mysql.ARTICLE_STATUS_DRAFT),
@@ -57,6 +66,9 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 	repo := &mysql.ArticleDBRepo{}
 	if err := repo.Create(publicArticle); err != nil {
 		t.Fatalf("create public article: %v", err)
+	}
+	if err := repo.Create(htmlArticle); err != nil {
+		t.Fatalf("create html article: %v", err)
 	}
 	if err := repo.Create(draftArticle); err != nil {
 		t.Fatalf("create draft article: %v", err)
@@ -83,7 +95,7 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 	}
 	listData := listViews.data.(fiber.Map)["Data"].(Pagination)
 	articles := listData.PageData.([]*mysql.ArticleModel)
-	if len(articles) != 1 || articles[0].Title != "Public" {
+	if len(articles) != 2 || articles[0].Title != "HTML" || articles[1].Title != "Public" {
 		t.Fatalf("list articles = %+v", articles)
 	}
 
@@ -108,6 +120,22 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 	}
 	if !detailData["IsAllowComment"].(bool) {
 		t.Fatal("IsAllowComment = false, want true")
+	}
+
+	htmlViews := &spyViews{}
+	app = fiber.New(fiber.Config{Views: htmlViews})
+	app.Get("/articles/:id", ArticleRetrieve)
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodGet, "/articles/"+strconv.Itoa(int(htmlArticle.ID))+"?no_read=true", nil))
+	if err != nil {
+		t.Fatalf("html detail request error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK || htmlViews.template != "article" {
+		t.Fatalf("html detail status=%d template=%q", resp.StatusCode, htmlViews.template)
+	}
+	htmlData := htmlViews.data.(fiber.Map)
+	htmlRendered := htmlData["Data"].(mysql.ArticleModel)
+	if !strings.Contains(htmlRendered.Detail.Content, `<section class="fancy">`) || strings.Contains(htmlRendered.Detail.Content, "<em>Not Markdown</em>") {
+		t.Fatalf("rendered html content = %q", htmlRendered.Detail.Content)
 	}
 }
 

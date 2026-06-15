@@ -23,6 +23,10 @@ func ValidateArticleRequest(articleRequest *rtype.ArticleRequest) error {
 	if !model.IsValidArticleType(articleRequest.Type) {
 		return errors.ErrInvalidParams
 	}
+	articleRequest.ContentFormat = model.NormalizeArticleContentFormat(articleRequest.ContentFormat)
+	if !model.IsValidArticleContentFormat(articleRequest.ContentFormat) {
+		return errors.ErrInvalidParams
+	}
 	if err := ValidateCategoryUID(articleRequest.CategoryUID); err != nil {
 		return err
 	}

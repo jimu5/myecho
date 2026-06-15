@@ -63,6 +63,10 @@ func (article *ArticleModel) prepareArticleFields(tx *gorm.DB) error {
 	if !model.IsValidArticleType(article.Type) {
 		article.Type = model.ArticleTypePost
 	}
+	article.ContentFormat = model.NormalizeArticleContentFormat(article.ContentFormat)
+	if !model.IsValidArticleContentFormat(article.ContentFormat) {
+		article.ContentFormat = model.ArticleContentFormatMarkdown
+	}
 	baseSlug := normalizeArticleSlug(article.Slug)
 	if baseSlug == "" {
 		baseSlug = normalizeArticleSlug(article.Title)

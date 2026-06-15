@@ -18,6 +18,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -224,7 +225,7 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 	if err := json.Unmarshal(wrapped.Data, &created); err != nil {
 		t.Fatalf("decode created article: %v", err)
 	}
-	if created.ID == 0 || created.Title != "Created" {
+	if created.ID == 0 || created.Title != "Created" || created.ContentFormat != model.ArticleContentFormatMarkdown {
 		t.Fatalf("created article = %+v", created)
 	}
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/all_articles?tag_uid=tag-go&page=1&page_size=10", "", "")
@@ -256,6 +257,62 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 	resp = doJSONRequest(t, app, fiber.MethodDelete, "/articles/3", admin.Token, "")
 	if resp.StatusCode != fiber.StatusNotFound {
 		t.Fatalf("delete status = %d, want 404 after batch delete", resp.StatusCode)
+	}
+}
+
+func TestArticleHandlersCreateHTMLContentFormat(t *testing.T) {
+	setupAPITestDB(t)
+	admin := createAPIUser(t, "admin", "admin-token", model.Admin)
+	category := seedArticleCategory(t)
+
+	app := fiber.New()
+	app.Use(middleware.CommonErrorHandler)
+	app.Get("/articles/:id", ArticleRetrieve)
+	app.Post("/articles", middleware.Authentication, middleware.AdminRequired, ArticleCreate)
+
+	htmlBody := `{"title":"HTML","content_format":"html","content":"<section onclick=\"spark()\"><script>window.sparked=true</script><p style=\"color:red\">wow</p></section>","category_uid":"` + category.UID + `","status":1}`
+	resp := doJSONRequest(t, app, fiber.MethodPost, "/articles", admin.Token, htmlBody)
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("admin html create status = %d, want 201", resp.StatusCode)
+	}
+	wrapped := decodeAPIResp(t, resp)
+	var created rtype.ArticleResponse
+	if err := json.Unmarshal(wrapped.Data, &created); err != nil {
+		t.Fatalf("decode html article: %v", err)
+	}
+	if created.ContentFormat != model.ArticleContentFormatHTML {
+		t.Fatalf("created content format = %q, want html", created.ContentFormat)
+	}
+
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/articles/"+strconv.Itoa(int(created.ID))+"?no_read=true", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("retrieve html article status = %d, want 200", resp.StatusCode)
+	}
+	wrapped = decodeAPIResp(t, resp)
+	var retrieved rtype.ArticleResponse
+	if err := json.Unmarshal(wrapped.Data, &retrieved); err != nil {
+		t.Fatalf("decode retrieved html article: %v", err)
+	}
+	if retrieved.Detail == nil || retrieved.Detail.Content != `<section onclick="spark()"><script>window.sparked=true</script><p style="color:red">wow</p></section>` {
+		t.Fatalf("admin html content was not preserved: %+v", retrieved.Detail)
+	}
+}
+
+func TestPrepareArticleRequestForSaveSanitizesHTMLForNonAdmin(t *testing.T) {
+	content := `<section onclick="spark()"><script>window.sparked=true</script><a href="javascript:alert(1)">bad</a><p>ok</p></section>`
+	adminReq := &rtype.ArticleRequest{ContentFormat: model.ArticleContentFormatHTML, Content: content}
+	prepareArticleRequestForSave(adminReq, &model.User{PermissionType: model.Admin})
+	if adminReq.Content != content {
+		t.Fatalf("admin html content changed: %q", adminReq.Content)
+	}
+
+	normalReq := &rtype.ArticleRequest{ContentFormat: model.ArticleContentFormatHTML, Content: content}
+	prepareArticleRequestForSave(normalReq, &model.User{PermissionType: model.Normal})
+	if strings.Contains(normalReq.Content, "<script") || strings.Contains(normalReq.Content, "onclick") || strings.Contains(normalReq.Content, "javascript:") {
+		t.Fatalf("non-admin html content still unsafe: %q", normalReq.Content)
+	}
+	if !strings.Contains(normalReq.Content, "<p>ok</p>") {
+		t.Fatalf("non-admin html content lost safe markup: %q", normalReq.Content)
 	}
 }
 

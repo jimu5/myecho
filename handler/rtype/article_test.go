@@ -19,6 +19,20 @@ func TestArticleRequestSetSummaryStripsMarkdownAndTruncatesRunes(t *testing.T) {
 	}
 }
 
+func TestArticleRequestSetSummaryStripsHTMLAndTruncatesRunes(t *testing.T) {
+	req := &ArticleRequest{
+		ContentFormat: model.ArticleContentFormatHTML,
+		Content:       `<section><h1>标题</h1><script>alert("x")</script><p>` + strings.Repeat("中", 300) + `</p></section>`,
+	}
+	req.SetSummary()
+	if strings.Contains(req.Summary, "<") || strings.Contains(req.Summary, "alert") {
+		t.Fatalf("summary still contains html or script text: %q", req.Summary)
+	}
+	if got := len([]rune(req.Summary)); got != 255 {
+		t.Fatalf("summary rune length = %d, want 255", got)
+	}
+}
+
 func TestArticleRequestPreHandleDeduplicatesTagUIDs(t *testing.T) {
 	req := &ArticleRequest{TagUIDs: []string{"a", "b", "a"}}
 	req.PreHandle()
@@ -46,6 +60,7 @@ func TestModelToArticleResponseHandlesNilAndNestedModels(t *testing.T) {
 		Author:         &model.User{BaseModel: model.BaseModel{ID: 7}, NickName: "Admin"},
 		Title:          "Title",
 		Summary:        "Summary",
+		ContentFormat:  model.ArticleContentFormatHTML,
 		DetailUID:      "detail-uid",
 		Detail:         &model.ArticleDetail{Content: "content"},
 		CategoryUID:    "cat",
@@ -62,7 +77,7 @@ func TestModelToArticleResponseHandlesNilAndNestedModels(t *testing.T) {
 	if got.Author.NickName != "Admin" || got.Category.Name != "Tech" || got.Detail.Content != "content" {
 		t.Fatalf("unexpected nested response: %+v", got)
 	}
-	if got.PostTime != postTime || got.ReadCount != 11 || len(got.Tags) != 1 {
+	if got.PostTime != postTime || got.ReadCount != 11 || len(got.Tags) != 1 || got.ContentFormat != model.ArticleContentFormatHTML {
 		t.Fatalf("unexpected scalar response: %+v", got)
 	}
 }
