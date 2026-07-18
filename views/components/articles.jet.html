@@ -1,7 +1,7 @@
 {{ range . }}
 <article class="article-block">
   <div class="article-block-meta">
-    <span>{{ .PostTime.Format("January 2, 2006") }}</span>
+    <span>{{ .PostTime.Format("2006年1月2日") }}</span>
     {{ if .Category }}
     <a href="/?category_uid={{ .CategoryUID }}">{{ .Category.Name }}</a>
     {{ end }}

@@ -98,6 +98,9 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 	if len(articles) != 2 || articles[0].Title != "HTML" || articles[1].Title != "Public" {
 		t.Fatalf("list articles = %+v", articles)
 	}
+	if listData.PageInfo.Total != 2 || listData.PageInfo.Page != 1 || listData.PageInfo.TotalPages != 1 {
+		t.Fatalf("list page info = %+v", listData.PageInfo)
+	}
 
 	detailViews := &spyViews{}
 	app = fiber.New(fiber.Config{Views: detailViews})
@@ -120,6 +123,11 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 	}
 	if !detailData["IsAllowComment"].(bool) {
 		t.Fatal("IsAllowComment = false, want true")
+	}
+	previousArticle := detailData["PreviousArticle"].(*mysql.ArticleModel)
+	nextArticle := detailData["NextArticle"].(*mysql.ArticleModel)
+	if previousArticle != nil || nextArticle == nil || nextArticle.ID != htmlArticle.ID || !detailData["HasArticleNeighbors"].(bool) {
+		t.Fatalf("article neighbors previous=%+v next=%+v", previousArticle, nextArticle)
 	}
 
 	htmlViews := &spyViews{}
@@ -203,6 +211,9 @@ func TestPostPageTagAndArchiveViews(t *testing.T) {
 	if got := pageViews.data.(fiber.Map)["Data"].(mysql.ArticleModel); got.ID != page.ID {
 		t.Fatalf("page slug data = %+v, want id %d", got, page.ID)
 	}
+	if pageViews.data.(fiber.Map)["HasArticleNeighbors"].(bool) {
+		t.Fatal("standalone page should not have post neighbors")
+	}
 
 	tagsViews := &spyViews{}
 	app = fiber.New(fiber.Config{Views: tagsViews})
@@ -230,7 +241,7 @@ func TestPostPageTagAndArchiveViews(t *testing.T) {
 		t.Fatalf("archive status=%d template=%q", resp.StatusCode, archiveViews.template)
 	}
 	archiveData := archiveViews.data.(fiber.Map)["Data"].([]ArchiveGroup)
-	if len(archiveData) != 1 || archiveData[0].Month != "2026-06" || len(archiveData[0].Articles) != 1 {
+	if len(archiveData) != 1 || archiveData[0].Month != "2026年6月" || len(archiveData[0].Articles) != 1 {
 		t.Fatalf("archive data = %+v", archiveData)
 	}
 }
@@ -285,16 +296,19 @@ func TestPageInfoResponseBuildsNavigationURLs(t *testing.T) {
 	app := fiber.New()
 	app.Get("/posts", func(c *fiber.Ctx) error {
 		first := getPageInfoRespByMysqlPageInfo(c, &mysql.PageInfo{Total: 21, Page: 1, PageSize: 10})
-		if first.Pre != "" || first.Next != "/posts?category=go&page=2" || first.Total != 0 {
+		if first.Pre != "" || first.Next != "/posts?category=go&page=2" || first.Total != 21 || first.Page != 1 || first.TotalPages != 3 {
 			t.Fatalf("first page info = %+v", first)
 		}
 		middle := getPageInfoRespByMysqlPageInfo(c, &mysql.PageInfo{Total: 25, Page: 2, PageSize: 10})
-		if middle.Pre != "/posts?category=go&page=1" || middle.Next != "/posts?category=go&page=3" {
+		if middle.Pre != "/posts?category=go&page=1" || middle.Next != "/posts?category=go&page=3" || middle.TotalPages != 3 {
 			t.Fatalf("middle page info = %+v", middle)
 		}
 		empty := getPageInfoRespByMysqlPageInfo(c, &mysql.PageInfo{Total: 0})
-		if empty.Total != 0 || empty.Next != "" || empty.Pre != "" {
+		if empty.Total != 0 || empty.Next != "" || empty.Pre != "" || empty.Page != 1 || empty.PageSize != 10 {
 			t.Fatalf("empty page info = %+v", empty)
+		}
+		if got := articleFilterLabel(c); got != "" {
+			t.Fatalf("articleFilterLabel() = %q, want empty", got)
 		}
 		if genRawUrl("/x", "a=1") != "/x?a=1" {
 			t.Fatal("genRawUrl() mismatch")
@@ -310,6 +324,23 @@ func TestPageInfoResponseBuildsNavigationURLs(t *testing.T) {
 	}
 	if resp.StatusCode != fiber.StatusNoContent {
 		t.Fatalf("status = %d, want 204", resp.StatusCode)
+	}
+
+	app = fiber.New()
+	app.Get("/filter", func(c *fiber.Ctx) error {
+		got := articleFilterLabel(c)
+		want := "关键词“Go” · 所选分类 · 所选标签 · 从 2026-01-01 · 到 2026-01-31"
+		if got != want {
+			t.Fatalf("articleFilterLabel() = %q, want %q", got, want)
+		}
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodGet, "/filter?keyword=Go&category_uid=cat&tag_uid=tag&date_from=2026-01-01&date_to=2026-01-31", nil))
+	if err != nil {
+		t.Fatalf("filter app.Test() error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusNoContent {
+		t.Fatalf("filter status = %d, want 204", resp.StatusCode)
 	}
 }
 

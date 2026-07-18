@@ -41,6 +41,9 @@ type ArticleBatchReq struct {
 }
 
 func (a *ArticleRequest) SetSummary() {
+	if strings.TrimSpace(a.Summary) != "" {
+		return
+	}
 	parseContent := articlePlainText(a.Content, a.ContentFormat)
 	// 转换 rune 类型, 用于处理中文
 	runeStr := []rune(parseContent)

@@ -82,7 +82,24 @@ func (s *ThemeRepo) Delete(id int64) error {
 	if theme.IsDefault {
 		return ErrThemeCantDeleteDefault
 	}
-	return db.Where("id = ?", id).Delete(&ThemeModel{}).Error
+	result := db.Unscoped().Where("id = ? AND is_active = ? AND is_default = ?", id, false, false).Delete(&ThemeModel{})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		current, err := s.GetByID(id)
+		if err != nil {
+			return err
+		}
+		if current.IsActive {
+			return ErrThemeCantDeleteActive
+		}
+		if current.IsDefault {
+			return ErrThemeCantDeleteDefault
+		}
+		return ErrThemeNotExist
+	}
+	return nil
 }
 
 // ActivateTheme 激活主题
@@ -121,12 +138,12 @@ func (s *ThemeRepo) InitDefaultTheme() error {
 	// 创建默认主题
 	defaultTheme := &ThemeModel{
 		Name:         "default",
-		DisplayName:  "默认主题",
+		DisplayName:  "森林手记",
 		Author:       "Myecho",
-		Version:      "1.0.0",
-		Description:  "博客系统默认主题",
+		Version:      "2.0.0",
+		Description:  "温暖纸张、森林绿与编辑部排版，适合个人写作。",
 		Preview:      "",
-		CSS:          ":root {\n  --font-color: #1a1a1a;\n  --bg-color: #ffffff;\n  --primary-color: #000000;\n  --secondary-color: #e9e9e9;\n}",
+		CSS:          "",
 		JS:           "",
 		IsDefault:    true,
 		IsActive:     true,

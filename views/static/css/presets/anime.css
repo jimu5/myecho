@@ -1,0 +1,187 @@
+:root {
+    --font-color: #302d48;
+    --muted-color: #6c6887;
+    --subtle-color: #7b69a1;
+    --border-color: rgba(103, 79, 164, 0.18);
+    --border-strong-color: rgba(103, 79, 164, 0.34);
+    --background-color: #fff7fc;
+    --surface-color: #fffafd;
+    --surface-raised-color: #ffffff;
+    --surface-muted-color: #f3eaff;
+    --hover-background-color: #f6edff;
+    --link-color: #7552d8;
+    --link-hover-color: #5739b3;
+    --action-background-color: #7552d8;
+    --action-hover-background-color: #5f40bf;
+    --on-action-color: #ffffff;
+    --warm-color: #b93670;
+    --gold-color: #d79827;
+    --success-color: #398f7a;
+    --danger-color: #d94c78;
+    --info-color: #3287c8;
+    --accent-glow-color: rgba(117, 82, 216, 0.13);
+    --warm-glow-color: rgba(237, 93, 157, 0.11);
+    --header-background-color: rgba(255, 247, 252, 0.9);
+    --header-highlight-color: rgba(255, 255, 255, 0.82);
+    --glass-color: rgba(255, 250, 253, 0.92);
+    --glass-strong-color: rgba(255, 250, 253, 0.97);
+    --glass-soft-color: rgba(255, 250, 253, 0.8);
+    --glass-muted-color: rgba(243, 234, 255, 0.7);
+    --content-divider-color: rgba(117, 82, 216, 0.15);
+    --blockquote-color: #5e577c;
+    --blockquote-background-color: rgba(237, 93, 157, 0.07);
+    --inline-code-color: #b53f76;
+    --inline-code-background-color: rgba(237, 93, 157, 0.09);
+    --inline-code-border-color: rgba(237, 93, 157, 0.2);
+    --shadow-color: rgba(103, 79, 164, 0.1);
+    --shadow-strong-color: rgba(103, 79, 164, 0.16);
+    --shadow-soft: 5px 5px 0 color-mix(in srgb, var(--link-color) 12%, transparent);
+    --shadow-panel: 8px 8px 0 color-mix(in srgb, var(--warm-color) 14%, transparent);
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --display-font: ui-rounded, "Hiragino Maru Gothic ProN", "PingFang SC", sans-serif;
+}
+
+body {
+    background:
+        radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--link-color) 11%, transparent) 1px, transparent 1.5px),
+        radial-gradient(circle at 8% -8%, var(--accent-glow-color), transparent 32rem),
+        radial-gradient(circle at 96% 12%, var(--warm-glow-color), transparent 28rem),
+        var(--background-color);
+    background-size: 22px 22px, auto, auto, auto;
+}
+
+.site-header {
+    border-bottom: 2px solid color-mix(in srgb, var(--warm-color) 42%, transparent);
+}
+
+.site-mark-symbol {
+    border: 2px solid color-mix(in srgb, var(--link-color) 28%, white);
+    border-radius: 50% 50% 50% 12px;
+    background: linear-gradient(145deg, var(--warm-color), var(--link-color));
+    box-shadow: 4px 4px 0 color-mix(in srgb, var(--link-color) 16%, transparent);
+    transform: rotate(-7deg);
+}
+
+.site-mark-symbol::after {
+    inset: 0;
+    display: grid;
+    place-items: center;
+    content: "☆";
+    border: 0;
+    color: #ffffff;
+    font-size: 21px;
+    font-weight: 900;
+    transform: rotate(7deg);
+}
+
+.page-kicker {
+    padding: 5px 10px;
+    border: 1px solid color-mix(in srgb, var(--warm-color) 38%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--warm-color) 9%, var(--surface-color));
+    color: var(--warm-color);
+    letter-spacing: 0.12em;
+}
+
+.page-heading h1,
+.article-title {
+    text-shadow: 3px 3px 0 color-mix(in srgb, var(--warm-color) 12%, transparent);
+}
+
+.article-block {
+    border: 2px solid color-mix(in srgb, var(--link-color) 24%, transparent);
+    box-shadow: var(--shadow-soft);
+}
+
+.article-block:nth-child(even) {
+    border-color: color-mix(in srgb, var(--warm-color) 28%, transparent);
+}
+
+.article-block::before {
+    height: 5px;
+    background: linear-gradient(90deg, var(--warm-color), var(--link-color), var(--info-color));
+    opacity: 0.9;
+}
+
+.article-block:hover {
+    box-shadow: var(--shadow-panel);
+    transform: translate(-2px, -2px);
+}
+
+.article-block-tags a,
+.article-taxonomy-item,
+.tag-cloud a {
+    border-width: 2px;
+    background: color-mix(in srgb, var(--link-color) 7%, var(--surface-color));
+}
+
+.article-block-actions a {
+    border-radius: 999px;
+    background: linear-gradient(135deg, var(--action-background-color), color-mix(in srgb, var(--action-background-color) 82%, var(--warm-color)));
+    box-shadow: 3px 3px 0 color-mix(in srgb, var(--link-color) 18%, transparent);
+}
+
+.article-block-actions a:hover {
+    background: linear-gradient(135deg, var(--action-hover-background-color), color-mix(in srgb, var(--action-hover-background-color) 82%, var(--warm-color)));
+}
+
+.empty-state,
+.archive-group,
+.link-card,
+.article-neighbor,
+.comment-form {
+    border-width: 2px;
+    box-shadow: 5px 5px 0 color-mix(in srgb, var(--link-color) 10%, transparent);
+}
+
+#article_content blockquote {
+    border: 2px solid color-mix(in srgb, var(--warm-color) 28%, transparent);
+    border-radius: var(--radius-md);
+}
+
+#article_content h2 {
+    border-top-color: color-mix(in srgb, var(--link-color) 20%, transparent);
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--warm-color) 34%, transparent);
+    text-decoration-thickness: 0.24em;
+    text-underline-offset: -0.08em;
+    text-decoration-skip-ink: none;
+}
+
+:root[data-myecho-color-mode-theme][data-myecho-color-mode="dark"] {
+    --font-color: #f2edff;
+    --muted-color: #bbb2d5;
+    --subtle-color: #cbb9f2;
+    --border-color: rgba(185, 156, 255, 0.22);
+    --border-strong-color: rgba(185, 156, 255, 0.4);
+    --background-color: #151323;
+    --surface-color: #211e35;
+    --surface-raised-color: #292541;
+    --surface-muted-color: #30294d;
+    --hover-background-color: #352e55;
+    --link-color: #b99cff;
+    --link-hover-color: #d8c8ff;
+    --action-background-color: #6548b8;
+    --action-hover-background-color: #7354c3;
+    --warm-color: #ff78b5;
+    --gold-color: #ffd06d;
+    --info-color: #70c9ff;
+    --accent-glow-color: rgba(185, 156, 255, 0.13);
+    --warm-glow-color: rgba(255, 120, 181, 0.1);
+    --header-background-color: rgba(21, 19, 35, 0.9);
+    --header-highlight-color: rgba(255, 255, 255, 0.05);
+    --glass-color: rgba(33, 30, 53, 0.92);
+    --glass-strong-color: rgba(41, 37, 65, 0.97);
+    --glass-soft-color: rgba(33, 30, 53, 0.8);
+    --glass-muted-color: rgba(48, 41, 77, 0.72);
+    --content-divider-color: rgba(185, 156, 255, 0.18);
+    --blockquote-color: #d0c6e8;
+    --blockquote-background-color: rgba(255, 120, 181, 0.08);
+    --inline-code-color: #ff9ac7;
+    --inline-code-background-color: rgba(255, 120, 181, 0.1);
+    --inline-code-border-color: rgba(255, 120, 181, 0.22);
+    --shadow-color: rgba(0, 0, 0, 0.2);
+    --shadow-strong-color: rgba(0, 0, 0, 0.3);
+}

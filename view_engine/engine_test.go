@@ -99,6 +99,101 @@ func TestThemeSetFallsBackWhenThemeDirectoryMissing(t *testing.T) {
 	}
 }
 
+func TestRenderFallsBackWhenThemeTemplateIsInvalid(t *testing.T) {
+	workingDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(workingDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	viewDir := filepath.Join(workingDir, "views")
+	writeTemplate(t, viewDir, "page.jet.html", "base")
+	writeTemplate(t, filepath.Join(workingDir, "storage", "themes", "broken", "templates"), "page.jet.html", `{{ definitely_missing() }}`)
+	engine := newTestEngine(viewDir)
+	theme := &mysql.ThemeModel{
+		BaseModel:    model.BaseModel{UpdatedAt: time.Unix(300, 0)},
+		Name:         "broken",
+		HasTemplates: true,
+	}
+
+	var out strings.Builder
+	if err := engine.Render(&out, "page.jet.html", fiber.Map{"Theme": theme}); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	if out.String() != "base" {
+		t.Fatalf("Render() = %q, want default fallback", out.String())
+	}
+}
+
+func TestRenderInjectsThemeScriptIntoLegacyThemeTemplate(t *testing.T) {
+	workingDir := t.TempDir()
+	oldWd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(workingDir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWd) })
+
+	viewDir := filepath.Join(workingDir, "views")
+	writeTemplate(t, viewDir, "page.jet.html", "base")
+	writeTemplate(t, filepath.Join(workingDir, "storage", "themes", "legacy", "templates"), "page.jet.html", `<html><body><main>legacy</main></body></html>`)
+	engine := newTestEngine(viewDir)
+	theme := &mysql.ThemeModel{
+		BaseModel:    model.BaseModel{UpdatedAt: time.Unix(400, 0)},
+		Name:         "legacy",
+		HasTemplates: true,
+		JS:           `window.legacyTheme = "ready";`,
+	}
+
+	var out strings.Builder
+	if err := engine.Render(&out, "page.jet.html", fiber.Map{"Theme": theme}); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+	result := out.String()
+	if !strings.Contains(result, `window.legacyTheme = "ready";`) || strings.Contains(result, "&#34;") {
+		t.Fatalf("Render() theme script = %q", result)
+	}
+	if strings.Index(result, "data-myecho-theme-runtime") > strings.Index(result, "</body>") {
+		t.Fatalf("theme script must be injected before body end: %q", result)
+	}
+}
+
+func TestInjectThemeScriptDoesNotDuplicateLegacyInlineScript(t *testing.T) {
+	theme := &mysql.ThemeModel{JS: `window.legacyTheme = "ready";`}
+	content := `<html><body><script>` + theme.JS + `</script></body></html>`
+	result := injectThemeScript(content, theme)
+	if strings.Count(result, theme.JS) != 1 {
+		t.Fatalf("theme script count = %d, want 1: %q", strings.Count(result, theme.JS), result)
+	}
+}
+
+func TestThemeScriptComponentRendersTrustedCodeAtBodyEnd(t *testing.T) {
+	engine := newTestEngine(filepath.Join("..", "views"))
+	theme := &mysql.ThemeModel{Name: "inline", JS: `window.inlineTheme = "ready";`}
+
+	var out strings.Builder
+	if err := engine.Render(&out, "components/theme_script.jet.html", fiber.Map{"Theme": theme}); err != nil {
+		t.Fatalf("Render(theme script) error = %v", err)
+	}
+	result := out.String()
+	if !strings.Contains(result, `window.inlineTheme = "ready";`) || strings.Contains(result, "&#34;") {
+		t.Fatalf("theme script output = %q", result)
+	}
+}
+
+func TestDefaultArticleTemplateParses(t *testing.T) {
+	engine := newTestEngine(filepath.Join("..", "views"))
+	if _, err := engine.Set.GetTemplate("article.jet.html"); err != nil {
+		t.Fatalf("parse article template: %v", err)
+	}
+}
+
 func TestThemeNameValidation(t *testing.T) {
 	if !isSafeThemeName("clean-theme_1") {
 		t.Fatal("isSafeThemeName(valid) = false")

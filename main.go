@@ -35,7 +35,12 @@ func main() {
 	connect.ConnectDB()
 	mysql.InitDB()
 	config.InitConfig()
-	service.S.Theme.InitDefaultTheme() // 初始化默认主题
+	if err := service.S.Theme.InitDefaultTheme(); err != nil {
+		log.Fatal(err)
+	}
+	if err := service.S.Theme.InitPresetThemes(); err != nil {
+		log.Fatal(err)
+	}
 	app.Use(recover.New(recover.Config{
 		EnableStackTrace: true,
 	}))

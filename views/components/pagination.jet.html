@@ -2,7 +2,10 @@
   {{ if .Pre }}
     <a href="{{ .Pre }}">上一页</a>
   {{ end }}
+  {{ if .TotalPages }}
+    <span class="pagination-status">第 {{ .Page }} / {{ .TotalPages }} 页</span>
+  {{ end }}
   {{ if .Next }}
-    <a style="padding-right: 20px;" href="{{ .Next }}">下一页</a>
+    <a href="{{ .Next }}">下一页</a>
   {{ end }}
 </div>

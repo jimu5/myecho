@@ -67,6 +67,16 @@ func TestArticleRepoQueriesMutationsAndReadCount(t *testing.T) {
 			t.Fatalf("create article %s: %v", article.Title, err)
 		}
 	}
+	var countedRoot, countedChild CategoryModel
+	if err := db.Where("uid = ?", category.UID).First(&countedRoot).Error; err != nil {
+		t.Fatalf("load root category count: %v", err)
+	}
+	if err := db.Where("uid = ?", childCategory.UID).First(&countedChild).Error; err != nil {
+		t.Fatalf("load child category count: %v", err)
+	}
+	if countedRoot.Count != 1 || countedChild.Count != 1 {
+		t.Fatalf("category counts root=%d child=%d, want public and top counted", countedRoot.Count, countedChild.Count)
+	}
 	if err := db.Table("article_tags").Create(map[string]interface{}{"article_uid": publicArticle.UID, "tag_uid": tag.UID}).Error; err != nil {
 		t.Fatalf("create article tag relation: %v", err)
 	}
@@ -77,6 +87,11 @@ func TestArticleRepoQueriesMutationsAndReadCount(t *testing.T) {
 	}
 	if len(all) != 3 {
 		t.Fatalf("PageFindAll() len = %d, want 3", len(all))
+	}
+	for _, article := range all {
+		if article.Detail != nil {
+			t.Fatalf("PageFindAll() loaded article detail for %q", article.Title)
+		}
 	}
 	notTop, err := repo.PageFindByNotVisibility(&PageFindParam{NoPage: true}, PageFindArticleByNotStatusParam{
 		ArticleCommonQueryParam: ArticleCommonQueryParam{Status: ptrArticleStatus(ARTICLE_STATUS_TOP)},
@@ -144,6 +159,9 @@ func TestArticleRepoQueriesMutationsAndReadCount(t *testing.T) {
 	if err := repo.DeleteByID(draftArticle.ID); err != nil {
 		t.Fatalf("DeleteByID() error = %v", err)
 	}
+	if err := db.Model(&CategoryModel{}).Where("uid = ?", childCategory.UID).Update("count", 0).Error; err != nil {
+		t.Fatalf("simulate legacy top category count: %v", err)
+	}
 	if err := repo.BatchUpdateStatus([]uint{topArticle.ID}, ARTICLE_STATUS_DRAFT); err != nil {
 		t.Fatalf("BatchUpdateStatus() error = %v", err)
 	}
@@ -153,6 +171,12 @@ func TestArticleRepoQueriesMutationsAndReadCount(t *testing.T) {
 	}
 	if updatedTop.Status != int8(ARTICLE_STATUS_DRAFT) {
 		t.Fatalf("top status = %d, want draft", updatedTop.Status)
+	}
+	if err := db.Where("uid = ?", childCategory.UID).First(&countedChild).Error; err != nil {
+		t.Fatalf("reload child category count: %v", err)
+	}
+	if countedChild.Count != 0 {
+		t.Fatalf("child category count = %d after top becomes draft, want 0", countedChild.Count)
 	}
 	if err := repo.BatchDelete([]uint{topArticle.ID}); err != nil {
 		t.Fatalf("BatchDelete() error = %v", err)

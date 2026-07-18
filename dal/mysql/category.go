@@ -55,6 +55,26 @@ func (c *CategoryRepo) AllByType(_type model.CategoryType) ([]*CategoryModel, er
 	return res, err
 }
 
+func (c *CategoryRepo) DisplayablePostCounts() (map[string]uint, error) {
+	rows := make([]struct {
+		CategoryUID string
+		Count       uint
+	}, 0)
+	err := db.Model(&ArticleModel{}).
+		Select("category_uid, COUNT(*) AS count").
+		Where("type = ? AND status in ? AND category_uid <> ''", model.ArticleTypePost, []ArticleStatus{ARTILCE_STATUS_PUBLIC, ARTICLE_STATUS_TOP}).
+		Group("category_uid").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+	counts := make(map[string]uint, len(rows))
+	for _, row := range rows {
+		counts[row.CategoryUID] = row.Count
+	}
+	return counts, nil
+}
+
 func (c *CategoryRepo) Create(categoryModel *CategoryModel) error {
 	return db.Create(categoryModel).Error
 }

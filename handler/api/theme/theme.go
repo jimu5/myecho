@@ -164,18 +164,21 @@ func UpdateTheme(c *fiber.Ctx) error {
 		theme.JS = js
 	}
 	if config, ok := updateData["config"]; ok {
-		// 确保 config 是 map[string]interface{} 类型
-		if configMap, ok := config.(map[string]interface{}); ok {
-			if err := (*model.Theme)(theme).SetConfig(configMap); err != nil {
-				return err
-			}
+		configMap, valid := config.(map[string]interface{})
+		if !valid {
+			return errors.ErrInvalidParams
+		}
+		if err := (*model.Theme)(theme).SetConfig(configMap); err != nil {
+			return err
 		}
 	}
 	if configSchema, ok := updateData["config_schema"]; ok {
-		if schema, ok := configSchemaFromValue(configSchema); ok {
-			if err := (*model.Theme)(theme).SetConfigSchema(schema); err != nil {
-				return err
-			}
+		schema, valid := configSchemaFromValue(configSchema)
+		if !valid {
+			return errors.ErrInvalidParams
+		}
+		if err := (*model.Theme)(theme).SetConfigSchema(schema); err != nil {
+			return err
 		}
 	}
 
@@ -305,6 +308,7 @@ func buildThemeResponseWithConfig(theme *mysql.ThemeModel, config map[string]int
 		"js":             theme.JS,
 		"is_default":     theme.IsDefault,
 		"is_active":      theme.IsActive,
+		"is_bundled":     service.IsBundledTheme(theme),
 		"has_templates":  theme.HasTemplates,
 		"asset_base_url": service.ThemeAssetBaseURL(theme.Name),
 		"config":         config,

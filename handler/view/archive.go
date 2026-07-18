@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm/clause"
 
 	"myecho/dal/connect"
 	"myecho/dal/mysql"
@@ -45,7 +44,7 @@ func TagArchive(c *fiber.Ctx) error {
 func Archive(c *fiber.Ctx) error {
 	articles := make([]mysql.ArticleModel, 0)
 	if err := connect.Database.Model(&mysql.ArticleModel{}).
-		Preload(clause.Associations).
+		Select("id, slug, title, post_time").
 		Where("status in ? AND type = ?", displayableStatuses(), model.ArticleTypePost).
 		Order("post_time desc").
 		Find(&articles).Error; err != nil {
@@ -74,7 +73,7 @@ func archiveMonth(value time.Time) string {
 	if value.IsZero() {
 		value = time.Now()
 	}
-	return value.Format("2006-01")
+	return value.Format("2006年1月")
 }
 
 func displayableStatuses() []mysql.ArticleStatus {

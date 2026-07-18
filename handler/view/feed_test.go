@@ -71,7 +71,12 @@ func TestRSSAndSitemapOnlyIncludeDisplayableArticles(t *testing.T) {
 		t.Fatalf("sitemap app.Test() error = %v", err)
 	}
 	body = readRespBody(t, resp)
-	if !strings.Contains(body, "/posts/public-post") || strings.Contains(body, "/articles/2") || strings.Contains(body, "/pages/about") {
+	for _, path := range []string{"/article/categories", "/tags", "/archive", "/links", "/posts/public-post", "/pages/about"} {
+		if !strings.Contains(body, path) {
+			t.Fatalf("sitemap body missing %q: %s", path, body)
+		}
+	}
+	if strings.Contains(body, "/posts/draft") {
 		t.Fatalf("sitemap body = %s", body)
 	}
 }

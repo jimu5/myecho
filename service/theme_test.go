@@ -4,12 +4,14 @@ import (
 	"archive/zip"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"myecho/dal"
 	"myecho/dal/mysql"
 	"myecho/model"
 )
@@ -79,6 +81,142 @@ func TestThemeAssetURLRejectsTraversal(t *testing.T) {
 	}
 	if got := themeAssetURL("clean_theme", "assets/main.css"); got != "/themes/clean_theme/assets/main.css" {
 		t.Fatalf("themeAssetURL() = %q, want valid asset URL", got)
+	}
+}
+
+func TestInitPresetThemesIsIdempotentAndPreservesActiveTheme(t *testing.T) {
+	setupServiceTestDB(t)
+	svc := &ThemeService{}
+	active := &mysql.ThemeModel{Name: "custom", DisplayName: "Custom", IsActive: true}
+	if err := svc.CreateTheme(active); err != nil {
+		t.Fatalf("CreateTheme(active) error = %v", err)
+	}
+
+	if err := svc.InitPresetThemes(); err != nil {
+		t.Fatalf("InitPresetThemes() error = %v", err)
+	}
+	if err := svc.InitPresetThemes(); err != nil {
+		t.Fatalf("InitPresetThemes(second) error = %v", err)
+	}
+
+	themes, err := svc.GetAllThemes()
+	if err != nil {
+		t.Fatalf("GetAllThemes() error = %v", err)
+	}
+	if len(themes) != 4 {
+		t.Fatalf("theme count = %d, want custom plus three presets", len(themes))
+	}
+	presetCSS := map[string]string{
+		"paper": `@import url("/static/css/presets/paper.css");`,
+		"night": `@import url("/static/css/presets/night.css");`,
+		"anime": `@import url("/static/css/presets/anime.css");`,
+	}
+	for name, wantCSS := range presetCSS {
+		preset, err := svc.GetThemeByName(name)
+		if err != nil {
+			t.Fatalf("GetThemeByName(%s) error = %v", name, err)
+		}
+		config, err := (*model.Theme)(preset).GetConfig()
+		if err != nil || config["bundled"] != true || config["supports_color_mode"] != true || preset.CSS != wantCSS {
+			t.Fatalf("preset %s config=%+v css=%q err=%v", name, config, preset.CSS, err)
+		}
+	}
+	gotActive, err := svc.GetActiveTheme()
+	if err != nil || gotActive.ID != active.ID {
+		t.Fatalf("active theme = %+v, err = %v", gotActive, err)
+	}
+}
+
+func TestInitPresetThemesPreservesExistingTheme(t *testing.T) {
+	setupServiceTestDB(t)
+	svc := &ThemeService{}
+	existing := &mysql.ThemeModel{Name: "anime", DisplayName: "Custom Anime", CSS: ".custom-anime {}"}
+	if err := svc.CreateTheme(existing); err != nil {
+		t.Fatalf("CreateTheme(existing) error = %v", err)
+	}
+
+	if err := svc.InitPresetThemes(); err != nil {
+		t.Fatalf("InitPresetThemes() error = %v", err)
+	}
+	got, err := svc.GetThemeByName("anime")
+	if err != nil {
+		t.Fatalf("GetThemeByName(anime) error = %v", err)
+	}
+	if got.ID != existing.ID || got.DisplayName != existing.DisplayName || got.CSS != existing.CSS {
+		t.Fatalf("existing theme was overwritten: %+v", got)
+	}
+}
+
+func TestInitPresetThemesMarksLegacyBundledTheme(t *testing.T) {
+	setupServiceTestDB(t)
+	svc := &ThemeService{}
+	legacy := &mysql.ThemeModel{
+		Name:        "paper",
+		DisplayName: "Legacy Paper",
+		Author:      "Myecho",
+		CSS:         `@import url("/static/css/presets/paper.css");`,
+	}
+	if err := (*model.Theme)(legacy).SetConfig(map[string]interface{}{"supports_color_mode": true}); err != nil {
+		t.Fatalf("SetConfig(legacy) error = %v", err)
+	}
+	if err := svc.CreateTheme(legacy); err != nil {
+		t.Fatalf("CreateTheme(legacy) error = %v", err)
+	}
+
+	if err := svc.InitPresetThemes(); err != nil {
+		t.Fatalf("InitPresetThemes() error = %v", err)
+	}
+	got, err := svc.GetThemeByName("paper")
+	if err != nil {
+		t.Fatalf("GetThemeByName(paper) error = %v", err)
+	}
+	if got.DisplayName != legacy.DisplayName || !IsBundledTheme(got) {
+		t.Fatalf("legacy preset was not marked in place: %+v", got)
+	}
+}
+
+func TestBundledFlagIsServerOwned(t *testing.T) {
+	setupServiceTestDB(t)
+	svc := &ThemeService{}
+	theme := &mysql.ThemeModel{
+		Name:        "anime",
+		DisplayName: "Custom Anime",
+		CSS:         `@import url("/static/css/presets/anime.css");`,
+	}
+	if err := (*model.Theme)(theme).SetConfig(map[string]interface{}{"bundled": true}); err != nil {
+		t.Fatalf("SetConfig(theme) error = %v", err)
+	}
+	if err := svc.CreateTheme(theme); err != nil {
+		t.Fatalf("CreateTheme(theme) error = %v", err)
+	}
+	if IsBundledTheme(theme) {
+		t.Fatal("CreateTheme accepted the internal bundled flag")
+	}
+}
+
+func TestBundledThemeCannotBeChangedOrDeleted(t *testing.T) {
+	setupServiceTestDB(t)
+	svc := &ThemeService{}
+	if err := svc.InitPresetThemes(); err != nil {
+		t.Fatalf("InitPresetThemes() error = %v", err)
+	}
+	anime, err := svc.GetThemeByName("anime")
+	if err != nil {
+		t.Fatalf("GetThemeByName(anime) error = %v", err)
+	}
+
+	anime.DisplayName = "Changed"
+	if err := svc.UpdateTheme(anime); !errors.Is(err, ErrBundledThemeImmutable) {
+		t.Fatalf("UpdateTheme(bundled) error = %v, want ErrBundledThemeImmutable", err)
+	}
+	if err := svc.DeleteTheme(int64(anime.ID)); !errors.Is(err, ErrBundledThemeImmutable) {
+		t.Fatalf("DeleteTheme(bundled) error = %v, want ErrBundledThemeImmutable", err)
+	}
+	overrideZip := writeThemeZip(t, map[string]string{
+		"theme/theme.json": `{"name":"anime","display_name":"Override"}`,
+	})
+	if _, err := svc.InstallThemePackage(overrideZip); !errors.Is(err, ErrBundledThemeImmutable) {
+		t.Fatalf("InstallThemePackage(bundled) error = %v, want ErrBundledThemeImmutable", err)
 	}
 }
 
@@ -167,6 +305,19 @@ func TestThemeHelpersRejectInvalidInputs(t *testing.T) {
 	if got := themeJS(t.TempDir(), "../bad.js"); got != "" {
 		t.Fatalf("themeJS(traversal) = %q, want empty", got)
 	}
+	if _, err := ValidateThemeName("../bad"); err == nil {
+		t.Fatal("ValidateThemeName(traversal) expected error")
+	}
+	if _, err := themeStoragePath(".."); err == nil {
+		t.Fatal("themeStoragePath(traversal) expected error")
+	}
+
+	largeManifest := writeThemeZip(t, map[string]string{
+		"theme/theme.json": `{"name":"large","description":"` + strings.Repeat("x", maxThemeManifestBytes) + `"}`,
+	})
+	if _, _, err := readThemeManifest(largeManifest); err == nil || !strings.Contains(err.Error(), "too large") {
+		t.Fatalf("readThemeManifest(large) error = %v, want size error", err)
+	}
 }
 
 func TestThemePackageValidationAndTemplateHelpers(t *testing.T) {
@@ -197,6 +348,9 @@ func TestThemePackageValidationAndTemplateHelpers(t *testing.T) {
 	})
 	if err := validateThemePackage(unsupportedZip, "theme"); err == nil || !strings.Contains(err.Error(), "unsupported file type") {
 		t.Fatalf("validateThemePackage() error = %v, want unsupported file type", err)
+	}
+	if err := validateThemeAssets(t.TempDir(), &ThemeManifest{CSS: "missing.css"}); err == nil || !strings.Contains(err.Error(), "file not found") {
+		t.Fatalf("validateThemeAssets(missing asset) error = %v, want missing file", err)
 	}
 
 	themeDir := t.TempDir()
@@ -328,6 +482,48 @@ func TestDeleteThemeRemovesCustomThemeDirectory(t *testing.T) {
 	}
 	if _, err := os.Stat(themeDir); !os.IsNotExist(err) {
 		t.Fatalf("theme dir stat err = %v, want not exist", err)
+	}
+	reinstalled := &mysql.ThemeModel{Name: "delete_me", DisplayName: "Reinstalled"}
+	if err := serviceTheme().CreateTheme(reinstalled); err != nil {
+		t.Fatalf("CreateTheme(same name after delete) error = %v", err)
+	}
+}
+
+func TestThemeNameIsImmutableAndUnsafeLegacyDeleteIsContained(t *testing.T) {
+	setupServiceTestDB(t)
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+
+	theme := &mysql.ThemeModel{Name: "stable_name", DisplayName: "Stable"}
+	if err := serviceTheme().CreateTheme(theme); err != nil {
+		t.Fatalf("CreateTheme() error = %v", err)
+	}
+	theme.Name = "renamed"
+	if err := serviceTheme().UpdateTheme(theme); !errors.Is(err, ErrThemeNameImmutable) {
+		t.Fatalf("UpdateTheme(rename) error = %v, want ErrThemeNameImmutable", err)
+	}
+
+	legacy := &mysql.ThemeModel{Name: "..", DisplayName: "Unsafe legacy"}
+	if err := dal.MySqlDB.Theme.Create(legacy); err != nil {
+		t.Fatalf("create legacy theme: %v", err)
+	}
+	if err := os.MkdirAll("storage", 0755); err != nil {
+		t.Fatalf("mkdir storage: %v", err)
+	}
+	if err := os.WriteFile("storage/sentinel", []byte("keep"), 0644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+	if err := serviceTheme().DeleteTheme(int64(legacy.ID)); err == nil {
+		t.Fatal("DeleteTheme(unsafe legacy name) expected error")
+	}
+	if _, err := os.Stat("storage/sentinel"); err != nil {
+		t.Fatalf("unsafe delete touched storage root: %v", err)
 	}
 }
 

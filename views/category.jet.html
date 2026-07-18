@@ -16,7 +16,7 @@
     <ul class="category-list">
       {{ range Data }}
       <li>
-        <a href="/?category_name={{ .Name }}&category_uid={{ .UID }}">
+        <a href="/?category_uid={{ .UID }}">
           <span class="category-name">{{ .Name }}</span>
           <span class="category-count">{{ .TotalCount }} 篇</span>
         </a>
@@ -31,6 +31,7 @@
     </ul>
   </main>
   {{ include "components/footer" RequestTimeDuration }}
+  {{ include "components/theme_script" }}
 </body>
 
 </html>

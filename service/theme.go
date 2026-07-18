@@ -32,6 +32,7 @@ const (
 	ThemeStorageDir              = "storage/themes"
 	themeStorageDir              = ThemeStorageDir
 	MaxThemePackageBytes   int64 = 20 << 20
+	maxThemeManifestBytes        = 256 << 10
 	maxThemeExtractedBytes       = 50 << 20
 	maxThemePackageFiles         = 500
 	ThemePreviewCookieName       = "myecho_theme_preview"
@@ -39,7 +40,16 @@ const (
 	themePreviewSecretKey        = "ThemePreviewTokenSecret"
 )
 
-var themeNamePattern = regexp.MustCompile(`^[a-z0-9_-]+$`)
+var (
+	themeNamePattern         = regexp.MustCompile(`^[a-z0-9_-]+$`)
+	ErrThemeNameImmutable    = errors.New("theme name cannot be changed")
+	ErrBundledThemeImmutable = errors.New("内置主题不可修改或删除")
+	bundledThemeImports      = map[string]string{
+		"paper": `@import url("/static/css/presets/paper.css");`,
+		"night": `@import url("/static/css/presets/night.css");`,
+		"anime": `@import url("/static/css/presets/anime.css");`,
+	}
+)
 
 type ThemeManifest struct {
 	SchemaVersion int                      `json:"schema_version"`
@@ -62,6 +72,14 @@ type ThemePreviewPayload struct {
 
 // CreateTheme 创建主题
 func (s *ThemeService) CreateTheme(theme *mysql.ThemeModel) error {
+	name, err := ValidateThemeName(theme.Name)
+	if err != nil {
+		return err
+	}
+	theme.Name = name
+	if err := stripBundledFlag(theme); err != nil {
+		return err
+	}
 	return dal.MySqlDB.Theme.Create(theme)
 }
 
@@ -87,6 +105,28 @@ func (s *ThemeService) GetActiveTheme() (*mysql.ThemeModel, error) {
 
 // UpdateTheme 更新主题
 func (s *ThemeService) UpdateTheme(theme *mysql.ThemeModel) error {
+	name, err := ValidateThemeName(theme.Name)
+	if err != nil {
+		return err
+	}
+	current, err := s.GetThemeByID(int64(theme.ID))
+	if err != nil {
+		return err
+	}
+	if bundled, err := isBundledTheme(current); err != nil {
+		return err
+	} else if bundled {
+		return ErrBundledThemeImmutable
+	}
+	if name != current.Name {
+		return ErrThemeNameImmutable
+	}
+	theme.Name = name
+	theme.IsActive = current.IsActive
+	theme.IsDefault = current.IsDefault
+	if err := stripBundledFlag(theme); err != nil {
+		return err
+	}
 	return dal.MySqlDB.Theme.Update(theme)
 }
 
@@ -96,11 +136,36 @@ func (s *ThemeService) DeleteTheme(id int64) error {
 	if err != nil {
 		return err
 	}
-	if err := dal.MySqlDB.Theme.Delete(id); err != nil {
+	if theme.IsActive {
+		return mysql.ErrThemeCantDeleteActive
+	}
+	if theme.IsDefault {
+		return mysql.ErrThemeCantDeleteDefault
+	}
+	if bundled, err := isBundledTheme(theme); err != nil {
+		return err
+	} else if bundled {
+		return ErrBundledThemeImmutable
+	}
+	themeDir, err := themeStoragePath(theme.Name)
+	if err != nil {
 		return err
 	}
-	if !theme.IsDefault && theme.Name != "" {
-		return os.RemoveAll(filepath.Join(themeStorageDir, theme.Name))
+	trashDir := fmt.Sprintf("%s.delete-%d", themeDir, time.Now().UnixNano())
+	moved := false
+	if err := os.Rename(themeDir, trashDir); err == nil {
+		moved = true
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := dal.MySqlDB.Theme.Delete(id); err != nil {
+		if moved {
+			_ = os.Rename(trashDir, themeDir)
+		}
+		return err
+	}
+	if moved {
+		return os.RemoveAll(trashDir)
 	}
 	return nil
 }
@@ -113,6 +178,74 @@ func (s *ThemeService) ActivateTheme(id int64) error {
 // InitDefaultTheme 初始化默认主题
 func (s *ThemeService) InitDefaultTheme() error {
 	return dal.MySqlDB.Theme.InitDefaultTheme()
+}
+
+// InitPresetThemes adds the bundled CSS-only themes without overwriting an existing theme.
+func (s *ThemeService) InitPresetThemes() error {
+	presets := []mysql.ThemeModel{
+		{
+			Name:        "paper",
+			DisplayName: "极简书页",
+			Author:      "Myecho",
+			Version:     "1.0.0",
+			Description: "黑白留白、弱圆角与衬线排版，适合长文阅读。",
+			CSS:         bundledThemeImports["paper"],
+		},
+		{
+			Name:        "night",
+			DisplayName: "数字夜刊",
+			Author:      "Myecho",
+			Version:     "1.0.0",
+			Description: "冷色霓虹、等宽细节与紧凑卡片，适合技术博客。",
+			CSS:         bundledThemeImports["night"],
+		},
+		{
+			Name:        "anime",
+			DisplayName: "星樱放送",
+			Author:      "Myecho",
+			Version:     "1.0.0",
+			Description: "樱粉天蓝、漫画网点与贴纸卡片，适合二次元内容创作。",
+			CSS:         bundledThemeImports["anime"],
+		},
+	}
+
+	for i := range presets {
+		preset := &presets[i]
+		existing, err := s.GetThemeByName(preset.Name)
+		if err == nil {
+			if existing.CSS != preset.CSS || existing.Author != preset.Author {
+				continue
+			}
+			config, err := (*model.Theme)(existing).GetConfig()
+			if err != nil {
+				return err
+			}
+			if config["bundled"] == true && config["supports_color_mode"] == true {
+				continue
+			}
+			config["bundled"] = true
+			config["supports_color_mode"] = true
+			if err := (*model.Theme)(existing).SetConfig(config); err != nil {
+				return err
+			}
+			if err := dal.MySqlDB.Theme.Update(existing); err != nil {
+				return err
+			}
+			continue
+		} else if !errors.Is(err, mysql.ErrThemeNotExist) {
+			return err
+		}
+		if err := (*model.Theme)(preset).SetConfig(map[string]interface{}{
+			"bundled":             true,
+			"supports_color_mode": true,
+		}); err != nil {
+			return err
+		}
+		if err := dal.MySqlDB.Theme.Create(preset); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // InstallThemePackage installs a zip theme package and creates or updates the theme record.
@@ -135,6 +268,13 @@ func (s *ThemeService) InstallThemePackage(zipPath string) (*mysql.ThemeModel, e
 	if existing != nil && existing.IsDefault {
 		return nil, fmt.Errorf("default theme cannot be overwritten by package upload")
 	}
+	if existing != nil {
+		if bundled, err := isBundledTheme(existing); err != nil {
+			return nil, err
+		} else if bundled {
+			return nil, ErrBundledThemeImmutable
+		}
+	}
 
 	if err := os.MkdirAll(themeStorageDir, 0755); err != nil {
 		return nil, err
@@ -152,6 +292,9 @@ func (s *ThemeService) InstallThemePackage(zipPath string) (*mysql.ThemeModel, e
 	}()
 
 	if err := extractThemePackage(zipPath, manifestDir, tempDir); err != nil {
+		return nil, err
+	}
+	if err := validateThemeAssets(tempDir, manifest); err != nil {
 		return nil, err
 	}
 	hasTemplates := packageHasTemplates(tempDir)
@@ -237,8 +380,18 @@ func readThemeManifest(zipPath string) (*ThemeManifest, string, error) {
 		}
 		defer rc.Close()
 
+		if file.UncompressedSize64 > uint64(maxThemeManifestBytes) {
+			return nil, "", fmt.Errorf("theme manifest is too large")
+		}
+		content, err := io.ReadAll(io.LimitReader(rc, maxThemeManifestBytes+1))
+		if err != nil {
+			return nil, "", err
+		}
+		if len(content) > maxThemeManifestBytes {
+			return nil, "", fmt.Errorf("theme manifest is too large")
+		}
 		var manifest ThemeManifest
-		if err := json.NewDecoder(rc).Decode(&manifest); err != nil {
+		if err := json.Unmarshal(content, &manifest); err != nil {
 			return nil, "", err
 		}
 		return &manifest, path.Dir(cleanName), nil
@@ -250,14 +403,12 @@ func validateThemeManifest(manifest *ThemeManifest) error {
 	if manifest == nil {
 		return fmt.Errorf("theme manifest is empty")
 	}
-	manifest.Name = strings.TrimSpace(manifest.Name)
+	name, err := ValidateThemeName(manifest.Name)
+	if err != nil {
+		return err
+	}
+	manifest.Name = name
 	manifest.DisplayName = strings.TrimSpace(manifest.DisplayName)
-	if manifest.Name == "" {
-		return fmt.Errorf("theme name is required")
-	}
-	if !themeNamePattern.MatchString(manifest.Name) {
-		return fmt.Errorf("theme name can only contain lowercase letters, numbers, hyphens and underscores")
-	}
 	if manifest.DisplayName == "" {
 		manifest.DisplayName = manifest.Name
 	}
@@ -274,6 +425,88 @@ func validateThemeManifest(manifest *ThemeManifest) error {
 		key, _ := field["key"].(string)
 		if strings.TrimSpace(key) == "" {
 			return fmt.Errorf("theme config_schema field key is required")
+		}
+	}
+	return nil
+}
+
+func ValidateThemeName(name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", fmt.Errorf("theme name is required")
+	}
+	if !themeNamePattern.MatchString(name) {
+		return "", fmt.Errorf("theme name can only contain lowercase letters, numbers, hyphens and underscores")
+	}
+	return name, nil
+}
+
+func isBundledTheme(theme *mysql.ThemeModel) (bool, error) {
+	if theme == nil {
+		return false, nil
+	}
+	if bundledThemeImports[theme.Name] != theme.CSS {
+		return false, nil
+	}
+	config, err := (*model.Theme)(theme).GetConfig()
+	if err != nil {
+		return false, err
+	}
+	bundled, _ := config["bundled"].(bool)
+	return bundled, nil
+}
+
+// IsBundledTheme reports whether a theme is one of Myecho's immutable presets.
+func IsBundledTheme(theme *mysql.ThemeModel) bool {
+	bundled, err := isBundledTheme(theme)
+	return err == nil && bundled
+}
+
+func stripBundledFlag(theme *mysql.ThemeModel) error {
+	config, err := (*model.Theme)(theme).GetConfig()
+	if err != nil {
+		return err
+	}
+	delete(config, "bundled")
+	return (*model.Theme)(theme).SetConfig(config)
+}
+
+func themeStoragePath(name string) (string, error) {
+	name, err := ValidateThemeName(name)
+	if err != nil {
+		return "", err
+	}
+	root, err := filepath.Abs(themeStorageDir)
+	if err != nil {
+		return "", err
+	}
+	target := filepath.Join(root, name)
+	if filepath.Dir(target) != root || !isUnderDir(root, target) {
+		return "", fmt.Errorf("invalid theme storage path")
+	}
+	return target, nil
+}
+
+func validateThemeAssets(themeDir string, manifest *ThemeManifest) error {
+	assets := map[string]string{
+		"preview": manifest.Preview,
+		"css":     manifest.CSS,
+		"js":      manifest.JS,
+	}
+	for kind, assetPath := range assets {
+		if strings.TrimSpace(assetPath) == "" {
+			continue
+		}
+		cleanPath, ok := cleanThemeAssetPath(assetPath)
+		if !ok {
+			return fmt.Errorf("invalid theme %s path", kind)
+		}
+		info, err := os.Stat(filepath.Join(themeDir, filepath.FromSlash(cleanPath)))
+		if err != nil {
+			return fmt.Errorf("theme %s file not found: %s", kind, cleanPath)
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("theme %s path is not a file: %s", kind, cleanPath)
 		}
 	}
 	return nil

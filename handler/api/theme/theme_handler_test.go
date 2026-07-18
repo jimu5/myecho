@@ -80,6 +80,10 @@ func TestThemeHandlersCRUDAndConfig(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("create status = %d, want 200", resp.StatusCode)
 	}
+	resp = doThemeJSONRequest(t, app, fiber.MethodPost, "/api/themes", `{"name":"../unsafe","display_name":"Unsafe"}`)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("unsafe create status = %d, want 400", resp.StatusCode)
+	}
 	resp = doThemeJSONRequest(t, app, fiber.MethodPost, "/api/themes", `{`)
 	if resp.StatusCode != fiber.StatusBadRequest {
 		t.Fatalf("invalid create status = %d, want 400", resp.StatusCode)
@@ -91,6 +95,18 @@ func TestThemeHandlersCRUDAndConfig(t *testing.T) {
 	resp = doThemeJSONRequest(t, app, fiber.MethodGet, "/api/themes/2", "")
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("get status = %d, want 200", resp.StatusCode)
+	}
+	resp = doThemeJSONRequest(t, app, fiber.MethodPatch, "/api/themes/2", `{"name":"renamed"}`)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("rename status = %d, want 400", resp.StatusCode)
+	}
+	resp = doThemeJSONRequest(t, app, fiber.MethodPatch, "/api/themes/2", `{"config":[]}`)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("invalid config status = %d, want 400", resp.StatusCode)
+	}
+	resp = doThemeJSONRequest(t, app, fiber.MethodPatch, "/api/themes/2", `{"config_schema":{"key":"size"}}`)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("invalid config schema status = %d, want 400", resp.StatusCode)
 	}
 	resp = doThemeJSONRequest(t, app, fiber.MethodPatch, "/api/themes/2", `{"name":"custom","display_name":"Updated","author":"Codex","version":"2.0.0","description":"desc","preview":"preview.png","css":"style.css","js":"script.js","config":{"size":"large"},"config_schema":[{"key":"size","type":"text"}]}`)
 	if resp.StatusCode != fiber.StatusOK {
@@ -175,6 +191,18 @@ func TestConfigSchemaFromValue(t *testing.T) {
 	}
 	if _, ok := configSchemaFromValue(map[string]interface{}{"key": "color"}); ok {
 		t.Fatal("configSchemaFromValue(object) ok = true, want false")
+	}
+}
+
+func TestThemeResponseIncludesBundledFlag(t *testing.T) {
+	theme := &mysql.ThemeModel{Name: "anime", CSS: `@import url("/static/css/presets/anime.css");`}
+	config := map[string]interface{}{"bundled": true}
+	if err := (*model.Theme)(theme).SetConfig(config); err != nil {
+		t.Fatalf("SetConfig(theme) error = %v", err)
+	}
+	response := buildThemeResponseWithConfig(theme, config)
+	if response["is_bundled"] != true {
+		t.Fatalf("is_bundled = %v, want true", response["is_bundled"])
 	}
 }
 

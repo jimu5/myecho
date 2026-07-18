@@ -68,13 +68,17 @@ func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam)
 	}
 	pageInfo.Total = total
 	pageParam := param.PageFindParam
-	pageInfo.FillInfoFromParam(&pageParam)
+	pageParam.NoPage = false
 	if pageParam.Page < 1 {
 		pageParam.Page = 1
 	}
 	if pageParam.PageSize < 1 {
 		pageParam.PageSize = static_config.PageSize
 	}
+	if pageParam.PageSize > 100 {
+		pageParam.PageSize = 100
+	}
+	pageInfo.FillInfoFromParam(&pageParam)
 	pageOffset := (pageParam.Page - 1) * pageParam.PageSize
 
 	articles := make([]*mysql.ArticleModel, 0, pageParam.PageSize)
@@ -131,6 +135,13 @@ func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (mysq
 		}()
 	}
 	return article, nil
+}
+
+func (a *ArticleService) PostNeighbors(article *mysql.ArticleModel) (*mysql.ArticleModel, *mysql.ArticleModel, error) {
+	if article == nil || article.Type != model.ArticleTypePost {
+		return nil, nil, nil
+	}
+	return dal.MySqlDB.Article.FindPostNeighbors(article)
 }
 
 func HashArticlePassword(password string) (string, error) {

@@ -13,6 +13,17 @@ var passCacheRoutePathPrefix = []string{
 	"/api",
 	"/mos",
 	"/status",
+	"/theme-preview",
+	"/articles/",
+	"/posts/",
+	"/pages/",
+}
+
+var themeIndependentCachePathPrefix = []string{
+	"/admin",
+	"/static",
+	"/themes",
+	"/favicon.ico",
 }
 
 var CacheConfig = cache.Config{
@@ -21,8 +32,11 @@ var CacheConfig = cache.Config{
 	},
 	Expiration: 5 * time.Second,
 	KeyGenerator: func(ctx *fiber.Ctx) string {
-		if isPathSkipCache(ctx.Path()) {
+		if isPathSkipCache(ctx.Path()) || isThemeIndependentCachePath(ctx.Path()) {
 			return ctx.OriginalURL()
+		}
+		if ctx.Cookies(service.ThemePreviewCookieName) != "" {
+			return ctx.OriginalURL() + "|theme-preview"
 		}
 		theme, err := service.S.Theme.GetActiveTheme()
 		if err != nil || theme == nil {
@@ -30,6 +44,15 @@ var CacheConfig = cache.Config{
 		}
 		return fmt.Sprintf("%s|theme:%d:%d", ctx.OriginalURL(), theme.ID, theme.UpdatedAt.UnixNano())
 	},
+}
+
+func isThemeIndependentCachePath(path string) bool {
+	for i := range themeIndependentCachePathPrefix {
+		if strings.HasPrefix(path, themeIndependentCachePathPrefix[i]) {
+			return true
+		}
+	}
+	return false
 }
 
 func isPathSkipCache(path string) bool {

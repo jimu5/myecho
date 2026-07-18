@@ -2,15 +2,19 @@ package middleware
 
 import (
 	"errors"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cache"
 	"gorm.io/gorm"
 
 	"myecho/dal/connect"
@@ -27,6 +31,10 @@ func TestIsPathSkipCache(t *testing.T) {
 		{path: "/api/articles", want: true},
 		{path: "/mos/file.png", want: true},
 		{path: "/status", want: true},
+		{path: "/theme-preview", want: true},
+		{path: "/articles/1", want: true},
+		{path: "/posts/hello", want: true},
+		{path: "/pages/about", want: true},
 		{path: "/articles", want: false},
 	}
 	for _, tt := range tests {
@@ -35,6 +43,99 @@ func TestIsPathSkipCache(t *testing.T) {
 				t.Fatalf("isPathSkipCache() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestCacheMiddlewareDoesNotCacheArticleDetails(t *testing.T) {
+	for _, path := range []string{"/articles/1", "/posts/hello", "/pages/about"} {
+		t.Run(path, func(t *testing.T) {
+			app := fiber.New()
+			app.Use(cache.New(CacheConfig))
+			renders := 0
+			app.Get(path, func(c *fiber.Ctx) error {
+				renders++
+				return c.SendString(strconv.Itoa(renders))
+			})
+
+			for want := 1; want <= 2; want++ {
+				resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, path, nil))
+				if err != nil {
+					t.Fatalf("app.Test() error = %v", err)
+				}
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatalf("read response: %v", err)
+				}
+				if got := string(body); got != strconv.Itoa(want) {
+					t.Fatalf("response body = %q, want fresh render %d", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestCacheMiddlewareSeparatesThemePreviewCookie(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(filepath.Join(t.TempDir(), "test.db")), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := db.AutoMigrate(&model.Theme{}); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	connect.Database = db
+	mysql.InitDB()
+	theme := &mysql.ThemeModel{Name: "clean", DisplayName: "Clean", IsActive: true}
+	if err := service.S.Theme.CreateTheme(theme); err != nil {
+		t.Fatalf("CreateTheme() error = %v", err)
+	}
+
+	app := fiber.New()
+	app.Use(cache.New(CacheConfig))
+	renders := 0
+	app.Get("/page", func(c *fiber.Ctx) error {
+		renders++
+		if c.Cookies(service.ThemePreviewCookieName) != "" {
+			return c.SendString("preview")
+		}
+		return c.SendString("active")
+	})
+
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/page", nil))
+	if err != nil {
+		t.Fatalf("normal app.Test() error = %v", err)
+	}
+	if body, _ := io.ReadAll(resp.Body); string(body) != "active" {
+		t.Fatalf("normal response = %q, want active", body)
+	}
+
+	previewReq := httptest.NewRequest(fiber.MethodGet, "/page", nil)
+	previewReq.AddCookie(&http.Cookie{Name: service.ThemePreviewCookieName, Value: "preview-token"})
+	resp, err = app.Test(previewReq)
+	if err != nil {
+		t.Fatalf("preview app.Test() error = %v", err)
+	}
+	if body, _ := io.ReadAll(resp.Body); string(body) != "preview" {
+		t.Fatalf("preview response = %q, want preview", body)
+	}
+	if renders != 2 {
+		t.Fatalf("handler renders = %d, want 2", renders)
+	}
+}
+
+func TestThemeIndependentAssetsUseURLCacheKey(t *testing.T) {
+	app := fiber.New()
+	app.Get("/static/app.css", func(c *fiber.Ctx) error {
+		if got := CacheConfig.KeyGenerator(c); got != "/static/app.css?v=1" {
+			t.Fatalf("KeyGenerator() = %q, want URL-only static key", got)
+		}
+		return nil
+	})
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/static/app.css?v=1", nil))
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
 }
 

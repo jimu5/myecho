@@ -28,6 +28,15 @@ func (c *CategoryService) AllByType(_type model.CategoryType) ([]*Category, erro
 	if err != nil {
 		return nil, err
 	}
+	if _type == model.CategoryTypeArticle {
+		counts, err := dal.MySqlDB.Category.DisplayablePostCounts()
+		if err != nil {
+			return nil, err
+		}
+		for _, category := range allMysqlCategories {
+			category.Count = counts[category.UID]
+		}
+	}
 	categories := mysqlToServiceCategory(allMysqlCategories)
 	return categories, nil
 }

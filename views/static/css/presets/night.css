@@ -1,0 +1,101 @@
+:root {
+    --font-color: #172033;
+    --muted-color: #5b6981;
+    --subtle-color: #6d5ba8;
+    --border-color: rgba(52, 67, 101, 0.18);
+    --border-strong-color: rgba(52, 67, 101, 0.32);
+    --background-color: #edf2f8;
+    --surface-color: #f8fbff;
+    --surface-raised-color: #ffffff;
+    --surface-muted-color: #e2e9f3;
+    --hover-background-color: #e5edf8;
+    --link-color: #4c5ee8;
+    --link-hover-color: #2e3fc0;
+    --action-background-color: #3348cf;
+    --action-hover-background-color: #2437b1;
+    --warm-color: #d64e8c;
+    --gold-color: #a86f16;
+    --info-color: #217bb2;
+    --accent-glow-color: rgba(76, 94, 232, 0.14);
+    --warm-glow-color: rgba(214, 78, 140, 0.1);
+    --header-background-color: rgba(237, 242, 248, 0.9);
+    --glass-color: rgba(248, 251, 255, 0.9);
+    --glass-strong-color: rgba(248, 251, 255, 0.96);
+    --glass-soft-color: rgba(248, 251, 255, 0.76);
+    --glass-muted-color: rgba(226, 233, 243, 0.7);
+    --radius-sm: 3px;
+    --radius-md: 5px;
+    --radius-lg: 7px;
+    --display-font: ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
+body {
+    background:
+        linear-gradient(color-mix(in srgb, var(--link-color) 5%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in srgb, var(--link-color) 5%, transparent) 1px, transparent 1px),
+        var(--background-color);
+    background-size: 32px 32px;
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+}
+
+.site-mark-symbol {
+    border-radius: 3px;
+    background: linear-gradient(145deg, var(--link-color), var(--warm-color));
+}
+
+.site-mark-symbol::after {
+    border-radius: 1px;
+}
+
+#nav ul li a,
+.article-block-tags a,
+.article-taxonomy-item,
+.tag-cloud a {
+    border-radius: var(--radius-sm);
+}
+
+.article-block,
+.category-list li a,
+.link-card,
+.archive-group {
+    border-left: 3px solid var(--link-color);
+}
+
+.article-block::before {
+    height: 1px;
+    opacity: 1;
+}
+
+:root[data-myecho-color-mode-theme][data-myecho-color-mode="dark"] {
+    --font-color: #dfe9ff;
+    --muted-color: #93a4c4;
+    --subtle-color: #c2a7ff;
+    --border-color: rgba(113, 142, 204, 0.22);
+    --border-strong-color: rgba(113, 142, 204, 0.4);
+    --background-color: #090c15;
+    --surface-color: #101625;
+    --surface-raised-color: #151d30;
+    --surface-muted-color: #19233a;
+    --hover-background-color: #1c2943;
+    --link-color: #68ddff;
+    --link-hover-color: #a1edff;
+    --action-background-color: #315dce;
+    --action-hover-background-color: #4777ed;
+    --warm-color: #ff66ad;
+    --gold-color: #ffc857;
+    --success-color: #62e3a2;
+    --danger-color: #ff7185;
+    --info-color: #68ddff;
+    --accent-glow-color: rgba(104, 221, 255, 0.13);
+    --warm-glow-color: rgba(255, 102, 173, 0.1);
+    --header-background-color: rgba(9, 12, 21, 0.9);
+    --glass-color: rgba(16, 22, 37, 0.9);
+    --glass-strong-color: rgba(21, 29, 48, 0.96);
+    --glass-soft-color: rgba(16, 22, 37, 0.78);
+    --glass-muted-color: rgba(9, 12, 21, 0.72);
+    --blockquote-color: #b3c1de;
+    --blockquote-background-color: rgba(255, 200, 87, 0.08);
+    --inline-code-color: #ff9ac9;
+    --inline-code-background-color: rgba(255, 102, 173, 0.1);
+    --inline-code-border-color: rgba(255, 102, 173, 0.22);
+}

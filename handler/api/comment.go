@@ -8,6 +8,7 @@ import (
 	"myecho/handler/api/validator"
 	"myecho/handler/rtype"
 	"myecho/model"
+	"myecho/service"
 	"strings"
 	"sync"
 	"time"
@@ -153,6 +154,13 @@ func ArticleCommentList(c *fiber.Ctx) error {
 	// 校验
 	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return ValidateErrorResponse(c, err.Error())
+	}
+	if !isCommentableArticle(&article) {
+		return NotFoundErrorResponse(c, service.ErrArticleNotDisplayable.Error())
+	}
+	articleModel := mysql.ArticleModel(article)
+	if article.Password != "" && !service.ValidateArticlePasswordToken(&articleModel, c.Cookies(service.ArticlePasswordCookieName(article.ID))) {
+		return ValidateErrorResponse(c, service.ErrArticlePasswordRequired.Error())
 	}
 	if err := connect.Database.Table("comments").
 		Where("article_uid = ?", article.UID).

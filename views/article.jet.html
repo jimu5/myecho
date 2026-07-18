@@ -4,11 +4,11 @@
 <head>
   <title>{{ Settings.GetStringValue("SiteTitle") }} - {{ Data.Title }}</title>
   {{ include "components/common_head" }}
+  <link type="text/css" rel="stylesheet" href="/static/lib/prism/prism.css">
+  <script src="/static/lib/prism/prism.js" defer></script>
 </head>
 
 <body>
-  <script src="/static/lib/prism/prism.js"></script>
-  <link type="text/css" rel="stylesheet" href="/static/lib/prism/prism.css">
   <div class="reading-progress" aria-hidden="true"><span></span></div>
   {{ include "components/header" }}
   <main class="container article-shell">
@@ -19,9 +19,9 @@
           {{ Data.Title }}
         </h1>
         <div class="article-meta">
-          <span>{{ Data.PostTime.Format("January 2, 2006") }}</span>
+          <span>{{ Data.PostTime.Format("2006年1月2日") }}</span>
           {{ if Data.UpdatedAt }}
-          <span>更新于 {{ Data.UpdatedAt.Format("January 2, 2006") }}</span>
+          <span>更新于 {{ Data.UpdatedAt.Format("2006年1月2日") }}</span>
           {{ end }}
           <span>{{ Data.ReadCount }} 次阅读</span>
         </div>
@@ -37,6 +37,36 @@
       <div class="article-content" id="article_content">
         {{ Data.Detail.Content | raw }}
       </div>
+
+      <div class="article-end-actions">
+        <button class="article-share-button" id="article-share-button" type="button">分享文章</button>
+        <span class="article-action-message" id="article-action-message" role="status" aria-live="polite" aria-atomic="true"></span>
+      </div>
+
+      {{ if HasArticleNeighbors }}
+      <nav class="article-neighbors" aria-label="相邻文章">
+        {{ if PreviousArticle }}
+        {{ if PreviousArticle.Slug }}
+        <a class="article-neighbor article-neighbor-previous" href="/posts/{{ PreviousArticle.Slug }}">
+        {{ else }}
+        <a class="article-neighbor article-neighbor-previous" href="/articles/{{ PreviousArticle.ID }}">
+        {{ end }}
+          <span>← 上一篇</span>
+          <strong>{{ PreviousArticle.Title }}</strong>
+        </a>
+        {{ end }}
+        {{ if NextArticle }}
+        {{ if NextArticle.Slug }}
+        <a class="article-neighbor article-neighbor-next" href="/posts/{{ NextArticle.Slug }}">
+        {{ else }}
+        <a class="article-neighbor article-neighbor-next" href="/articles/{{ NextArticle.ID }}">
+        {{ end }}
+          <span>下一篇 →</span>
+          <strong>{{ NextArticle.Title }}</strong>
+        </a>
+        {{ end }}
+      </nav>
+      {{ end }}
     </article>
 
     <section class="comments-section" id="comments">
@@ -49,16 +79,21 @@
         <article class="comment-item">
           <header>
             <strong>{{ .AuthorName }}</strong>
-            <span>{{ .PostTime.Format("January 2, 2006 15:04") }}</span>
+            <span>{{ .PostTime.Format("2006年1月2日 15:04") }}</span>
           </header>
           <p>{{ .Content }}</p>
+          {{ if IsAllowComment }}
+          <div class="comment-item-actions">
+            <button class="comment-reply-action" type="button" data-comment-reply data-parent-id="{{ .ID }}" data-author-name="{{ .AuthorName }}" aria-label="回复 {{ .AuthorName }}">回复</button>
+          </div>
+          {{ end }}
           {{ if .Replies }}
           <div class="comment-replies">
             {{ range .Replies }}
             <article class="comment-item comment-reply">
               <header>
                 <strong>{{ .AuthorName }}</strong>
-                <span>{{ .PostTime.Format("January 2, 2006 15:04") }}</span>
+                <span>{{ .PostTime.Format("2006年1月2日 15:04") }}</span>
               </header>
               <p>{{ .Content }}</p>
             </article>
@@ -74,23 +109,28 @@
       </div>
       {{ if IsAllowComment }}
       <form class="comment-form" id="comment_form">
+        <input name="parent_id" type="hidden" value="0">
+        <div class="comment-reply-context" data-comment-reply-context hidden>
+          <span>正在回复 <strong data-comment-reply-author></strong></span>
+          <button class="comment-reply-cancel" type="button" data-comment-reply-cancel>取消回复</button>
+        </div>
         <div class="comment-form-grid">
           <label>
             <span>昵称</span>
-            <input name="author_name" autocomplete="name" required>
+            <input name="author_name" autocomplete="name" maxlength="64" required>
           </label>
           <label>
             <span>邮箱</span>
-            <input name="author_email" type="email" autocomplete="email" required>
+            <input name="author_email" type="email" autocomplete="email" maxlength="64" required>
           </label>
         </div>
         <label>
           <span>网站</span>
-          <input name="author_url" type="url" autocomplete="url">
+          <input name="author_url" type="url" autocomplete="url" maxlength="256">
         </label>
         <label>
           <span>内容</span>
-          <textarea name="content" rows="5" required></textarea>
+          <textarea name="content" rows="5" maxlength="2000" required></textarea>
         </label>
         <input class="comment-trap" name="trap" tabindex="-1" autocomplete="off" aria-hidden="true">
         <div class="comment-form-actions">
@@ -106,17 +146,128 @@
 
   {{ include "components/footer" RequestTimeDuration }}
 
-  <aside class="toc-container" aria-label="文章目录">
-    <div class="toc-title">目录</div>
+  <aside class="toc-container" id="article-toc" aria-labelledby="article-toc-title" tabindex="-1">
+    <div class="toc-title" id="article-toc-title">目录</div>
+    <button class="toc-close" type="button" aria-label="关闭文章目录">×</button>
     <div class="toc"></div>
   </aside>
-  <button class="toc-toggle" type="button" aria-label="打开文章目录" aria-expanded="false">目录</button>
-  <div class="toc-backdrop" hidden></div>
+  <button class="toc-toggle" type="button" aria-label="打开文章目录" aria-expanded="false" aria-controls="article-toc">目录</button>
+  <div class="toc-backdrop" aria-hidden="true" hidden></div>
+
+  {{ include "components/theme_script" }}
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const articleContent = document.getElementById('article_content');
       const images = articleContent ? articleContent.querySelectorAll('img') : [];
+
+      function copyText(value) {
+        if (navigator.clipboard && window.isSecureContext) {
+          try {
+            return navigator.clipboard.writeText(value);
+          } catch (error) {
+            return Promise.reject(error);
+          }
+        }
+        return new Promise(function(resolve, reject) {
+          const helper = document.createElement('textarea');
+          helper.value = value;
+          helper.setAttribute('readonly', '');
+          helper.style.position = 'fixed';
+          helper.style.opacity = '0';
+          document.body.appendChild(helper);
+          helper.select();
+          try {
+            if (document.execCommand('copy')) {
+              resolve();
+            } else {
+              reject(new Error('copy failed'));
+            }
+          } catch (error) {
+            reject(error);
+          } finally {
+            helper.remove();
+          }
+        });
+      }
+
+      if (articleContent) {
+        articleContent.querySelectorAll('pre > code').forEach(function(code) {
+          const pre = code.parentElement;
+          if (!pre || !pre.parentNode || pre.parentNode.classList.contains('code-block-shell')) {
+            return;
+          }
+          const languageClass = Array.from(code.classList).find(function(className) {
+            return className.indexOf('language-') === 0;
+          });
+          const language = languageClass ? languageClass.substring(9) : '代码';
+          const shell = document.createElement('div');
+          shell.className = 'code-block-shell';
+          const toolbar = document.createElement('div');
+          toolbar.className = 'code-block-toolbar';
+          const label = document.createElement('span');
+          label.className = 'code-block-language';
+          label.textContent = language;
+          const button = document.createElement('button');
+          button.className = 'code-copy-button';
+          button.type = 'button';
+          button.textContent = '复制代码';
+          button.setAttribute('aria-label', language === '代码' ? '复制代码' : '复制 ' + language + ' 代码');
+          button.setAttribute('data-code-copy', '');
+          let resetTimer;
+          button.addEventListener('click', function() {
+            window.clearTimeout(resetTimer);
+            button.disabled = true;
+            copyText(code.textContent || '').then(function() {
+              button.textContent = '已复制';
+            }).catch(function() {
+              button.textContent = '复制失败';
+            }).finally(function() {
+              button.disabled = false;
+              resetTimer = window.setTimeout(function() {
+                button.textContent = '复制代码';
+              }, 1600);
+            });
+          });
+          pre.parentNode.insertBefore(shell, pre);
+          toolbar.appendChild(label);
+          toolbar.appendChild(button);
+          shell.appendChild(toolbar);
+          shell.appendChild(pre);
+        });
+      }
+
+      const shareButton = document.getElementById('article-share-button');
+      const actionMessage = document.getElementById('article-action-message');
+      if (shareButton && actionMessage) {
+        shareButton.addEventListener('click', function() {
+          shareButton.disabled = true;
+          actionMessage.textContent = '';
+          const shareResult = navigator.share
+            ? navigator.share({ title: document.title, url: window.location.href }).then(function() {
+                return 'shared';
+              }).catch(function(error) {
+                if (error && error.name === 'AbortError') {
+                  return Promise.reject(error);
+                }
+                return copyText(window.location.href).then(function() {
+                  return 'copied';
+                });
+              })
+            : copyText(window.location.href).then(function() {
+                return 'copied';
+              });
+          shareResult.then(function(result) {
+            actionMessage.textContent = result === 'shared' ? '分享已完成。' : '链接已复制。';
+          }).catch(function(error) {
+            if (!error || error.name !== 'AbortError') {
+              actionMessage.textContent = '分享失败，请稍后重试。';
+            }
+          }).finally(function() {
+            shareButton.disabled = false;
+          });
+        });
+      }
 
       function initViewer() {
         if (!window.Viewer || !articleContent || images.length === 0) {
@@ -158,6 +309,7 @@
       const toc = document.querySelector('.toc');
       const tocContainer = document.querySelector('.toc-container');
       const tocToggle = document.querySelector('.toc-toggle');
+      const tocClose = document.querySelector('.toc-close');
       const tocBackdrop = document.querySelector('.toc-backdrop');
       const progress = document.querySelector('.reading-progress span');
       const headings = document.querySelectorAll('.article-content h1, .article-content h2, .article-content h3, .article-content h4, .article-content h5, .article-content h6');
@@ -167,37 +319,107 @@
         tocToggle.style.display = 'none';
       } else {
         const tocList = document.createElement('ul');
+        const headingIDs = new Set();
         headings.forEach((heading, index) => {
-          const id = 'heading-' + index;
-          heading.setAttribute('id', id);
+          let id = heading.id;
+          if (!id || headingIDs.has(id)) {
+            const baseID = 'heading-' + index;
+            id = baseID;
+            let suffix = 2;
+            while (headingIDs.has(id) || (document.getElementById(id) && document.getElementById(id) !== heading)) {
+              id = baseID + '-' + suffix;
+              suffix += 1;
+            }
+            heading.id = id;
+          }
+          headingIDs.add(id);
           const level = parseInt(heading.tagName.substring(1));
           const item = document.createElement('li');
           const link = document.createElement('a');
           item.className = 'toc-level-' + level;
           link.href = '#' + id;
           link.textContent = heading.textContent;
-          link.addEventListener('click', closeToc);
+          link.addEventListener('click', function() {
+            closeToc(true);
+          });
           item.appendChild(link);
           tocList.appendChild(item);
         });
         toc.appendChild(tocList);
       }
 
-      function setTocOpen(open) {
+      function setTocOpen(open, focusFirstLink) {
         tocContainer.classList.toggle('active', open);
         tocToggle.classList.toggle('active', open);
         tocToggle.setAttribute('aria-expanded', String(open));
+        tocToggle.setAttribute('aria-label', open ? '关闭文章目录' : '打开文章目录');
         tocBackdrop.hidden = !open;
+
+        if (open) {
+          tocContainer.setAttribute('role', 'dialog');
+          tocContainer.setAttribute('aria-modal', 'true');
+        } else {
+          tocContainer.removeAttribute('role');
+          tocContainer.removeAttribute('aria-modal');
+        }
+
+        if (open && focusFirstLink) {
+          const firstControl = toc.querySelector('a') || tocClose;
+          if (firstControl) {
+            window.requestAnimationFrame(function() {
+              firstControl.focus();
+            });
+          }
+        }
       }
 
-      function closeToc() {
+      function closeToc(restoreFocus) {
         setTocOpen(false);
+        if (restoreFocus) {
+          tocToggle.focus();
+        }
       }
 
       tocToggle.addEventListener('click', function() {
-        setTocOpen(!tocContainer.classList.contains('active'));
+        const open = !tocContainer.classList.contains('active');
+        setTocOpen(open, open);
       });
-      tocBackdrop.addEventListener('click', closeToc);
+      tocBackdrop.addEventListener('click', function() {
+        closeToc(true);
+      });
+      tocClose.addEventListener('click', function() {
+        closeToc(true);
+      });
+      document.addEventListener('keydown', function(event) {
+        if (!tocContainer.classList.contains('active')) {
+          return;
+        }
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          closeToc(true);
+          return;
+        }
+        if (event.key === 'Tab') {
+          const controls = Array.from(tocContainer.querySelectorAll('a[href], button:not([disabled])'));
+          const firstControl = controls[0];
+          const lastControl = controls[controls.length - 1];
+          if (!firstControl || !lastControl) {
+            return;
+          }
+          if (event.shiftKey && (document.activeElement === firstControl || !tocContainer.contains(document.activeElement))) {
+            event.preventDefault();
+            lastControl.focus();
+          } else if (!event.shiftKey && (document.activeElement === lastControl || !tocContainer.contains(document.activeElement))) {
+            event.preventDefault();
+            firstControl.focus();
+          }
+        }
+      });
+      window.addEventListener('resize', function() {
+        if (window.innerWidth > 1439) {
+          closeToc();
+        }
+      });
 
       function updateReadingState() {
         const scrollTop = window.scrollY || document.documentElement.scrollTop;
@@ -216,12 +438,69 @@
         });
       }
       updateReadingState();
-      window.addEventListener('scroll', updateReadingState, { passive: true });
+      let readingStateFrame = 0;
+      function scheduleReadingStateUpdate() {
+        if (readingStateFrame) {
+          return;
+        }
+        readingStateFrame = window.requestAnimationFrame(function() {
+          readingStateFrame = 0;
+          updateReadingState();
+        });
+      }
+      window.addEventListener('scroll', scheduleReadingStateUpdate, { passive: true });
+      window.addEventListener('resize', scheduleReadingStateUpdate);
 
       const commentForm = document.getElementById('comment_form');
       if (commentForm) {
         const message = commentForm.querySelector('.comment-form-message');
         const submitButton = commentForm.querySelector('button[type="submit"]');
+        const parentInput = commentForm.querySelector('input[name="parent_id"]');
+        const replyContext = commentForm.querySelector('[data-comment-reply-context]');
+        const replyAuthor = commentForm.querySelector('[data-comment-reply-author]');
+        const cancelReplyButton = commentForm.querySelector('[data-comment-reply-cancel]');
+        const contentInput = commentForm.querySelector('textarea[name="content"]');
+        let activeReplyButton;
+
+        function clearReply(restoreFocus) {
+          if (parentInput) {
+            parentInput.value = '0';
+          }
+          if (replyContext) {
+            replyContext.hidden = true;
+          }
+          if (replyAuthor) {
+            replyAuthor.textContent = '';
+          }
+          if (restoreFocus && activeReplyButton) {
+            activeReplyButton.focus();
+          }
+          activeReplyButton = undefined;
+        }
+
+        document.querySelectorAll('[data-comment-reply]').forEach(function(replyButton) {
+          replyButton.addEventListener('click', function() {
+            activeReplyButton = replyButton;
+            if (parentInput) {
+              parentInput.value = replyButton.dataset.parentId || '0';
+            }
+            if (replyAuthor) {
+              replyAuthor.textContent = '@' + (replyButton.dataset.authorName || '访客');
+            }
+            if (replyContext) {
+              replyContext.hidden = false;
+            }
+            if (contentInput) {
+              contentInput.focus();
+            }
+          });
+        });
+        if (cancelReplyButton) {
+          cancelReplyButton.addEventListener('click', function() {
+            clearReply(true);
+          });
+        }
+
         commentForm.addEventListener('submit', function(event) {
           event.preventDefault();
           const formData = new FormData(commentForm);
@@ -230,8 +509,10 @@
             author_email: formData.get('author_email'),
             author_url: formData.get('author_url'),
             content: formData.get('content'),
+            parent_id: Number(formData.get('parent_id')) || 0,
             trap: formData.get('trap') || '',
           };
+          const isReply = payload.parent_id > 0;
           if (submitButton) {
             submitButton.disabled = true;
           }
@@ -242,12 +523,17 @@
             body: JSON.stringify(payload),
           }).then(function(resp) {
             if (!resp.ok) {
-              throw new Error('提交失败');
+              return resp.json().catch(function() {
+                return {};
+              }).then(function(payload) {
+                throw new Error(payload.msg || '提交失败，请稍后重试。');
+              });
             }
             commentForm.reset();
-            message.textContent = '评论已提交，等待审核后展示。';
-          }).catch(function() {
-            message.textContent = '提交失败，请稍后重试。';
+            clearReply(false);
+            message.textContent = isReply ? '回复已提交，等待审核后展示。' : '评论已提交，等待审核后展示。';
+          }).catch(function(error) {
+            message.textContent = error && error.message ? error.message : '提交失败，请稍后重试。';
           }).finally(function() {
             if (submitButton) {
               submitButton.disabled = false;

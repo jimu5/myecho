@@ -13,6 +13,7 @@ import (
 	"myecho/handler/rtype"
 	"myecho/middleware"
 	"myecho/model"
+	"myecho/service"
 	"myecho/utils"
 	"net/http"
 	"net/http/httptest"
@@ -135,6 +136,71 @@ func seedArticleCategory(t *testing.T) *mysql.CategoryModel {
 		t.Fatalf("create article category: %v", err)
 	}
 	return category
+}
+
+func TestArticleCommentListRequiresVisibleUnlockedArticle(t *testing.T) {
+	setupAPITestDB(t)
+	app := fiber.New()
+	app.Get("/articles/:id/comments", ArticleCommentList)
+
+	articles := []*mysql.ArticleModel{
+		{Title: "Public", Status: int8(mysql.ARTILCE_STATUS_PUBLIC), Detail: &model.ArticleDetail{Content: "public"}},
+		{Title: "Draft", Status: int8(mysql.ARTICLE_STATUS_DRAFT), Detail: &model.ArticleDetail{Content: "draft"}},
+		{Title: "Private", Status: int8(mysql.ARTICLE_STATUS_PRIVATE), Detail: &model.ArticleDetail{Content: "private"}},
+		{Title: "Locked", Status: int8(mysql.ARTILCE_STATUS_PUBLIC), Password: "password-hash", Detail: &model.ArticleDetail{Content: "locked"}},
+	}
+	approved := int8(model.CommentStatusApproved)
+	for _, article := range articles {
+		if err := (&mysql.ArticleDBRepo{}).Create(article); err != nil {
+			t.Fatalf("create %s article: %v", article.Title, err)
+		}
+		if err := connect.Database.Create(&model.Comment{
+			ArticleUID: article.UID,
+			AuthorName: article.Title,
+			Content:    article.Title + " comment",
+			Status:     &approved,
+			PostTime:   time.Now(),
+		}).Error; err != nil {
+			t.Fatalf("create %s comment: %v", article.Title, err)
+		}
+	}
+
+	resp := doJSONRequest(t, app, fiber.MethodGet, "/articles/"+strconv.Itoa(int(articles[0].ID))+"/comments", "", "")
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("public comments status = %d, want 200", resp.StatusCode)
+	}
+	for _, article := range articles[1:3] {
+		resp = doJSONRequest(t, app, fiber.MethodGet, "/articles/"+strconv.Itoa(int(article.ID))+"/comments", "", "")
+		if resp.StatusCode != fiber.StatusNotFound {
+			t.Fatalf("%s comments status = %d, want 404", article.Title, resp.StatusCode)
+		}
+	}
+
+	locked := articles[3]
+	lockedPath := "/articles/" + strconv.Itoa(int(locked.ID)) + "/comments"
+	resp = doJSONRequest(t, app, fiber.MethodGet, lockedPath, "", "")
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("locked comments status = %d, want 403", resp.StatusCode)
+	}
+	token, err := service.CreateArticlePasswordToken(locked)
+	if err != nil {
+		t.Fatalf("CreateArticlePasswordToken() error = %v", err)
+	}
+	resp = doJSONRequestWithCookies(t, app, fiber.MethodGet, lockedPath, "", "", &http.Cookie{
+		Name:  service.ArticlePasswordCookieName(locked.ID),
+		Value: token,
+	})
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("unlocked comments status = %d, want 200", resp.StatusCode)
+	}
+	wrapped := decodeAPIResp(t, resp)
+	var comments []rtype.CommentResponse
+	if err := json.Unmarshal(wrapped.Data, &comments); err != nil {
+		t.Fatalf("decode unlocked comments: %v", err)
+	}
+	if len(comments) != 1 || comments[0].Content != "Locked comment" {
+		t.Fatalf("unlocked comments = %+v", comments)
+	}
 }
 
 func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {

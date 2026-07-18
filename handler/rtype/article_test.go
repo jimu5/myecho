@@ -33,6 +33,25 @@ func TestArticleRequestSetSummaryStripsHTMLAndTruncatesRunes(t *testing.T) {
 	}
 }
 
+func TestArticleRequestSetSummaryPreservesManualSummary(t *testing.T) {
+	req := &ArticleRequest{
+		Summary: "手动摘要",
+		Content: "正文生成的摘要不应覆盖手动值",
+	}
+	req.SetSummary()
+	if req.Summary != "手动摘要" {
+		t.Fatalf("summary = %q, want manual summary", req.Summary)
+	}
+}
+
+func TestArticleRequestSetSummaryTreatsWhitespaceAsEmpty(t *testing.T) {
+	req := &ArticleRequest{Summary: " \n\t ", Content: "自动摘要"}
+	req.SetSummary()
+	if req.Summary != "自动摘要" {
+		t.Fatalf("summary = %q, want generated summary", req.Summary)
+	}
+}
+
 func TestArticleRequestPreHandleDeduplicatesTagUIDs(t *testing.T) {
 	req := &ArticleRequest{TagUIDs: []string{"a", "b", "a"}}
 	req.PreHandle()

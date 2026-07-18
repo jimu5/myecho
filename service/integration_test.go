@@ -231,6 +231,13 @@ func TestArticleServiceDisplayAndRetrieve(t *testing.T) {
 	if page.Total != 2 || len(got) != 2 {
 		t.Fatalf("ArticleDisplayList() page=%+v len=%d", page, len(got))
 	}
+	categories, err := (&CategoryService{}).AllByType(model.CategoryTypeArticle)
+	if err != nil {
+		t.Fatalf("AllByType(article) error = %v", err)
+	}
+	if len(categories) != 1 || categories[0].TotalCount != 2 {
+		t.Fatalf("article category totals = %+v, want both public and top articles", categories)
+	}
 	retrieved, err := (&ArticleService{}).ArticleRetrieve(&ArticleRetrieveQueryParam{ID: articles[0].ID, NoRead: true})
 	if err != nil {
 		t.Fatalf("ArticleRetrieve() error = %v", err)
@@ -285,6 +292,25 @@ func TestArticleServiceDisplayListPaginatesTopAndPublicArticles(t *testing.T) {
 	}
 	if topCount != 2 || publicCount != 3 {
 		t.Fatalf("page2 status counts top=%d public=%d", topCount, publicCount)
+	}
+
+	normalizedPage, normalizedArticles, err := (&ArticleService{}).ArticleDisplayList(&ArticleDisplayListQueryParam{
+		PageFindParam: mysql.PageFindParam{Page: -1, PageSize: -1, NoPage: true},
+	})
+	if err != nil {
+		t.Fatalf("ArticleDisplayList(normalized) error = %v", err)
+	}
+	if normalizedPage.Page != 1 || normalizedPage.PageSize != 10 || len(normalizedArticles) != 10 {
+		t.Fatalf("normalized page=%+v len=%d, want page 1 size 10", normalizedPage, len(normalizedArticles))
+	}
+	cappedPage, cappedArticles, err := (&ArticleService{}).ArticleDisplayList(&ArticleDisplayListQueryParam{
+		PageFindParam: mysql.PageFindParam{Page: 1, PageSize: 1000},
+	})
+	if err != nil {
+		t.Fatalf("ArticleDisplayList(capped) error = %v", err)
+	}
+	if cappedPage.PageSize != 100 || len(cappedArticles) != 15 {
+		t.Fatalf("capped page=%+v len=%d, want page size 100 with all 15 articles", cappedPage, len(cappedArticles))
 	}
 }
 

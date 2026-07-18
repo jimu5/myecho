@@ -10,17 +10,22 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type PageInfoResp struct {
-	Next  string `json:"next"`
-	Pre   string `json:"pre"`
-	Total int64  `json:"total"`
+	Next       string `json:"next"`
+	Pre        string `json:"pre"`
+	Total      int64  `json:"total"`
+	Page       int    `json:"page"`
+	PageSize   int    `json:"page_size"`
+	TotalPages int    `json:"total_pages"`
 }
 
 type Pagination struct {
-	PageInfo PageInfoResp `json:"page_info"`
-	PageData interface{}  `json:"page_data"`
+	PageInfo    PageInfoResp `json:"page_info"`
+	PageData    interface{}  `json:"page_data"`
+	FilterLabel string       `json:"filter_label"`
 }
 
 type PageMeta struct {
@@ -40,9 +45,23 @@ func GetFavicon(c *fiber.Ctx) error {
 }
 
 func getPageInfoRespByMysqlPageInfo(c *fiber.Ctx, pageInfoMysql *mysql.PageInfo) PageInfoResp {
-	pageInfoResp := PageInfoResp{}
+	page := pageInfoMysql.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := pageInfoMysql.PageSize
+	if pageSize < 1 {
+		pageSize = static_config.PageSize
+	}
+	pageInfoResp := PageInfoResp{
+		Total:    pageInfoMysql.Total,
+		Page:     page,
+		PageSize: pageSize,
+	}
+	if pageInfoMysql.Total > 0 {
+		pageInfoResp.TotalPages = int((pageInfoMysql.Total + int64(pageSize) - 1) / int64(pageSize))
+	}
 	if pageInfoMysql.Total == 0 {
-		pageInfoResp.Total = pageInfoMysql.Total
 		return pageInfoResp
 	}
 	// 计算上一页和下一页
@@ -54,7 +73,7 @@ func getPageInfoRespByMysqlPageInfo(c *fiber.Ctx, pageInfoMysql *mysql.PageInfo)
 	if len(rawURL) <= 1 {
 		// 没有参数, 默认的查询
 		values, _ = url.ParseQuery("")
-		if pageInfoMysql.Total > static_config.PageSize {
+		if pageInfoMysql.Total > int64(pageSize) {
 			values.Set("page", "2")
 			pageInfoResp.Next = genRawUrl(rawURL[0], values.Encode())
 		}
@@ -62,14 +81,14 @@ func getPageInfoRespByMysqlPageInfo(c *fiber.Ctx, pageInfoMysql *mysql.PageInfo)
 	}
 	// 有参数的情况
 	values, _ = url.ParseQuery(rawURL[1])
-	if pageInfoMysql.Page > 1 {
+	if page > 1 {
 		// 有上一页的情况
-		values.Set("page", strconv.Itoa(pageInfoMysql.Page-1))
+		values.Set("page", strconv.Itoa(page-1))
 		pageInfoResp.Pre = genRawUrl(rawURL[0], values.Encode())
 	}
-	if int64(pageInfoMysql.Page*pageInfoMysql.PageSize) < pageInfoMysql.Total {
+	if int64(page*pageSize) < pageInfoMysql.Total {
 		// 都有
-		values.Set("page", strconv.Itoa(pageInfoMysql.Page+1))
+		values.Set("page", strconv.Itoa(page+1))
 		pageInfoResp.Next = genRawUrl(rawURL[0], values.Encode())
 	}
 	return pageInfoResp
@@ -92,9 +111,10 @@ func respToMap(c *fiber.Ctx, data interface{}, meta ...PageMeta) fiber.Map {
 	}
 	// 创建响应map
 	resp := fiber.Map{
-		"Data":     data,
-		"Settings": config.MySqlSettingModelCache,
-		"Meta":     pageMeta,
+		"Data":        data,
+		"Settings":    config.MySqlSettingModelCache,
+		"Meta":        pageMeta,
+		"CurrentYear": time.Now().Year(),
 	}
 
 	theme, isPreview := resolveThemeForRequest(c)
@@ -107,6 +127,7 @@ func respToMap(c *fiber.Ctx, data interface{}, meta ...PageMeta) fiber.Map {
 			config = make(map[string]interface{})
 		}
 		resp["ThemeConfig"] = config
+		resp["SupportsColorMode"] = theme.IsDefault || config["supports_color_mode"] == true
 	}
 
 	return resp
@@ -119,6 +140,7 @@ func resolveThemeForRequest(c *fiber.Ctx) (*mysql.ThemeModel, bool) {
 			if theme, err := service.S.Theme.ValidatePreviewToken(token); err == nil && theme != nil {
 				return theme, true
 			}
+			expireThemePreviewCookie(c)
 		}
 	}
 	theme, err := service.S.Theme.GetActiveTheme()

@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"myecho/model"
@@ -143,7 +144,7 @@ func (article *ArticleModel) BeforeDelete(tx *gorm.DB) error {
 }
 
 func (article *ArticleModel) AddCategoryCount(tx *gorm.DB) error {
-	if article.Status == 1 && article.Type == model.ArticleTypePost && len(article.CategoryUID) != 0 {
+	if isCategoryCountedArticle(article.Status, article.Type) && len(article.CategoryUID) != 0 {
 		return tx.Model(&CategoryModel{}).Where("uid = ?", article.CategoryUID).Update("count", gorm.Expr("count + 1")).Error
 	}
 	return nil
@@ -154,10 +155,16 @@ func (article *ArticleModel) ReduceCategoryCount(tx *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	if oldArticle.Status == 1 && oldArticle.Type == model.ArticleTypePost && len(oldArticle.CategoryUID) != 0 {
-		return tx.Model(&CategoryModel{}).Where("uid = ?", oldArticle.CategoryUID).Update("count", gorm.Expr("count - 1")).Error
+	if isCategoryCountedArticle(oldArticle.Status, oldArticle.Type) && len(oldArticle.CategoryUID) != 0 {
+		return tx.Model(&CategoryModel{}).Where("uid = ?", oldArticle.CategoryUID).
+			Update("count", gorm.Expr("CASE WHEN count > 0 THEN count - 1 ELSE 0 END")).Error
 	}
 	return nil
+}
+
+func isCategoryCountedArticle(status int8, articleType model.ArticleType) bool {
+	return articleType == model.ArticleTypePost &&
+		(status == int8(ARTILCE_STATUS_PUBLIC) || status == int8(ARTICLE_STATUS_TOP))
 }
 
 type (
@@ -243,13 +250,14 @@ func (a *ArticleDBRepo) TXGet(tx *gorm.DB, id uint) (ArticleModel, error) {
 
 func (a *ArticleDBRepo) PageFindAll(param *PageFindParam, _ *struct{}) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
-	err := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations).Order("post_time desc").Find(&result).Error
+	err := preloadArticleListAssociations(db.Model(&ArticleModel{}).Scopes(Paginate(param))).
+		Order("post_time desc").Find(&result).Error
 	return result, err
 }
 
 func (a *ArticleDBRepo) PageFindByCommonParam(param *PageFindParam, queryParam ArticleCommonQueryParam) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
-	d := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations)
+	d := preloadArticleListAssociations(db.Model(&ArticleModel{}).Scopes(Paginate(param)))
 	querySqlDB, err := a.preCreateQuerySQL(d, queryParam)
 	if err != nil {
 		return nil, err
@@ -260,7 +268,7 @@ func (a *ArticleDBRepo) PageFindByCommonParam(param *PageFindParam, queryParam A
 
 func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, queryParam PageFindArticleByNotStatusParam) ([]*ArticleModel, error) {
 	result := make([]*ArticleModel, 0)
-	d := db.Model(&ArticleModel{}).Scopes(Paginate(param)).Preload(clause.Associations)
+	d := preloadArticleListAssociations(db.Model(&ArticleModel{}).Scopes(Paginate(param)))
 	originStatus := queryParam.ArticleCommonQueryParam.Status
 	queryParam.ArticleCommonQueryParam.Status = nil
 	querySqlDB, err := a.preCreateQuerySQL(d, queryParam.ArticleCommonQueryParam)
@@ -269,6 +277,10 @@ func (a *ArticleDBRepo) PageFindByNotVisibility(param *PageFindParam, queryParam
 	}
 	err = querySqlDB.Where("status is null OR status <> ?", originStatus).Order("post_time desc").Find(&result).Error
 	return result, err
+}
+
+func preloadArticleListAssociations(query *gorm.DB) *gorm.DB {
+	return query.Preload("Author").Preload("Category").Preload("Tags")
 }
 
 func (a *ArticleDBRepo) CountAll(queryParam ArticleCommonQueryParam) (int64, error) {
@@ -327,6 +339,43 @@ func (a *ArticleDBRepo) FindBySlug(slug string, articleType model.ArticleType) (
 		Where("slug = ? AND type = ?", slug, articleType).
 		First(&result).Error
 	return result, err
+}
+
+func (a *ArticleDBRepo) FindPostNeighbors(article *ArticleModel) (*ArticleModel, *ArticleModel, error) {
+	if article == nil || article.ID == 0 || article.Type != model.ArticleTypePost {
+		return nil, nil, nil
+	}
+	query := func() *gorm.DB {
+		return db.Model(&ArticleModel{}).
+			Select("id", "title", "slug", "type", "post_time").
+			Where("type = ? AND status in ?", model.ArticleTypePost, []ArticleStatus{ARTILCE_STATUS_PUBLIC, ARTICLE_STATUS_TOP})
+	}
+
+	var previous ArticleModel
+	err := query().
+		Where("post_time < ? OR (post_time = ? AND id < ?)", article.PostTime, article.PostTime, article.ID).
+		Order("post_time desc, id desc").
+		First(&previous).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil, err
+	}
+	var previousPtr *ArticleModel
+	if err == nil {
+		previousPtr = &previous
+	}
+
+	var next ArticleModel
+	err = query().
+		Where("post_time > ? OR (post_time = ? AND id > ?)", article.PostTime, article.PostTime, article.ID).
+		Order("post_time asc, id asc").
+		First(&next).Error
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil, err
+	}
+	if err != nil {
+		return previousPtr, nil, nil
+	}
+	return previousPtr, &next, nil
 }
 
 func (a *ArticleDBRepo) DeleteByID(id uint) error {

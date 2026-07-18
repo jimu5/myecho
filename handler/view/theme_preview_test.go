@@ -22,11 +22,14 @@ import (
 
 func TestRespToMapIncludesActiveThemeAndMetaDefaults(t *testing.T) {
 	setupViewThemeTestDB(t)
-	active := createViewTheme(t, "default", true, map[string]interface{}{"color": "black"})
+	active := createViewTheme(t, "default", true, map[string]interface{}{"color": "black", "supports_color_mode": true})
 
 	got := respToMap(nil, "payload", PageMeta{Canonical: "https://example.com/posts"})
 	if got["Data"] != "payload" {
 		t.Fatalf("Data = %v, want payload", got["Data"])
+	}
+	if got["CurrentYear"] != time.Now().Year() {
+		t.Fatalf("CurrentYear = %v, want %d", got["CurrentYear"], time.Now().Year())
 	}
 	meta := got["Meta"].(PageMeta)
 	if meta.OGType != "website" || meta.OGURL != "https://example.com/posts" {
@@ -39,6 +42,9 @@ func TestRespToMapIncludesActiveThemeAndMetaDefaults(t *testing.T) {
 	config := got["ThemeConfig"].(map[string]interface{})
 	if config["color"] != "black" {
 		t.Fatalf("ThemeConfig = %+v", config)
+	}
+	if got["SupportsColorMode"] != true {
+		t.Fatalf("SupportsColorMode = %v, want true", got["SupportsColorMode"])
 	}
 }
 
@@ -67,6 +73,28 @@ func TestRespToMapUsesPreviewThemeCookie(t *testing.T) {
 	body := readRespBody(t, resp)
 	if body != "preview|/themes/preview/|blue" {
 		t.Fatalf("preview response = %q", body)
+	}
+}
+
+func TestInvalidPreviewCookieFallsBackAndExpiresCookie(t *testing.T) {
+	setupViewThemeTestDB(t)
+	createViewTheme(t, "default", true, nil)
+	app := fiber.New()
+	app.Get("/probe", func(c *fiber.Ctx) error {
+		data := respToMap(c, nil)
+		return c.SendString(data["Theme"].(*mysql.ThemeModel).Name)
+	})
+	req := httptest.NewRequest(fiber.MethodGet, "/probe", nil)
+	req.AddCookie(&http.Cookie{Name: service.ThemePreviewCookieName, Value: "invalid"})
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if body := readRespBody(t, resp); body != "default" {
+		t.Fatalf("body = %q, want active theme fallback", body)
+	}
+	if !strings.Contains(resp.Header.Get("Set-Cookie"), service.ThemePreviewCookieName+"=;") {
+		t.Fatalf("Set-Cookie = %q, want expired preview cookie", resp.Header.Get("Set-Cookie"))
 	}
 }
 

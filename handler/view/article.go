@@ -13,6 +13,7 @@ import (
 	"myecho/model"
 	"myecho/service"
 	"myecho/utils"
+	"strings"
 )
 
 func ArticleDisplayList(c *fiber.Ctx) error {
@@ -25,11 +26,46 @@ func ArticleDisplayList(c *fiber.Ctx) error {
 		return err
 	}
 	pageInfoResp := getPageInfoRespByMysqlPageInfo(c, &pageInfo)
-	return c.Render("index", respToMap(c, Pagination{PageInfo: pageInfoResp, PageData: data}, PageMeta{
+	filterLabel := articleFilterLabel(c)
+	pageTitle := "最近更新"
+	if filterLabel != "" {
+		pageTitle = "筛选结果"
+	}
+	return c.Render("index", respToMap(c, Pagination{PageInfo: pageInfoResp, PageData: data, FilterLabel: filterLabel}, PageMeta{
 		Description: "最近更新的文章列表",
 		Canonical:   absoluteURL(c),
-		OGTitle:     "最近更新",
+		OGTitle:     pageTitle,
 	}))
+}
+
+func articleFilterLabel(c *fiber.Ctx) string {
+	filters := make([]string, 0, 5)
+	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
+		filters = append(filters, "关键词“"+keyword+"”")
+	}
+	if categoryUID := strings.TrimSpace(c.Query("category_uid")); categoryUID != "" {
+		categoryName := strings.TrimSpace(c.Query("category_name"))
+		if categoryName == "" {
+			filters = append(filters, "所选分类")
+		} else {
+			filters = append(filters, "分类“"+categoryName+"”")
+		}
+	}
+	if tagUID := strings.TrimSpace(c.Query("tag_uid")); tagUID != "" {
+		tagName := strings.TrimSpace(c.Query("tag_name"))
+		if tagName == "" {
+			filters = append(filters, "所选标签")
+		} else {
+			filters = append(filters, "标签“"+tagName+"”")
+		}
+	}
+	if dateFrom := strings.TrimSpace(c.Query("date_from")); dateFrom != "" {
+		filters = append(filters, "从 "+dateFrom)
+	}
+	if dateTo := strings.TrimSpace(c.Query("date_to")); dateTo != "" {
+		filters = append(filters, "到 "+dateTo)
+	}
+	return strings.Join(filters, " · ")
 }
 
 func ArticleRetrieve(c *fiber.Ctx) error {
@@ -93,6 +129,10 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 	if err != nil {
 		return err
 	}
+	previousArticle, nextArticle, err := service.S.Article.PostNeighbors(&res)
+	if err != nil {
+		return err
+	}
 	data := respToMap(c, res, PageMeta{
 		Description: res.Summary,
 		Canonical:   absoluteURL(c),
@@ -101,6 +141,9 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 	})
 	data["Comments"] = comments
 	data["IsAllowComment"] = isAllowComment(res.IsAllowComment)
+	data["PreviousArticle"] = previousArticle
+	data["NextArticle"] = nextArticle
+	data["HasArticleNeighbors"] = previousArticle != nil || nextArticle != nil
 	return c.Render("article", data)
 }
 

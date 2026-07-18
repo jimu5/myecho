@@ -77,7 +77,7 @@ func RSS(c *fiber.Ctx) error {
 }
 
 func Sitemap(c *fiber.Ctx) error {
-	articles, err := feedArticles()
+	articles, err := sitemapArticles()
 	if err != nil {
 		return err
 	}
@@ -85,6 +85,8 @@ func Sitemap(c *fiber.Ctx) error {
 	urls := []sitemapURL{
 		{Loc: baseURL + "/"},
 		{Loc: baseURL + "/article/categories"},
+		{Loc: baseURL + "/tags"},
+		{Loc: baseURL + "/archive"},
 		{Loc: baseURL + "/links"},
 	}
 	for _, article := range articles {
@@ -108,8 +110,20 @@ func feedArticles() ([]mysql.ArticleModel, error) {
 	return articles, err
 }
 
+func sitemapArticles() ([]mysql.ArticleModel, error) {
+	articles := make([]mysql.ArticleModel, 0)
+	err := connect.Database.Model(&mysql.ArticleModel{}).
+		Where("status in ? AND type in ?", displayableStatuses(), []model.ArticleType{model.ArticleTypePost, model.ArticleTypePage}).
+		Order("post_time desc").
+		Find(&articles).Error
+	return articles, err
+}
+
 func articlePublicPath(article mysql.ArticleModel) string {
 	if article.Slug != "" {
+		if article.Type == model.ArticleTypePage {
+			return "/pages/" + article.Slug
+		}
 		return "/posts/" + article.Slug
 	}
 	return "/articles/" + uintToString(article.ID)

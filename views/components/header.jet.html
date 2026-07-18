@@ -5,6 +5,13 @@
       <span class="site-mark-title">{{ Settings.GetStringValue("SiteTitle") }}</span>
     </a>
     <nav id="nav" class="site-nav" aria-label="主导航">
+      {{ if Theme }}
+      {{ if SupportsColorMode }}
+      <button class="color-mode-toggle" type="button" data-myecho-color-mode-toggle aria-label="切换至深色模式" aria-pressed="false">
+        <span class="color-mode-icon" aria-hidden="true"></span>
+      </button>
+      {{ end }}
+      {{ end }}
       <button class="menu-toggle" aria-label="打开导航菜单" aria-expanded="false" aria-controls="primary-menu">
         <span class="hamburger"></span>
       </button>

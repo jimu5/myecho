@@ -20,7 +20,7 @@
         <ul>
           {{ range .Articles }}
           <li>
-            <time>{{ .PostTime.Format("January 2") }}</time>
+            <time>{{ .PostTime.Format("1月2日") }}</time>
             {{ if .Slug }}
             <a href="/posts/{{ .Slug }}">{{ .Title }}</a>
             {{ else }}
@@ -40,6 +40,7 @@
     </div>
   </main>
   {{ include "components/footer" RequestTimeDuration }}
+  {{ include "components/theme_script" }}
 </body>
 
 </html>

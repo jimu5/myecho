@@ -47,12 +47,6 @@ func (e *HotReloadEngine) Load() error {
 
 func (e *HotReloadEngine) Render(out io.Writer, template string, data interface{}, layout ...string) error {
 	set := e.setForData(data)
-
-	t, err := set.GetTemplate(template)
-	if err != nil {
-		return err
-	}
-
 	vars := make(jet.VarMap)
 	if data != nil {
 		if d, ok := data.(fiber.Map); ok {
@@ -61,8 +55,43 @@ func (e *HotReloadEngine) Render(out io.Writer, template string, data interface{
 			}
 		}
 	}
+	e.RLock()
+	defaultSet := e.Set
+	e.RUnlock()
+	if set != defaultSet {
+		var themedOutput strings.Builder
+		t, err := set.GetTemplate(template)
+		if err == nil {
+			err = t.Execute(&themedOutput, vars, nil)
+		}
+		if err == nil {
+			output := injectThemeScript(themedOutput.String(), themeFromData(data))
+			_, err = io.WriteString(out, output)
+			return err
+		}
+		log.Printf("Theme template %q failed, falling back to default: %v", template, err)
+	}
 
+	t, err := defaultSet.GetTemplate(template)
+	if err != nil {
+		return err
+	}
 	return t.Execute(out, vars, nil)
+}
+
+func injectThemeScript(content string, theme *mysql.ThemeModel) string {
+	if theme == nil {
+		return content
+	}
+	js := strings.TrimSpace(theme.JS)
+	if js == "" || strings.Contains(content, "data-myecho-theme-runtime") || strings.Contains(content, js) {
+		return content
+	}
+	script := "\n<script type=\"text/javascript\" data-myecho-theme-runtime>\n" + theme.JS + "\n</script>\n"
+	if bodyEnd := strings.LastIndex(strings.ToLower(content), "</body>"); bodyEnd >= 0 {
+		return content[:bodyEnd] + script + content[bodyEnd:]
+	}
+	return content + script
 }
 
 // Reload creates a new Jet Set and replaces the old one

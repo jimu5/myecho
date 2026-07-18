@@ -64,8 +64,11 @@ func TestValidateCommentRequestRequiredFields(t *testing.T) {
 		want error
 	}{
 		{name: "missing author", req: rtype.CommentRequest{AuthorEmail: "a@example.com", Content: "hello"}, want: apierrors.ErrCommentAuthorNameEmpty},
+		{name: "blank author", req: rtype.CommentRequest{AuthorName: " \t ", AuthorEmail: "a@example.com", Content: "hello"}, want: apierrors.ErrCommentAuthorNameEmpty},
 		{name: "missing email", req: rtype.CommentRequest{AuthorName: "alice", Content: "hello"}, want: apierrors.ErrCommentAuthorEmailEmpty},
+		{name: "blank email", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: " \n ", Content: "hello"}, want: apierrors.ErrCommentAuthorEmailEmpty},
 		{name: "missing content", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: "a@example.com"}, want: apierrors.ErrCommentContentEmpty},
+		{name: "blank content", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: "a@example.com", Content: " \n\t "}, want: apierrors.ErrCommentContentEmpty},
 		{name: "ok without parent", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: "a@example.com", Content: "hello"}},
 	}
 	for _, tt := range tests {

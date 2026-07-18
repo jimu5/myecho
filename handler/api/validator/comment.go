@@ -11,16 +11,16 @@ import (
 
 // 验证评论请求
 func ValidateCommentRequest(l *rtype.CommentRequest) error {
-	if l.AuthorName == "" {
+	if strings.TrimSpace(l.AuthorName) == "" {
 		return errors.ErrCommentAuthorNameEmpty
 	}
-	if l.AuthorEmail == "" {
+	if strings.TrimSpace(l.AuthorEmail) == "" {
 		return errors.ErrCommentAuthorEmailEmpty
 	}
-	if _, err := mail.ParseAddress(l.AuthorEmail); err != nil {
+	if _, err := mail.ParseAddress(strings.TrimSpace(l.AuthorEmail)); err != nil {
 		return errors.ErrCommentAuthorEmailEmpty
 	}
-	if l.Content == "" {
+	if strings.TrimSpace(l.Content) == "" {
 		return errors.ErrCommentContentEmpty
 	}
 	if len([]rune(strings.TrimSpace(l.AuthorName))) > 64 || len([]rune(strings.TrimSpace(l.AuthorEmail))) > 64 || len([]rune(strings.TrimSpace(l.AuthorUrl))) > 256 || len([]rune(strings.TrimSpace(l.Content))) > 2000 {

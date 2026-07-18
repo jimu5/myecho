@@ -1,0 +1,104 @@
+:root {
+    --font-color: #26231f;
+    --muted-color: #716a60;
+    --subtle-color: #816851;
+    --border-color: rgba(53, 46, 38, 0.18);
+    --border-strong-color: rgba(53, 46, 38, 0.32);
+    --background-color: #f3efe5;
+    --surface-color: #faf7ef;
+    --surface-raised-color: #fffdf7;
+    --surface-muted-color: #ebe4d6;
+    --hover-background-color: #eee7d9;
+    --link-color: #8b3f31;
+    --link-hover-color: #64291f;
+    --action-background-color: #2e2a25;
+    --action-hover-background-color: #4a4239;
+    --warm-color: #a66734;
+    --gold-color: #8e713d;
+    --accent-glow-color: transparent;
+    --warm-glow-color: transparent;
+    --header-background-color: rgba(243, 239, 229, 0.96);
+    --header-highlight-color: transparent;
+    --glass-color: rgba(250, 247, 239, 0.82);
+    --glass-strong-color: #faf7ef;
+    --glass-soft-color: rgba(250, 247, 239, 0.68);
+    --glass-muted-color: rgba(235, 228, 214, 0.62);
+    --shadow-color: transparent;
+    --shadow-strong-color: transparent;
+    --shadow-soft: none;
+    --shadow-panel: none;
+    --radius-sm: 2px;
+    --radius-md: 3px;
+    --radius-lg: 4px;
+    --container-width: 860px;
+    --wide-container-width: 1040px;
+    --display-font: ui-serif, "Songti SC", "STSong", Georgia, serif;
+}
+
+body {
+    background: var(--background-color);
+    font-family: var(--display-font);
+}
+
+.site-header {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+.site-mark-symbol {
+    width: 18px;
+    height: 18px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--warm-color);
+    box-shadow: none;
+}
+
+.site-mark-symbol::after,
+.article-block::before {
+    display: none;
+}
+
+#nav ul li a,
+.color-mode-toggle,
+.menu-toggle,
+.article-block-actions a {
+    border-radius: var(--radius-md);
+}
+
+.article-block {
+    overflow: visible;
+    padding-inline: 0;
+    border-width: 0 0 1px;
+    background: transparent;
+}
+
+.article-block:hover {
+    border-color: var(--border-strong-color);
+    box-shadow: none;
+    transform: none;
+}
+
+:root[data-myecho-color-mode-theme][data-myecho-color-mode="dark"] {
+    --font-color: #e9e1d3;
+    --muted-color: #b9ad9c;
+    --subtle-color: #c89f7d;
+    --border-color: rgba(235, 222, 202, 0.18);
+    --border-strong-color: rgba(235, 222, 202, 0.32);
+    --background-color: #1b1916;
+    --surface-color: #24211d;
+    --surface-raised-color: #2b2722;
+    --surface-muted-color: #332e27;
+    --hover-background-color: #3b342c;
+    --link-color: #e49a7e;
+    --link-hover-color: #ffc0a6;
+    --action-background-color: #e0d4c2;
+    --action-hover-background-color: #f4e8d5;
+    --on-action-color: #211d18;
+    --warm-color: #d9955f;
+    --header-background-color: rgba(27, 25, 22, 0.96);
+    --glass-color: rgba(36, 33, 29, 0.84);
+    --glass-strong-color: #24211d;
+    --glass-soft-color: rgba(36, 33, 29, 0.72);
+    --glass-muted-color: rgba(51, 46, 39, 0.66);
+}
