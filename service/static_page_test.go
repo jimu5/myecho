@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,12 +51,20 @@ func TestInstallStaticPagePackageCreatesAndListsPage(t *testing.T) {
 	if !updated.ShowInNavigation {
 		t.Fatalf("updated page = %+v, want navigation enabled", updated)
 	}
-	reinstalled, err := (&StaticPageService{}).InstallStaticPagePackage(zipPath)
+	updatedZipPath := writeThemeZip(t, map[string]string{
+		"landing/static-page.json": `{"name":"landing","display_name":"Landing Page","version":"2.0.0"}`,
+		"landing/index.html":       "<!doctype html><title>Landing v2</title>",
+	})
+	reinstalled, err := (&StaticPageService{}).InstallStaticPagePackage(updatedZipPath)
 	if err != nil {
 		t.Fatalf("InstallStaticPagePackage(reinstall) error = %v", err)
 	}
-	if !reinstalled.ShowInNavigation {
+	if !reinstalled.ShowInNavigation || reinstalled.Version != "2.0.0" {
 		t.Fatalf("reinstalled page = %+v, want navigation preference preserved", reinstalled)
+	}
+	content, err := os.ReadFile(filepath.Join(StaticPageStorageDir, "landing", "index.html"))
+	if err != nil || !strings.Contains(string(content), "Landing v2") {
+		t.Fatalf("reinstalled page content = %q, err = %v", content, err)
 	}
 	navigation, err := (&StaticPageService{}).ListNavigationPages()
 	if err != nil {
@@ -125,6 +134,17 @@ func TestDeleteStaticPageRejectsUnsafeName(t *testing.T) {
 	}
 	if _, err := (&StaticPageService{}).SetNavigationVisibility("../bad", true); err == nil {
 		t.Fatal("SetNavigationVisibility() expected unsafe name error")
+	}
+}
+
+func TestStaticPageMutationsRejectConcurrentWrites(t *testing.T) {
+	chdirServiceTestTemp(t)
+	lockPath := filepath.Join(staticPageMutationLockDir, "landing")
+	if err := os.MkdirAll(lockPath, 0700); err != nil {
+		t.Fatalf("create static page lock: %v", err)
+	}
+	if _, err := (&StaticPageService{}).SetNavigationVisibility("landing", true); !errors.Is(err, ErrStaticPageBusy) {
+		t.Fatalf("SetNavigationVisibility() error = %v, want ErrStaticPageBusy", err)
 	}
 }
 

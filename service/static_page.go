@@ -3,6 +3,7 @@ package service
 import (
 	"archive/zip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -19,7 +20,11 @@ const (
 
 	maxStaticPagePackageFiles  = 1000
 	maxStaticPageExtractedSize = 100 << 20
+	staticPageMutationLockDir  = "storage/.static-page-locks"
+	staticPageLockStaleAfter   = 5 * time.Minute
 )
+
+var ErrStaticPageBusy = errors.New("static page is being updated")
 
 type StaticPageService struct{}
 
@@ -74,20 +79,50 @@ func (s *StaticPageService) InstallStaticPagePackage(zipPath string) (*StaticPag
 		return nil, err
 	}
 
+	release, err := acquireStaticPageMutationLock(manifest.Name)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+
 	destDir := filepath.Join(StaticPageStorageDir, manifest.Name)
-	if current, err := readStaticPageManifestFile(filepath.Join(destDir, StaticPageManifestFile)); err == nil {
-		manifest.ShowInNavigation = current.ShowInNavigation
-		if err := writeStaticPageManifest(filepath.Join(tmpDir, StaticPageManifestFile), manifest); err != nil {
+	backupDir := ""
+	if _, err := os.Stat(destDir); err == nil {
+		backupDir = filepath.Join(StaticPageStorageDir, fmt.Sprintf(".%s-backup-%d", manifest.Name, time.Now().UnixNano()))
+		if err := os.Rename(destDir, backupDir); err != nil {
 			return nil, err
 		}
-	}
-	if err := os.RemoveAll(destDir); err != nil {
+	} else if !os.IsNotExist(err) {
 		return nil, err
+	}
+	restorePageDir := func() {
+		_ = os.RemoveAll(destDir)
+		if backupDir != "" {
+			_ = os.Rename(backupDir, destDir)
+		}
+	}
+	if backupDir != "" {
+		if current, err := readStaticPageManifestFile(filepath.Join(backupDir, StaticPageManifestFile)); err == nil {
+			manifest.ShowInNavigation = current.ShowInNavigation
+			if err := writeStaticPageManifest(filepath.Join(tmpDir, StaticPageManifestFile), manifest); err != nil {
+				restorePageDir()
+				return nil, err
+			}
+		}
 	}
 	if err := os.Rename(tmpDir, destDir); err != nil {
+		restorePageDir()
 		return nil, err
 	}
-	return buildStaticPage(manifest, destDir)
+	page, err := buildStaticPage(manifest, destDir)
+	if err != nil {
+		restorePageDir()
+		return nil, err
+	}
+	if backupDir != "" {
+		_ = os.RemoveAll(backupDir)
+	}
+	return page, nil
 }
 
 func (s *StaticPageService) ListStaticPages() ([]*StaticPage, error) {
@@ -129,6 +164,11 @@ func (s *StaticPageService) DeleteStaticPage(name string) error {
 	if !themeNamePattern.MatchString(name) {
 		return fmt.Errorf("static page name can only contain lowercase letters, numbers, hyphens and underscores")
 	}
+	release, err := acquireStaticPageMutationLock(name)
+	if err != nil {
+		return err
+	}
+	defer release()
 	return os.RemoveAll(filepath.Join(StaticPageStorageDir, name))
 }
 
@@ -137,6 +177,11 @@ func (s *StaticPageService) SetNavigationVisibility(name string, visible bool) (
 	if !themeNamePattern.MatchString(name) {
 		return nil, fmt.Errorf("static page name can only contain lowercase letters, numbers, hyphens and underscores")
 	}
+	release, err := acquireStaticPageMutationLock(name)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 	pageDir := filepath.Join(StaticPageStorageDir, name)
 	manifestPath := filepath.Join(pageDir, StaticPageManifestFile)
 	manifest, err := readStaticPageManifestFile(manifestPath)
@@ -148,6 +193,34 @@ func (s *StaticPageService) SetNavigationVisibility(name string, visible bool) (
 		return nil, err
 	}
 	return buildStaticPage(manifest, pageDir)
+}
+
+func acquireStaticPageMutationLock(name string) (func(), error) {
+	if err := os.MkdirAll(staticPageMutationLockDir, 0755); err != nil {
+		return nil, err
+	}
+	lockPath := filepath.Join(staticPageMutationLockDir, name)
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := os.Mkdir(lockPath, 0700); err == nil {
+			return func() { _ = os.Remove(lockPath) }, nil
+		} else if !os.IsExist(err) {
+			return nil, err
+		}
+		info, err := os.Stat(lockPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return nil, err
+		}
+		if time.Since(info.ModTime()) <= staticPageLockStaleAfter {
+			return nil, ErrStaticPageBusy
+		}
+		if err := os.Remove(lockPath); err != nil {
+			return nil, ErrStaticPageBusy
+		}
+	}
+	return nil, ErrStaticPageBusy
 }
 
 func writeStaticPageManifest(manifestPath string, manifest *StaticPageManifest) error {
