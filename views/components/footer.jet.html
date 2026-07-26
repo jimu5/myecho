@@ -1,6 +1,23 @@
 <footer>
   <div class="container">
+    {{ if Settings.GetStringValue("SiteAuthor") }}
+    <p class="footer-author"><strong>{{ Settings.GetStringValue("SiteAuthor") }}</strong>{{ if Settings.GetStringValue("SiteAuthorBio") }} · {{ Settings.GetStringValue("SiteAuthorBio") }}{{ end }}</p>
+    {{ end }}
+    {{ if Settings.GetStringValue("SiteFooter") }}
+    <p>{{ Settings.GetStringValue("SiteFooter") }}</p>
+    {{ else }}
     <p>© {{ CurrentYear }} {{ Settings.GetStringValue("SiteTitle") }}. All rights reserved.</p>
-    <p class="footer-meta">Powered by Myecho</p>
+    {{ end }}
+    {{ if Settings.GetStringValue("SiteICP") }}
+    <p>{{ Settings.GetStringValue("SiteICP") }}</p>
+    {{ end }}
+    {{ if SiteSocialLinks }}
+    <p class="footer-social">
+      {{ range SiteSocialLinks }}
+      <a href="{{ . }}" target="_blank" rel="me noopener noreferrer">{{ . }}</a>
+      {{ end }}
+    </p>
+    {{ end }}
+    <p class="footer-meta"><a href="/rss.xml">RSS 订阅</a> · Powered by Myecho</p>
   </div>
 </footer>

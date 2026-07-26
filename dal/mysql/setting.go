@@ -54,6 +54,17 @@ func getDefaultSettings() map[string]SettingModel {
 		Value:       "Myecho 默认网站名",
 		Description: "网站名",
 	})
+	settings = append(settings,
+		SettingModel{Key: "SiteDescription", Description: "网站描述"},
+		SettingModel{Key: "SiteLogo", Description: "网站 Logo"},
+		SettingModel{Key: "SiteAuthor", Description: "作者名称"},
+		SettingModel{Key: "SiteAuthorBio", Description: "作者简介"},
+		SettingModel{Key: "SiteFooter", Description: "页脚文本"},
+		SettingModel{Key: "SiteICP", Description: "备案号"},
+		SettingModel{Key: "SiteSocialLinks", Value: "[]", Description: "社交链接"},
+		SettingModel{Key: "SiteShareImage", Description: "默认分享图"},
+		SettingModel{Key: "BaseURL", Description: "站点地址"},
+	)
 	settings = append(settings, SettingModel{
 		Key:         "SiteIndexMetaKeyword",
 		Value:       "myecho",

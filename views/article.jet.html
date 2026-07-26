@@ -67,6 +67,27 @@
         {{ end }}
       </nav>
       {{ end }}
+
+      {{ if RelatedArticles }}
+      <section class="article-related" aria-labelledby="related-articles-title">
+        <div class="comments-heading">
+          <p class="page-kicker">Related</p>
+          <h2 id="related-articles-title">相关文章</h2>
+        </div>
+        <div class="article-neighbors">
+          {{ range RelatedArticles }}
+          {{ if .Slug }}
+          <a class="article-neighbor" href="/posts/{{ .Slug }}">
+          {{ else }}
+          <a class="article-neighbor" href="/articles/{{ .ID }}">
+          {{ end }}
+            <span>{{ .PostTime.Format("2006年1月2日") }}</span>
+            <strong>{{ .Title }}</strong>
+          </a>
+          {{ end }}
+        </div>
+      </section>
+      {{ end }}
     </article>
 
     <section class="comments-section" id="comments">
@@ -120,8 +141,8 @@
             <input name="author_name" autocomplete="name" maxlength="64" required>
           </label>
           <label>
-            <span>邮箱</span>
-            <input name="author_email" type="email" autocomplete="email" maxlength="64" required>
+            <span>邮箱（可选，不公开）</span>
+            <input name="author_email" type="email" autocomplete="email" maxlength="64">
           </label>
         </div>
         <label>

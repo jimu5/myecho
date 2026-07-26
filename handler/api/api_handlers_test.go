@@ -482,6 +482,26 @@ func TestArticleSlugPageAndPasswordAPI(t *testing.T) {
 	if unlocked.Detail == nil || unlocked.Detail.Content != "secret body" {
 		t.Fatalf("unlocked article detail = %+v", unlocked.Detail)
 	}
+
+	futurePassword, err := service.HashArticlePassword("open later")
+	if err != nil {
+		t.Fatalf("HashArticlePassword() error = %v", err)
+	}
+	futureArticle := &mysql.ArticleModel{
+		Title:       "Scheduled",
+		CategoryUID: category.UID,
+		Status:      int8(mysql.ARTILCE_STATUS_PUBLIC),
+		PostTime:    time.Now().Add(time.Hour),
+		Password:    futurePassword,
+		Detail:      &model.ArticleDetail{Content: "future body"},
+	}
+	if err := (&mysql.ArticleDBRepo{}).Create(futureArticle); err != nil {
+		t.Fatalf("create scheduled article: %v", err)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/"+strconv.Itoa(int(futureArticle.ID))+"/password", "", `{"password":"open later"}`)
+	if resp.StatusCode != fiber.StatusNotFound {
+		t.Fatalf("scheduled article unlock status = %d, want 404", resp.StatusCode)
+	}
 }
 
 func TestCategoryTagAndCommentHandlers(t *testing.T) {
@@ -576,6 +596,10 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	if err := (&mysql.ArticleDBRepo{}).Create(draftArticle); err != nil {
 		t.Fatalf("create draft article: %v", err)
 	}
+	futureArticle := &mysql.ArticleModel{Title: "Scheduled", CategoryUID: category.UID, Status: int8(mysql.ARTILCE_STATUS_PUBLIC), PostTime: time.Now().Add(time.Hour), IsAllowComment: &allowComment, Detail: &model.ArticleDetail{Content: "future"}}
+	if err := (&mysql.ArticleDBRepo{}).Create(futureArticle); err != nil {
+		t.Fatalf("create scheduled article: %v", err)
+	}
 	commentBody := `{"author_name":"alice","author_email":"alice@example.com","content":"hello"}`
 	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/1/comments", "", commentBody)
 	if resp.StatusCode != fiber.StatusCreated {
@@ -596,6 +620,10 @@ func TestCategoryTagAndCommentHandlers(t *testing.T) {
 	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/3/comments", "", commentBody)
 	if resp.StatusCode != fiber.StatusForbidden {
 		t.Fatalf("draft article comment status = %d, want 403", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/articles/4/comments", "", commentBody)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("scheduled article comment status = %d, want 403", resp.StatusCode)
 	}
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/articles/1/comments", "", "")
 	if resp.StatusCode != fiber.StatusOK {
@@ -758,9 +786,17 @@ func TestSettingAndLinkHandlers(t *testing.T) {
 	app.Put("/links/:id", LinkUpdate)
 	app.Delete("/links/:id", LinkDelete)
 
-	resp := doJSONRequest(t, app, fiber.MethodPost, "/settings", "", `{"key":"SiteName","value":"Myecho","type":"string"}`)
+	resp := doJSONRequest(t, app, fiber.MethodPost, "/settings", "", `{"key":"SiteName","value":"Myecho","type":"string","description":"Site title"}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("setting create status = %d, want 200", resp.StatusCode)
+	}
+	settingResp := decodeAPIResp(t, resp)
+	var createdSetting mysql.SettingModel
+	if err := json.Unmarshal(settingResp.Data, &createdSetting); err != nil {
+		t.Fatalf("decode setting: %v", err)
+	}
+	if createdSetting.Description != "Site title" {
+		t.Fatalf("setting description = %q, want %q", createdSetting.Description, "Site title")
 	}
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/settings/SiteName", "", "")
 	if resp.StatusCode != fiber.StatusOK {

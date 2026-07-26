@@ -23,6 +23,13 @@ import (
 func TestRespToMapIncludesActiveThemeAndMetaDefaults(t *testing.T) {
 	setupViewThemeTestDB(t)
 	active := createViewTheme(t, "default", true, map[string]interface{}{"color": "black", "supports_color_mode": true})
+	useViewSettings(t, map[string]string{
+		"BaseURL":         "https://blog.example.com/",
+		"SiteDescription": "A personal blog",
+		"SiteLogo":        "/logo.svg",
+		"SiteShareImage":  "/share.png",
+		"SiteSocialLinks": `["https://github.com/myecho","mailto:ignore@example.com","http://example.com/profile"]`,
+	})
 
 	got := respToMap(nil, "payload", PageMeta{Canonical: "https://example.com/posts"})
 	if got["Data"] != "payload" {
@@ -34,6 +41,16 @@ func TestRespToMapIncludesActiveThemeAndMetaDefaults(t *testing.T) {
 	meta := got["Meta"].(PageMeta)
 	if meta.OGType != "website" || meta.OGURL != "https://example.com/posts" {
 		t.Fatalf("Meta defaults = %+v", meta)
+	}
+	if meta.Description != "A personal blog" || meta.Image != "https://blog.example.com/share.png" {
+		t.Fatalf("Meta setting defaults = %+v", meta)
+	}
+	if got["SiteLogo"] != "https://blog.example.com/logo.svg" {
+		t.Fatalf("SiteLogo = %v", got["SiteLogo"])
+	}
+	links := got["SiteSocialLinks"].([]string)
+	if len(links) != 2 || links[0] != "https://github.com/myecho" || links[1] != "http://example.com/profile" {
+		t.Fatalf("SiteSocialLinks = %#v", links)
 	}
 	theme := got["Theme"].(*mysql.ThemeModel)
 	if theme.ID != active.ID || got["ThemeAssetBase"] != "/themes/default/" || got["IsThemePreview"].(bool) {

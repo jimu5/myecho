@@ -27,7 +27,7 @@ func TagArchive(c *fiber.Ctx) error {
 		Select("tags.uid, tags.name, COUNT(articles.id) AS count").
 		Joins("JOIN article_tags ON article_tags.tag_uid = tags.uid").
 		Joins("JOIN articles ON articles.uid = article_tags.article_uid").
-		Where("articles.status in ? AND articles.type = ?", displayableStatuses(), model.ArticleTypePost).
+		Where("articles.status in ? AND articles.type = ? AND articles.post_time <= ?", displayableStatuses(), model.ArticleTypePost, time.Now()).
 		Group("tags.uid, tags.name").
 		Order("tags.name asc").
 		Scan(&tags).Error
@@ -45,7 +45,7 @@ func Archive(c *fiber.Ctx) error {
 	articles := make([]mysql.ArticleModel, 0)
 	if err := connect.Database.Model(&mysql.ArticleModel{}).
 		Select("id, slug, title, post_time").
-		Where("status in ? AND type = ?", displayableStatuses(), model.ArticleTypePost).
+		Where("status in ? AND type = ? AND post_time <= ?", displayableStatuses(), model.ArticleTypePost, time.Now()).
 		Order("post_time desc").
 		Find(&articles).Error; err != nil {
 		return err

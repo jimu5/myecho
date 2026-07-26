@@ -51,7 +51,10 @@ func RSS(c *fiber.Ctx) error {
 		return err
 	}
 	siteTitle := getSettingString("SiteTitle")
-	siteDescription := getSettingString("SiteIndexMetaKeyword")
+	siteDescription := getSettingString("SiteDescription")
+	if siteDescription == "" {
+		siteDescription = getSettingString("SiteIndexMetaKeyword")
+	}
 	baseURL := requestBaseURL(c)
 	items := make([]rssItem, 0, len(articles))
 	for _, article := range articles {
@@ -104,7 +107,7 @@ func Sitemap(c *fiber.Ctx) error {
 func feedArticles() ([]mysql.ArticleModel, error) {
 	articles := make([]mysql.ArticleModel, 0)
 	err := connect.Database.Model(&mysql.ArticleModel{}).
-		Where("status in ? AND type = ?", displayableStatuses(), model.ArticleTypePost).
+		Where("status in ? AND type = ? AND post_time <= ?", displayableStatuses(), model.ArticleTypePost, time.Now()).
 		Order("post_time desc").
 		Find(&articles).Error
 	return articles, err
@@ -113,7 +116,7 @@ func feedArticles() ([]mysql.ArticleModel, error) {
 func sitemapArticles() ([]mysql.ArticleModel, error) {
 	articles := make([]mysql.ArticleModel, 0)
 	err := connect.Database.Model(&mysql.ArticleModel{}).
-		Where("status in ? AND type in ?", displayableStatuses(), []model.ArticleType{model.ArticleTypePost, model.ArticleTypePage}).
+		Where("status in ? AND type in ? AND post_time <= ?", displayableStatuses(), []model.ArticleType{model.ArticleTypePost, model.ArticleTypePage}, time.Now()).
 		Order("post_time desc").
 		Find(&articles).Error
 	return articles, err
@@ -139,7 +142,7 @@ func writeXML(c *fiber.Ctx, payload interface{}) error {
 }
 
 func requestBaseURL(c *fiber.Ctx) string {
-	return c.Protocol() + "://" + c.Hostname()
+	return siteBaseURL(c)
 }
 
 func getSettingString(key string) string {

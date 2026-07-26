@@ -44,6 +44,22 @@
 {{ if Meta.OGURL }}
 <meta property="og:url" content="{{ Meta.OGURL }}">
 {{ end }}
+{{ if Meta.Image }}
+<meta property="og:image" content="{{ Meta.Image }}">
+{{ end }}
+<meta name="twitter:card" content="{{ if Meta.Image }}summary_large_image{{ else }}summary{{ end }}">
+{{ if Meta.OGTitle }}
+<meta name="twitter:title" content="{{ Meta.OGTitle }}">
+{{ end }}
+{{ if Meta.Description }}
+<meta name="twitter:description" content="{{ Meta.Description }}">
+{{ end }}
+{{ if Meta.Image }}
+<meta name="twitter:image" content="{{ Meta.Image }}">
+{{ end }}
+{{ if Meta.JSONLD }}
+<script type="application/ld+json">{{ Meta.JSONLD | raw }}</script>
+{{ end }}
 <link type="text/css" rel="stylesheet" href="/static/css/style.css">
 
 {* 加载激活的主题样式和脚本 *}

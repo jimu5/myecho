@@ -16,6 +16,14 @@ type RegisterRequest struct {
 	PermissionType int8   `json:"-"`
 }
 
+type SetupRequest struct {
+	Name            string `json:"name"`
+	Email           string `json:"email"`
+	Password        string `json:"password"`
+	SiteTitle       string `json:"site_title"`
+	SiteDescription string `json:"site_description"`
+}
+
 type LoginResponse struct {
 	Email          string    `json:"email"`
 	Name           string    `json:"name"`

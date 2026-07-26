@@ -21,6 +21,8 @@ func SetupApiRouter(app *fiber.App) {
 			apiRoute.Post("/articles/batch", mw.Authentication, mw.AdminRequired, api.ArticleBatch)
 			apiRoute.Patch("/articles/:id", mw.Authentication, mw.AdminRequired, api.ArticleUpdate)
 			apiRoute.Delete("/articles/:id", mw.Authentication, mw.AdminRequired, api.ArticleDelete)
+			apiRoute.Get("/dashboard", mw.Authentication, mw.AdminRequired, api.Dashboard)
+			apiRoute.Get("/export", mw.Authentication, mw.AdminRequired, api.Export)
 
 			apiRoute.Get("/comments", mw.Authentication, mw.AdminRequired, api.CommentAllList)
 			apiRoute.Patch("/comments/:id", mw.Authentication, mw.AdminRequired, api.CommentUpdate)
@@ -62,6 +64,8 @@ func SetupApiRouter(app *fiber.App) {
 			noNeedAuth := app.Group("/api")
 			noNeedAuth.Post("/login", api.Login)
 			noNeedAuth.Post("/register", api.Register)
+			noNeedAuth.Get("/setup/status", api.SetupStatus)
+			noNeedAuth.Post("/setup", api.Setup)
 
 			// 文章相关
 			noNeedAuth.Get("/articles", api.ArticleDisplayList)

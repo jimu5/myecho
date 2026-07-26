@@ -2,6 +2,7 @@ package view
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"github.com/gofiber/fiber/v2"
 	"myecho/dal"
@@ -133,18 +134,53 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 	if err != nil {
 		return err
 	}
+	relatedArticles, err := service.S.Article.RelatedPosts(&res)
+	if err != nil {
+		return err
+	}
 	data := respToMap(c, res, PageMeta{
 		Description: res.Summary,
 		Canonical:   absoluteURL(c),
 		OGTitle:     res.Title,
 		OGType:      "article",
+		JSONLD:      articleJSONLD(c, &res),
 	})
 	data["Comments"] = comments
 	data["IsAllowComment"] = isAllowComment(res.IsAllowComment)
 	data["PreviousArticle"] = previousArticle
 	data["NextArticle"] = nextArticle
 	data["HasArticleNeighbors"] = previousArticle != nil || nextArticle != nil
+	data["RelatedArticles"] = relatedArticles
 	return c.Render("article", data)
+}
+
+func articleJSONLD(c *fiber.Ctx, article *mysql.ArticleModel) string {
+	if article == nil {
+		return ""
+	}
+	doc := map[string]interface{}{
+		"@context":      "https://schema.org",
+		"@type":         "BlogPosting",
+		"headline":      article.Title,
+		"description":   article.Summary,
+		"url":           absoluteURL(c),
+		"datePublished": article.PostTime.Format("2006-01-02T15:04:05Z07:00"),
+		"dateModified":  article.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+	if image := settingAbsoluteURL(c, "SiteShareImage"); image != "" {
+		doc["image"] = image
+	}
+	if article.Author != nil {
+		name := article.Author.NickName
+		if name == "" {
+			name = article.Author.Name
+		}
+		if name != "" {
+			doc["author"] = map[string]string{"@type": "Person", "name": name}
+		}
+	}
+	body, _ := json.Marshal(doc)
+	return string(body)
 }
 
 func renderArticleContent(content string, contentFormat model.ArticleContentFormat) (string, error) {

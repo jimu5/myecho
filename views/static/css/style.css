@@ -152,6 +152,14 @@ body > main {
     color: var(--font-color);
 }
 
+.site-mark-logo {
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    border-radius: 11px;
+    object-fit: contain;
+}
+
 .site-mark-symbol {
     position: relative;
     width: 34px;
@@ -742,6 +750,10 @@ body > main {
     grid-column: 2;
     align-items: flex-end;
     text-align: right;
+}
+
+.article-related {
+    margin-top: 36px;
 }
 
 .article-content {
@@ -1615,6 +1627,13 @@ footer p {
 
 .footer-meta {
     color: var(--subtle-color);
+}
+
+.footer-social {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px 14px;
 }
 
 .sr-only {

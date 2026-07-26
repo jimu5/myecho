@@ -29,7 +29,7 @@ func TestArticleInteractionsPreserveAnchorsAndValidateComments(t *testing.T) {
 	assertContains(t, article, `window.requestAnimationFrame(function()`)
 	assertContains(t, article, `window.addEventListener('scroll', scheduleReadingStateUpdate, { passive: true })`)
 	assertContains(t, article, `name="author_name" autocomplete="name" maxlength="64" required`)
-	assertContains(t, article, `name="author_email" type="email" autocomplete="email" maxlength="64" required`)
+	assertContains(t, article, `name="author_email" type="email" autocomplete="email" maxlength="64">`)
 	assertContains(t, article, `name="author_url" type="url" autocomplete="url" maxlength="256"`)
 	assertContains(t, article, `name="content" rows="5" maxlength="2000" required`)
 	assertContains(t, article, `payload.msg || '提交失败，请稍后重试。'`)

@@ -59,10 +59,11 @@ func TestArticleRepoQueriesMutationsAndReadCount(t *testing.T) {
 		t.Fatalf("create tag: %v", err)
 	}
 	repo := &ArticleDBRepo{}
-	publicArticle := &ArticleModel{Title: "Public", Summary: "Go summary", CategoryUID: category.UID, Status: int8(ARTILCE_STATUS_PUBLIC), PostTime: time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC), Detail: &model.ArticleDetail{Content: "public"}}
+	publicArticle := &ArticleModel{Title: "Public", Summary: "Go summary", CategoryUID: category.UID, Status: int8(ARTILCE_STATUS_PUBLIC), PostTime: time.Date(2026, 5, 1, 10, 0, 0, 0, time.UTC), Detail: &model.ArticleDetail{Content: "body-only-token"}}
 	topArticle := &ArticleModel{Title: "Top", CategoryUID: childCategory.UID, Status: int8(ARTICLE_STATUS_TOP), PostTime: time.Date(2026, 5, 2, 10, 0, 0, 0, time.UTC), Detail: &model.ArticleDetail{Content: "top"}}
 	draftArticle := &ArticleModel{Title: "Draft", CategoryUID: category.UID, Status: int8(ARTICLE_STATUS_DRAFT), PostTime: time.Date(2026, 5, 3, 10, 0, 0, 0, time.UTC), Detail: &model.ArticleDetail{Content: "draft"}}
-	for _, article := range []*ArticleModel{publicArticle, topArticle, draftArticle} {
+	futureArticle := &ArticleModel{Title: "Scheduled", Status: int8(ARTILCE_STATUS_PUBLIC), PostTime: time.Now().Add(24 * time.Hour), Detail: &model.ArticleDetail{Content: "scheduled"}}
+	for _, article := range []*ArticleModel{publicArticle, topArticle, draftArticle, futureArticle} {
 		if err := repo.Create(article); err != nil {
 			t.Fatalf("create article %s: %v", article.Title, err)
 		}
@@ -85,8 +86,8 @@ func TestArticleRepoQueriesMutationsAndReadCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PageFindAll() error = %v", err)
 	}
-	if len(all) != 3 {
-		t.Fatalf("PageFindAll() len = %d, want 3", len(all))
+	if len(all) != 4 {
+		t.Fatalf("PageFindAll() len = %d, want 4", len(all))
 	}
 	for _, article := range all {
 		if article.Detail != nil {
@@ -99,11 +100,11 @@ func TestArticleRepoQueriesMutationsAndReadCount(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PageFindByNotVisibility() error = %v", err)
 	}
-	if len(notTop) != 2 {
-		t.Fatalf("PageFindByNotVisibility() len = %d, want 2", len(notTop))
+	if len(notTop) != 3 {
+		t.Fatalf("PageFindByNotVisibility() len = %d, want 3", len(notTop))
 	}
 	if total, err := repo.CountDisplayable(ArticleCommonQueryParam{}); err != nil || total != 2 {
-		t.Fatalf("CountDisplayable() total=%d err=%v, want 2 nil", total, err)
+		t.Fatalf("CountDisplayable() total=%d err=%v, want two already-published articles", total, err)
 	}
 	publicStatus := ARTILCE_STATUS_PUBLIC
 	keyword := "Go"
@@ -122,6 +123,14 @@ func TestArticleRepoQueriesMutationsAndReadCount(t *testing.T) {
 	}
 	if len(filtered) != 1 || filtered[0].ID != publicArticle.ID {
 		t.Fatalf("PageFindByCommonParam() = %+v, want public article", filtered)
+	}
+	bodyKeyword := "body-only-token"
+	matches, err := repo.PageFindByCommonParam(&PageFindParam{NoPage: true}, ArticleCommonQueryParam{Keyword: &bodyKeyword})
+	if err != nil {
+		t.Fatalf("PageFindByCommonParam(body keyword) error = %v", err)
+	}
+	if len(matches) != 1 || matches[0].ID != publicArticle.ID {
+		t.Fatalf("PageFindByCommonParam(body keyword) = %+v, want public article", matches)
 	}
 	total, err := repo.CountAll(ArticleCommonQueryParam{CategoryUID: &category.UID})
 	if err != nil {
@@ -217,12 +226,22 @@ func TestSettingRepoDefaultsAndTypeUpdates(t *testing.T) {
 	setupMysqlRepoTestDB(t)
 	repo := &SettingRepo{}
 	repo.InitDefaultSetting()
+	defaults := getDefaultSettings()
 	all, err := repo.GetAll()
 	if err != nil {
 		t.Fatalf("GetAll() error = %v", err)
 	}
-	if len(all) != 3 {
-		t.Fatalf("default settings len = %d, want 3", len(all))
+	if len(all) != len(defaults) || len(defaults) != 12 {
+		t.Fatalf("default settings persisted=%d defined=%d, want 12", len(all), len(defaults))
+	}
+	for _, key := range []string{"SiteTitle", "SiteDescription", "SiteLogo", "SiteAuthor", "SiteAuthorBio", "SiteFooter", "SiteICP", "SiteSocialLinks", "SiteShareImage", "BaseURL", "SiteIndexMetaKeyword", "SiteFaviconIcon"} {
+		setting, ok := defaults[key]
+		if !ok || !setting.IsSystem {
+			t.Fatalf("default setting %q = %+v, exists=%v", key, setting, ok)
+		}
+	}
+	if defaults["SiteSocialLinks"].Value != "[]" {
+		t.Fatalf("SiteSocialLinks default = %q, want []", defaults["SiteSocialLinks"].Value)
 	}
 	if err := repo.MCreate(nil); err != nil {
 		t.Fatalf("MCreate(nil) error = %v", err)

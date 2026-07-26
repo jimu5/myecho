@@ -5,6 +5,7 @@ import (
 	"myecho/handler/api/errors"
 	"myecho/model"
 	"myecho/utils"
+	"time"
 )
 
 type CategoryModel model.Category
@@ -62,7 +63,7 @@ func (c *CategoryRepo) DisplayablePostCounts() (map[string]uint, error) {
 	}, 0)
 	err := db.Model(&ArticleModel{}).
 		Select("category_uid, COUNT(*) AS count").
-		Where("type = ? AND status in ? AND category_uid <> ''", model.ArticleTypePost, []ArticleStatus{ARTILCE_STATUS_PUBLIC, ARTICLE_STATUS_TOP}).
+		Where("type = ? AND status in ? AND post_time <= ? AND category_uid <> ''", model.ArticleTypePost, []ArticleStatus{ARTILCE_STATUS_PUBLIC, ARTICLE_STATUS_TOP}, time.Now()).
 		Group("category_uid").
 		Scan(&rows).Error
 	if err != nil {

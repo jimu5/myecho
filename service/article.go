@@ -56,6 +56,10 @@ func (a *ArticleService) ArticleDisplayList(param *ArticleDisplayListQueryParam)
 	if err != nil {
 		return pageInfo, nil, err
 	}
+	now := time.Now()
+	if sqlParam.DateTo == nil || sqlParam.DateTo.After(now) {
+		sqlParam.DateTo = &now
+	}
 	sqlParam.Status = &status
 	sqlParam.Type = &articleType
 	total, err := dal.MySqlDB.Article.CountDisplayable(sqlParam)
@@ -121,7 +125,7 @@ func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (mysq
 	if err != nil {
 		return mysql.ArticleModel{}, err
 	}
-	if !param.IncludeNonPublic && !isArticleDisplayable(article.Status) {
+	if !param.IncludeNonPublic && !IsArticlePubliclyVisible(article.Status, article.PostTime) {
 		return mysql.ArticleModel{}, ErrArticleNotDisplayable
 	}
 	if !param.IncludeNonPublic && article.Password != "" && !param.PasswordUnlocked {
@@ -142,6 +146,10 @@ func (a *ArticleService) PostNeighbors(article *mysql.ArticleModel) (*mysql.Arti
 		return nil, nil, nil
 	}
 	return dal.MySqlDB.Article.FindPostNeighbors(article)
+}
+
+func (a *ArticleService) RelatedPosts(article *mysql.ArticleModel) ([]*mysql.ArticleModel, error) {
+	return dal.MySqlDB.Article.FindRelatedPosts(article, 3)
 }
 
 func HashArticlePassword(password string) (string, error) {
@@ -236,8 +244,9 @@ func randomArticleSecret() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
-func isArticleDisplayable(status int8) bool {
-	return status == int8(mysql.ARTILCE_STATUS_PUBLIC) || status == int8(mysql.ARTICLE_STATUS_TOP)
+func IsArticlePubliclyVisible(status int8, postTime time.Time) bool {
+	return (status == int8(mysql.ARTILCE_STATUS_PUBLIC) || status == int8(mysql.ARTICLE_STATUS_TOP)) &&
+		!postTime.After(time.Now())
 }
 
 func BuildArticleCommonQueryParam(categoryUID, keyword, tagUID *string, dateFrom, dateTo string) (mysql.ArticleCommonQueryParam, error) {

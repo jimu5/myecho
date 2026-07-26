@@ -265,7 +265,7 @@ func CommentBatch(c *fiber.Ctx) error {
 }
 
 func isCommentableArticle(article *model.Article) bool {
-	return article.Status == int8(mysql.ARTILCE_STATUS_PUBLIC) || article.Status == int8(mysql.ARTICLE_STATUS_TOP)
+	return service.IsArticlePubliclyVisible(article.Status, article.PostTime)
 }
 
 func publicCommentStatusSQL() *gorm.DB {

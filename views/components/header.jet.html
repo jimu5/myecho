@@ -1,7 +1,11 @@
 <header class="site-header">
   <div class="container header-inner">
     <a class="site-mark" href="/" aria-label="{{ Settings.GetStringValue("SiteTitle") }} 首页">
+      {{ if SiteLogo }}
+      <img class="site-mark-logo" src="{{ SiteLogo }}" alt="" width="34" height="34">
+      {{ else }}
       <span class="site-mark-symbol" aria-hidden="true"></span>
+      {{ end }}
       <span class="site-mark-title">{{ Settings.GetStringValue("SiteTitle") }}</span>
     </a>
     <nav id="nav" class="site-nav" aria-label="主导航">

@@ -1,6 +1,7 @@
 package view
 
 import (
+	"encoding/json"
 	"io"
 	"net/http/httptest"
 	"os"
@@ -81,6 +82,10 @@ func TestNotFoundRendersThemeTemplateWith404Status(t *testing.T) {
 
 func TestArticlePagesRenderListAndDetail(t *testing.T) {
 	setupViewThemeTestDB(t)
+	useViewSettings(t, map[string]string{
+		"BaseURL":        "https://blog.example.com",
+		"SiteShareImage": "/share.png",
+	})
 	category := &mysql.CategoryModel{Name: "Tech", UID: "tech", Type: model.CategoryTypeArticle}
 	if err := (&mysql.CategoryRepo{}).Create(category); err != nil {
 		t.Fatalf("create category: %v", err)
@@ -170,6 +175,18 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 	if !detailData["IsAllowComment"].(bool) {
 		t.Fatal("IsAllowComment = false, want true")
 	}
+	meta := detailData["Meta"].(PageMeta)
+	wantURL := "https://blog.example.com/articles/" + strconv.Itoa(int(publicArticle.ID))
+	if meta.Canonical != wantURL || meta.OGURL != wantURL || meta.OGTitle != publicArticle.Title || meta.OGType != "article" {
+		t.Fatalf("article meta = %+v", meta)
+	}
+	var jsonLD map[string]interface{}
+	if err := json.Unmarshal([]byte(meta.JSONLD), &jsonLD); err != nil {
+		t.Fatalf("decode article JSON-LD: %v", err)
+	}
+	if jsonLD["@type"] != "BlogPosting" || jsonLD["headline"] != publicArticle.Title || jsonLD["url"] != wantURL || jsonLD["image"] != "https://blog.example.com/share.png" {
+		t.Fatalf("article JSON-LD = %+v", jsonLD)
+	}
 	previousArticle := detailData["PreviousArticle"].(*mysql.ArticleModel)
 	nextArticle := detailData["NextArticle"].(*mysql.ArticleModel)
 	if previousArticle != nil || nextArticle == nil || nextArticle.ID != htmlArticle.ID || !detailData["HasArticleNeighbors"].(bool) {
@@ -215,6 +232,16 @@ func TestPostPageTagAndArchiveViews(t *testing.T) {
 		Detail:      &model.ArticleDetail{Content: "post body"},
 		Tags:        []*model.Tag{tag},
 	}
+	futurePost := &mysql.ArticleModel{
+		Title:       "Scheduled",
+		Slug:        "scheduled",
+		Type:        model.ArticleTypePost,
+		CategoryUID: category.UID,
+		Status:      int8(mysql.ARTILCE_STATUS_PUBLIC),
+		PostTime:    time.Now().Add(24 * time.Hour),
+		Detail:      &model.ArticleDetail{Content: "scheduled body"},
+		Tags:        []*model.Tag{tag},
+	}
 	page := &mysql.ArticleModel{
 		Title:    "About",
 		Slug:     "about",
@@ -225,6 +252,9 @@ func TestPostPageTagAndArchiveViews(t *testing.T) {
 	}
 	if err := repo.Create(post); err != nil {
 		t.Fatalf("create post: %v", err)
+	}
+	if err := repo.Create(futurePost); err != nil {
+		t.Fatalf("create future post: %v", err)
 	}
 	if err := repo.Create(page); err != nil {
 		t.Fatalf("create page: %v", err)

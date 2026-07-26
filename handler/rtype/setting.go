@@ -6,9 +6,10 @@ import (
 )
 
 type SettingCreateReq struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
-	Type  string `json:"type"`
+	Key         string `json:"key"`
+	Value       string `json:"value"`
+	Type        string `json:"type"`
+	Description string `json:"description"`
 }
 
 func (sq *SettingCreateReq) Validate() error {

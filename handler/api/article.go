@@ -296,7 +296,7 @@ func ArticlePasswordUnlock(c *fiber.Ctx) error {
 	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
 		return NotFoundErrorResponse(c, err.Error())
 	}
-	if !isAPIArticleDisplayable(article.Status) {
+	if !service.IsArticlePubliclyVisible(article.Status, article.PostTime) {
 		return NotFoundErrorResponse(c, service.ErrArticleNotDisplayable.Error())
 	}
 	if article.Password == "" {
@@ -371,8 +371,4 @@ func isAdminRequest(c *fiber.Ctx) bool {
 		return false
 	}
 	return user.PermissionType == model.Admin
-}
-
-func isAPIArticleDisplayable(status int8) bool {
-	return status == int8(mysql.ARTILCE_STATUS_PUBLIC) || status == int8(mysql.ARTICLE_STATUS_TOP)
 }

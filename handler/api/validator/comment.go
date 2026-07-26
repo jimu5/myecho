@@ -14,11 +14,12 @@ func ValidateCommentRequest(l *rtype.CommentRequest) error {
 	if strings.TrimSpace(l.AuthorName) == "" {
 		return errors.ErrCommentAuthorNameEmpty
 	}
-	if strings.TrimSpace(l.AuthorEmail) == "" {
-		return errors.ErrCommentAuthorEmailEmpty
-	}
-	if _, err := mail.ParseAddress(strings.TrimSpace(l.AuthorEmail)); err != nil {
-		return errors.ErrCommentAuthorEmailEmpty
+	email := strings.TrimSpace(l.AuthorEmail)
+	if email != "" {
+		address, err := mail.ParseAddress(email)
+		if err != nil || address.Address != email {
+			return errors.ErrCommentAuthorEmailEmpty
+		}
 	}
 	if strings.TrimSpace(l.Content) == "" {
 		return errors.ErrCommentContentEmpty

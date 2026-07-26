@@ -36,7 +36,7 @@ func setupAuthTestDB(t *testing.T) {
 	})
 }
 
-func TestRegisterStoresBcryptPassword(t *testing.T) {
+func TestRegisterIsDisabled(t *testing.T) {
 	setupAuthTestDB(t)
 	app := fiber.New()
 	app.Post("/register", Register)
@@ -48,19 +48,15 @@ func TestRegisterStoresBcryptPassword(t *testing.T) {
 	if err != nil {
 		t.Fatalf("app.Test() error = %v", err)
 	}
-	if resp.StatusCode != fiber.StatusOK {
-		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, fiber.StatusForbidden)
 	}
-	var user model.User
-	if err := connect.Database.Where("name = ?", "admin").First(&user).Error; err != nil {
-		t.Fatalf("find user: %v", err)
+	var count int64
+	if err := connect.Database.Model(&model.User{}).Count(&count).Error; err != nil {
+		t.Fatalf("count users: %v", err)
 	}
-	if !strings.HasPrefix(user.Password, "$2") {
-		t.Fatalf("password was not stored as bcrypt: %q", user.Password)
-	}
-	ok, shouldUpgrade := CheckPassword(user.Password, "secret")
-	if !ok || shouldUpgrade {
-		t.Fatalf("CheckPassword() ok=%v shouldUpgrade=%v", ok, shouldUpgrade)
+	if count != 0 {
+		t.Fatalf("user count = %d, want 0", count)
 	}
 }
 

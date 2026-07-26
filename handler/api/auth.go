@@ -3,11 +3,12 @@ package api
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"myecho/config/yaml_config"
+	"errors"
 	"myecho/dal/connect"
 	"myecho/handler"
 	"myecho/handler/api/validator"
 	"myecho/handler/rtype"
+	"sync"
 	"time"
 
 	"myecho/model"
@@ -15,6 +16,12 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+)
+
+var (
+	errSetupCompleted = errors.New("setup already completed")
+	// ponytail: process-wide lock is enough for the single-instance deployment; add a DB-level lock if clustered setup is supported.
+	setupMu sync.Mutex
 )
 
 func Login(c *fiber.Ctx) error {
@@ -60,41 +67,43 @@ func Login(c *fiber.Ctx) error {
 
 // 注册
 func Register(c *fiber.Ctx) error {
-	if !yaml_config.Yaml.APPConfig.AllowRegister {
-		return LoginErrorResponse(c, CanNotRegister)
+	return LoginErrorResponse(c, CanNotRegister)
+}
+
+func needsInitialSetup(db *gorm.DB) (bool, error) {
+	var count int64
+	if err := db.Model(&model.User{}).Count(&count).Error; err != nil {
+		return false, err
 	}
-	var r rtype.RegisterRequest
-	var res rtype.RegisterResponse
-	if err := c.BodyParser(&r); err != nil {
-		return ParseErrorResponse(c, err.Error())
-	}
-	if err := validator.ValidateRegisterRequest(&r); err != nil {
-		return ValidateErrorResponse(c, err.Error())
-	}
-	var user model.User
-	structAssign(&user, &r)
-	hashedPassword, err := HashPassword(user.Password)
+	return count == 0, nil
+}
+
+func createInitialAdmin(tx *gorm.DB, req rtype.RegisterRequest, hashedPassword string) (model.User, error) {
+	needsSetup, err := needsInitialSetup(tx)
 	if err != nil {
-		return InternalErrorResponse(c, InternalSQLError, err.Error())
+		return model.User{}, err
 	}
-	user.Password = hashedPassword
-	user.PermissionType = model.Normal
-	// 第一个注册的用户默认为管理员
-	if connect.Database.First(&model.User{}).RowsAffected == 0 {
-		user.PermissionType = model.Admin
+	if !needsSetup {
+		return model.User{}, errSetupCompleted
 	}
-	permissionType := user.PermissionType
-	if err := connect.Database.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&model.User{}).Select("*").Create(&user).Error; err != nil {
-			return err
-		}
-		return tx.Model(&user).Update("permission_type", permissionType).Error
-	}); err != nil {
-		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	user := model.User{
+		Name:           req.Name,
+		NickName:       req.NickName,
+		Email:          req.Email,
+		Password:       hashedPassword,
+		PermissionType: model.Admin,
 	}
-	user.PermissionType = permissionType
-	res.LoginResponse = userToLoginResponse(user)
-	return handler.Success(c, res)
+	if user.NickName == "" {
+		user.NickName = user.Name
+	}
+	if err := tx.Select("*").Create(&user).Error; err != nil {
+		return model.User{}, err
+	}
+	if err := tx.Model(&user).Update("permission_type", model.Admin).Error; err != nil {
+		return model.User{}, err
+	}
+	user.PermissionType = model.Admin
+	return user, nil
 }
 
 func HashPassword(password string) (string, error) {

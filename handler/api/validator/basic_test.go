@@ -44,7 +44,10 @@ func TestValidateRegisterRequestRequiredFields(t *testing.T) {
 		want error
 	}{
 		{name: "missing name", req: rtype.RegisterRequest{Email: "a@example.com", Password: "p"}, want: apierrors.ErrNameEmpty},
+		{name: "blank name", req: rtype.RegisterRequest{Name: " \t ", Email: "a@example.com", Password: "p"}, want: apierrors.ErrNameEmpty},
 		{name: "missing email", req: rtype.RegisterRequest{Name: "admin", Password: "p"}, want: apierrors.ErrEmailEmpty},
+		{name: "blank email", req: rtype.RegisterRequest{Name: "admin", Email: " \n ", Password: "p"}, want: apierrors.ErrEmailEmpty},
+		{name: "invalid email", req: rtype.RegisterRequest{Name: "admin", Email: "not-an-email", Password: "p"}, want: apierrors.ErrEmailEmpty},
 		{name: "missing password", req: rtype.RegisterRequest{Name: "admin", Email: "a@example.com"}, want: apierrors.ErrPasswordEmpty},
 	}
 	for _, tt := range tests {
@@ -65,8 +68,10 @@ func TestValidateCommentRequestRequiredFields(t *testing.T) {
 	}{
 		{name: "missing author", req: rtype.CommentRequest{AuthorEmail: "a@example.com", Content: "hello"}, want: apierrors.ErrCommentAuthorNameEmpty},
 		{name: "blank author", req: rtype.CommentRequest{AuthorName: " \t ", AuthorEmail: "a@example.com", Content: "hello"}, want: apierrors.ErrCommentAuthorNameEmpty},
-		{name: "missing email", req: rtype.CommentRequest{AuthorName: "alice", Content: "hello"}, want: apierrors.ErrCommentAuthorEmailEmpty},
-		{name: "blank email", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: " \n ", Content: "hello"}, want: apierrors.ErrCommentAuthorEmailEmpty},
+		{name: "email is optional", req: rtype.CommentRequest{AuthorName: "alice", Content: "hello"}},
+		{name: "blank email is optional", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: " \n ", Content: "hello"}},
+		{name: "valid email", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: "a@example.com", Content: "hello"}},
+		{name: "invalid email", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: "not-an-email", Content: "hello"}, want: apierrors.ErrCommentAuthorEmailEmpty},
 		{name: "missing content", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: "a@example.com"}, want: apierrors.ErrCommentContentEmpty},
 		{name: "blank content", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: "a@example.com", Content: " \n\t "}, want: apierrors.ErrCommentContentEmpty},
 		{name: "ok without parent", req: rtype.CommentRequest{AuthorName: "alice", AuthorEmail: "a@example.com", Content: "hello"}},
@@ -128,9 +133,12 @@ func setupValidatorTestDB(t *testing.T) {
 
 func TestValidateRegisterRequestDatabasePaths(t *testing.T) {
 	setupValidatorTestDB(t)
-	req := &rtype.RegisterRequest{Name: "admin", Email: "admin@example.com", Password: "secret"}
+	req := &rtype.RegisterRequest{Name: " admin ", Email: " admin@example.com ", Password: "secret"}
 	if err := ValidateRegisterRequest(req); err != nil {
 		t.Fatalf("ValidateRegisterRequest() error = %v", err)
+	}
+	if req.Name != "admin" || req.Email != "admin@example.com" {
+		t.Fatalf("normalized register request = name %q, email %q", req.Name, req.Email)
 	}
 	if req.NickName != req.Name {
 		t.Fatalf("NickName = %q, want name fallback", req.NickName)
@@ -140,6 +148,65 @@ func TestValidateRegisterRequestDatabasePaths(t *testing.T) {
 	}
 	if err := ValidateRegisterRequest(req); !errors.Is(err, apierrors.ErrUserExisted) {
 		t.Fatalf("duplicate ValidateRegisterRequest() error = %v, want ErrUserExisted", err)
+	}
+}
+
+func TestValidateSetupRequest_BitsUT(t *testing.T) {
+	setupValidatorTestDB(t)
+	tests := []struct {
+		name string
+		req  rtype.SetupRequest
+		want error
+	}{
+		{
+			name: "blank site title",
+			req:  rtype.SetupRequest{Name: "admin", Email: "admin@example.com", Password: "password", SiteTitle: " \t "},
+			want: apierrors.ErrInvalidParams,
+		},
+		{
+			name: "missing admin name",
+			req:  rtype.SetupRequest{Email: "admin@example.com", Password: "password", SiteTitle: "My Echo"},
+			want: apierrors.ErrNameEmpty,
+		},
+		{
+			name: "invalid admin email",
+			req:  rtype.SetupRequest{Name: "admin", Email: "invalid", Password: "password", SiteTitle: "My Echo"},
+			want: apierrors.ErrEmailEmpty,
+		},
+		{
+			name: "missing password",
+			req:  rtype.SetupRequest{Name: "admin", Email: "admin@example.com", SiteTitle: "My Echo"},
+			want: apierrors.ErrPasswordEmpty,
+		},
+		{
+			name: "password shorter than eight runes",
+			req:  rtype.SetupRequest{Name: "admin", Email: "admin@example.com", Password: "1234567", SiteTitle: "My Echo"},
+			want: apierrors.ErrInvalidParams,
+		},
+		{
+			name: "valid request normalizes fields",
+			req: rtype.SetupRequest{
+				Name:            " admin ",
+				Email:           " admin@example.com ",
+				Password:        "密码一二三四五六",
+				SiteTitle:       " My Echo ",
+				SiteDescription: " Personal blog ",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateSetupRequest(&tt.req)
+			if !errors.Is(err, tt.want) {
+				t.Fatalf("ValidateSetupRequest() error = %v, want %v", err, tt.want)
+			}
+			if tt.want == nil && (tt.req.Name != "admin" ||
+				tt.req.Email != "admin@example.com" ||
+				tt.req.SiteTitle != "My Echo" ||
+				tt.req.SiteDescription != "Personal blog") {
+				t.Fatalf("normalized setup request = %#v", tt.req)
+			}
+		})
 	}
 }
 

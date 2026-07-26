@@ -1,6 +1,7 @@
 package view
 
 import (
+	"encoding/json"
 	"github.com/gofiber/fiber/v2"
 	"myecho/config"
 	"myecho/config/static_config"
@@ -34,6 +35,8 @@ type PageMeta struct {
 	OGTitle     string
 	OGType      string
 	OGURL       string
+	Image       string
+	JSONLD      string
 }
 
 func GetFavicon(c *fiber.Ctx) error {
@@ -109,6 +112,12 @@ func respToMap(c *fiber.Ctx, data interface{}, meta ...PageMeta) fiber.Map {
 	if pageMeta.OGURL == "" {
 		pageMeta.OGURL = pageMeta.Canonical
 	}
+	if pageMeta.Description == "" {
+		pageMeta.Description = getSettingString("SiteDescription")
+	}
+	if pageMeta.Image == "" {
+		pageMeta.Image = settingAbsoluteURL(c, "SiteShareImage")
+	}
 	// 创建响应map
 	resp := fiber.Map{
 		"Data":                  data,
@@ -116,6 +125,8 @@ func respToMap(c *fiber.Ctx, data interface{}, meta ...PageMeta) fiber.Map {
 		"Meta":                  pageMeta,
 		"CurrentYear":           time.Now().Year(),
 		"NavigationStaticPages": []*service.StaticPage{},
+		"SiteLogo":              settingAbsoluteURL(c, "SiteLogo"),
+		"SiteSocialLinks":       siteSocialLinks(),
 	}
 	if pages, err := service.S.StaticPage.ListNavigationPages(); err == nil {
 		resp["NavigationStaticPages"] = pages
@@ -155,5 +166,58 @@ func resolveThemeForRequest(c *fiber.Ctx) (*mysql.ThemeModel, bool) {
 }
 
 func absoluteURL(c *fiber.Ctx) string {
-	return c.Protocol() + "://" + c.Hostname() + c.Path()
+	return siteBaseURL(c) + c.Path()
+}
+
+func settingAbsoluteURL(c *fiber.Ctx, key string) string {
+	value := strings.TrimSpace(getSettingString(key))
+	if value == "" {
+		return value
+	}
+	ref, err := url.Parse(value)
+	if err != nil {
+		return ""
+	}
+	if ref.IsAbs() {
+		if ref.Scheme != "http" && ref.Scheme != "https" {
+			return ""
+		}
+		return ref.String()
+	}
+	base, err := url.Parse(siteBaseURL(c) + "/")
+	if err != nil {
+		return ""
+	}
+	return base.ResolveReference(ref).String()
+}
+
+func siteBaseURL(c *fiber.Ctx) string {
+	if value := strings.TrimRight(strings.TrimSpace(getSettingString("BaseURL")), "/"); value != "" {
+		if parsed, err := url.Parse(value); err == nil && parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https") {
+			return value
+		}
+	}
+	if c == nil {
+		return ""
+	}
+	return c.Protocol() + "://" + c.Hostname()
+}
+
+func siteSocialLinks() []string {
+	value := strings.TrimSpace(getSettingString("SiteSocialLinks"))
+	if value == "" {
+		return nil
+	}
+	var candidates []string
+	if err := json.Unmarshal([]byte(value), &candidates); err != nil {
+		candidates = strings.Fields(value)
+	}
+	links := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		parsed, err := url.Parse(strings.TrimSpace(candidate))
+		if err == nil && parsed.Host != "" && (parsed.Scheme == "http" || parsed.Scheme == "https") {
+			links = append(links, parsed.String())
+		}
+	}
+	return links
 }

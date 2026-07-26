@@ -224,8 +224,8 @@ func (a *ArticleDBRepo) preCreateQuerySQL(db *gorm.DB, param ArticleCommonQueryP
 	}
 	if param.Keyword != nil && strings.TrimSpace(*param.Keyword) != "" {
 		keyword := "%" + strings.TrimSpace(*param.Keyword) + "%"
-		SqlPrefix = append(SqlPrefix, "(title LIKE ? OR summary LIKE ?)")
-		SqlValue = append(SqlValue, keyword, keyword)
+		SqlPrefix = append(SqlPrefix, "(title LIKE ? OR summary LIKE ? OR EXISTS (SELECT 1 FROM article_details WHERE article_details.uid = articles.detail_uid AND article_details.content LIKE ?))")
+		SqlValue = append(SqlValue, keyword, keyword, keyword)
 	}
 	if param.DateFrom != nil {
 		SqlPrefix = append(SqlPrefix, "post_time >= ?")
@@ -301,7 +301,10 @@ func (a *ArticleDBRepo) CountDisplayable(queryParam ArticleCommonQueryParam) (in
 	if err != nil {
 		return 0, err
 	}
-	err = querySqlDB.Where("status in (?)", []ArticleStatus{ARTICLE_STATUS_TOP, ARTILCE_STATUS_PUBLIC}).Count(&total).Error
+	err = querySqlDB.
+		Where("status in (?)", []ArticleStatus{ARTICLE_STATUS_TOP, ARTILCE_STATUS_PUBLIC}).
+		Where("post_time <= ?", time.Now()).
+		Count(&total).Error
 	return total, err
 }
 
@@ -348,7 +351,7 @@ func (a *ArticleDBRepo) FindPostNeighbors(article *ArticleModel) (*ArticleModel,
 	query := func() *gorm.DB {
 		return db.Model(&ArticleModel{}).
 			Select("id", "title", "slug", "type", "post_time").
-			Where("type = ? AND status in ?", model.ArticleTypePost, []ArticleStatus{ARTILCE_STATUS_PUBLIC, ARTICLE_STATUS_TOP})
+			Where("type = ? AND status in ? AND post_time <= ?", model.ArticleTypePost, []ArticleStatus{ARTILCE_STATUS_PUBLIC, ARTICLE_STATUS_TOP}, time.Now())
 	}
 
 	var previous ArticleModel
@@ -376,6 +379,37 @@ func (a *ArticleDBRepo) FindPostNeighbors(article *ArticleModel) (*ArticleModel,
 		return previousPtr, nil, nil
 	}
 	return previousPtr, &next, nil
+}
+
+func (a *ArticleDBRepo) FindRelatedPosts(article *ArticleModel, limit int) ([]*ArticleModel, error) {
+	result := make([]*ArticleModel, 0)
+	if article == nil || article.ID == 0 || article.Type != model.ArticleTypePost || limit < 1 {
+		return result, nil
+	}
+	conditions := make([]string, 0, 2)
+	values := make([]interface{}, 0, 2)
+	if article.CategoryUID != "" {
+		conditions = append(conditions, "category_uid = ?")
+		values = append(values, article.CategoryUID)
+	}
+	tagUIDs := make([]string, 0, len(article.Tags))
+	for _, tag := range article.Tags {
+		tagUIDs = append(tagUIDs, tag.UID)
+	}
+	if len(tagUIDs) > 0 {
+		conditions = append(conditions, "uid IN (SELECT article_uid FROM article_tags WHERE tag_uid IN ?)")
+		values = append(values, tagUIDs)
+	}
+	if len(conditions) == 0 {
+		return result, nil
+	}
+	err := preloadArticleListAssociations(db.Model(&ArticleModel{})).
+		Where("id <> ? AND type = ? AND status in ? AND post_time <= ?", article.ID, model.ArticleTypePost, []ArticleStatus{ARTILCE_STATUS_PUBLIC, ARTICLE_STATUS_TOP}, time.Now()).
+		Where("("+strings.Join(conditions, " OR ")+")", values...).
+		Order("post_time desc").
+		Limit(limit).
+		Find(&result).Error
+	return result, err
 }
 
 func (a *ArticleDBRepo) DeleteByID(id uint) error {
