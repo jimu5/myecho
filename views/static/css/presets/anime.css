@@ -45,15 +45,16 @@
 
 body {
     background:
-        radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--link-color) 11%, transparent) 1px, transparent 1.5px),
+        radial-gradient(circle at 2px 2px, color-mix(in srgb, var(--link-color) 13%, transparent) 1.5px, transparent 2px),
         radial-gradient(circle at 8% -8%, var(--accent-glow-color), transparent 32rem),
         radial-gradient(circle at 96% 12%, var(--warm-glow-color), transparent 28rem),
         var(--background-color);
-    background-size: 22px 22px, auto, auto, auto;
+    background-size: 18px 18px, auto, auto, auto;
 }
 
 .site-header {
-    border-bottom: 2px solid color-mix(in srgb, var(--warm-color) 42%, transparent);
+    border-bottom: 4px solid var(--warm-color);
+    box-shadow: 0 5px 0 color-mix(in srgb, var(--link-color) 18%, transparent);
 }
 
 .site-mark-symbol {
@@ -76,6 +77,48 @@ body {
     transform: rotate(7deg);
 }
 
+.site-mark-title {
+    font-size: 26px;
+    font-weight: 850;
+    letter-spacing: -0.02em;
+}
+
+#nav ul {
+    gap: 8px;
+}
+
+#nav ul li a {
+    border: 2px solid transparent;
+    border-radius: 999px;
+}
+
+#nav ul li a:hover,
+#nav ul li a:focus-visible {
+    border-color: color-mix(in srgb, var(--warm-color) 42%, transparent);
+    background: color-mix(in srgb, var(--warm-color) 9%, var(--surface-color));
+}
+
+.page-heading {
+    position: relative;
+    width: fit-content;
+    min-width: min(100%, 520px);
+    padding: 22px 28px;
+    border: 3px solid var(--font-color);
+    border-radius: 34px 34px 34px 8px;
+    background: var(--surface-raised-color);
+    box-shadow: 7px 7px 0 color-mix(in srgb, var(--warm-color) 22%, transparent);
+}
+
+.page-heading::after {
+    position: absolute;
+    right: -28px;
+    bottom: -24px;
+    content: "✦";
+    color: var(--warm-color);
+    font-size: 42px;
+    transform: rotate(12deg);
+}
+
 .page-kicker {
     padding: 5px 10px;
     border: 1px solid color-mix(in srgb, var(--warm-color) 38%, transparent);
@@ -90,13 +133,34 @@ body {
     text-shadow: 3px 3px 0 color-mix(in srgb, var(--warm-color) 12%, transparent);
 }
 
+.article-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 26px;
+}
+
 .article-block {
+    min-width: 0;
     border: 2px solid color-mix(in srgb, var(--link-color) 24%, transparent);
-    box-shadow: var(--shadow-soft);
+    background: var(--surface-raised-color);
+    box-shadow: 8px 8px 0 color-mix(in srgb, var(--link-color) 18%, transparent);
+}
+
+.article-block:first-child {
+    grid-column: 1 / -1;
+}
+
+.article-block:first-child h2 {
+    font-size: clamp(34px, 5vw, 46px);
 }
 
 .article-block:nth-child(even) {
     border-color: color-mix(in srgb, var(--warm-color) 28%, transparent);
+    box-shadow: 8px 8px 0 color-mix(in srgb, var(--warm-color) 18%, transparent);
+    transform: rotate(0.35deg);
+}
+
+.article-block:nth-child(odd):not(:first-child) {
+    transform: rotate(-0.35deg);
 }
 
 .article-block::before {
@@ -107,7 +171,7 @@ body {
 
 .article-block:hover {
     box-shadow: var(--shadow-panel);
-    transform: translate(-2px, -2px);
+    transform: translate(-3px, -3px) rotate(0);
 }
 
 .article-block-tags a,
@@ -125,6 +189,10 @@ body {
 
 .article-block-actions a:hover {
     background: linear-gradient(135deg, var(--action-hover-background-color), color-mix(in srgb, var(--action-hover-background-color) 82%, var(--warm-color)));
+}
+
+.article-block-actions {
+    justify-content: flex-start;
 }
 
 .empty-state,
@@ -148,6 +216,28 @@ body {
     text-decoration-thickness: 0.24em;
     text-underline-offset: -0.08em;
     text-decoration-skip-ink: none;
+}
+
+@media screen and (max-width: 720px) {
+    .page-heading {
+        width: calc(100% - 12px);
+        min-width: 0;
+        padding: 18px 20px;
+    }
+
+    .page-heading::after {
+        right: -12px;
+        font-size: 30px;
+    }
+
+    .article-list {
+        grid-template-columns: 1fr;
+        gap: 22px;
+    }
+
+    .article-block:first-child {
+        grid-column: auto;
+    }
 }
 
 :root[data-myecho-color-mode-theme][data-myecho-color-mode="dark"] {

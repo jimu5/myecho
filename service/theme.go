@@ -43,7 +43,7 @@ const (
 var (
 	themeNamePattern         = regexp.MustCompile(`^[a-z0-9_-]+$`)
 	ErrThemeNameImmutable    = errors.New("theme name cannot be changed")
-	ErrBundledThemeImmutable = errors.New("内置主题不可修改或删除")
+	ErrBundledThemeImmutable = errors.New("内置主题不可删除")
 	bundledThemeImports      = map[string]string{
 		"paper": `@import url("/static/css/presets/paper.css");`,
 		"night": `@import url("/static/css/presets/night.css");`,
@@ -113,10 +113,9 @@ func (s *ThemeService) UpdateTheme(theme *mysql.ThemeModel) error {
 	if err != nil {
 		return err
 	}
-	if bundled, err := isBundledTheme(current); err != nil {
+	bundled, err := isBundledTheme(current)
+	if err != nil {
 		return err
-	} else if bundled {
-		return ErrBundledThemeImmutable
 	}
 	if name != current.Name {
 		return ErrThemeNameImmutable
@@ -124,7 +123,16 @@ func (s *ThemeService) UpdateTheme(theme *mysql.ThemeModel) error {
 	theme.Name = name
 	theme.IsActive = current.IsActive
 	theme.IsDefault = current.IsDefault
-	if err := stripBundledFlag(theme); err != nil {
+	if bundled {
+		config, err := (*model.Theme)(theme).GetConfig()
+		if err != nil {
+			return err
+		}
+		config["bundled"] = true
+		if err := (*model.Theme)(theme).SetConfig(config); err != nil {
+			return err
+		}
+	} else if err := stripBundledFlag(theme); err != nil {
 		return err
 	}
 	return dal.MySqlDB.Theme.Update(theme)
@@ -264,16 +272,6 @@ func (s *ThemeService) InstallThemePackage(zipPath string) (*mysql.ThemeModel, e
 	existing, err := s.GetThemeByName(manifest.Name)
 	if err != nil && err != mysql.ErrThemeNotExist {
 		return nil, err
-	}
-	if existing != nil && existing.IsDefault {
-		return nil, fmt.Errorf("default theme cannot be overwritten by package upload")
-	}
-	if existing != nil {
-		if bundled, err := isBundledTheme(existing); err != nil {
-			return nil, err
-		} else if bundled {
-			return nil, ErrBundledThemeImmutable
-		}
 	}
 
 	if err := os.MkdirAll(themeStorageDir, 0755); err != nil {
@@ -445,7 +443,7 @@ func isBundledTheme(theme *mysql.ThemeModel) (bool, error) {
 	if theme == nil {
 		return false, nil
 	}
-	if bundledThemeImports[theme.Name] != theme.CSS {
+	if _, ok := bundledThemeImports[theme.Name]; !ok {
 		return false, nil
 	}
 	config, err := (*model.Theme)(theme).GetConfig()
@@ -456,7 +454,7 @@ func isBundledTheme(theme *mysql.ThemeModel) (bool, error) {
 	return bundled, nil
 }
 
-// IsBundledTheme reports whether a theme is one of Myecho's immutable presets.
+// IsBundledTheme reports whether a theme is one of Myecho's bundled presets.
 func IsBundledTheme(theme *mysql.ThemeModel) bool {
 	bundled, err := isBundledTheme(theme)
 	return err == nil && bundled

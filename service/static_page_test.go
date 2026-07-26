@@ -42,6 +42,35 @@ func TestInstallStaticPagePackageCreatesAndListsPage(t *testing.T) {
 	if len(pages) != 1 || pages[0].Name != "landing" || pages[0].URL != "/static-pages/landing/" {
 		t.Fatalf("pages = %+v", pages)
 	}
+
+	updated, err := (&StaticPageService{}).SetNavigationVisibility("landing", true)
+	if err != nil {
+		t.Fatalf("SetNavigationVisibility() error = %v", err)
+	}
+	if !updated.ShowInNavigation {
+		t.Fatalf("updated page = %+v, want navigation enabled", updated)
+	}
+	reinstalled, err := (&StaticPageService{}).InstallStaticPagePackage(zipPath)
+	if err != nil {
+		t.Fatalf("InstallStaticPagePackage(reinstall) error = %v", err)
+	}
+	if !reinstalled.ShowInNavigation {
+		t.Fatalf("reinstalled page = %+v, want navigation preference preserved", reinstalled)
+	}
+	navigation, err := (&StaticPageService{}).ListNavigationPages()
+	if err != nil {
+		t.Fatalf("ListNavigationPages() error = %v", err)
+	}
+	if len(navigation) != 1 || navigation[0].Name != "landing" {
+		t.Fatalf("navigation pages = %+v", navigation)
+	}
+	if _, err := (&StaticPageService{}).SetNavigationVisibility("landing", false); err != nil {
+		t.Fatalf("SetNavigationVisibility(false) error = %v", err)
+	}
+	navigation, err = (&StaticPageService{}).ListNavigationPages()
+	if err != nil || len(navigation) != 0 {
+		t.Fatalf("navigation pages after disable = %+v, err = %v", navigation, err)
+	}
 }
 
 func TestStaticPagePackageValidationRejectsUnsafeInputs(t *testing.T) {
@@ -93,6 +122,9 @@ func TestStaticPagePublicURLRejectsUnsafeName(t *testing.T) {
 func TestDeleteStaticPageRejectsUnsafeName(t *testing.T) {
 	if err := (&StaticPageService{}).DeleteStaticPage("../bad"); err == nil {
 		t.Fatal("DeleteStaticPage() expected unsafe name error")
+	}
+	if _, err := (&StaticPageService{}).SetNavigationVisibility("../bad", true); err == nil {
+		t.Fatal("SetNavigationVisibility() expected unsafe name error")
 	}
 }
 

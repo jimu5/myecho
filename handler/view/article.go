@@ -75,7 +75,7 @@ func ArticleRetrieve(c *fiber.Ctx) error {
 	}
 	article := new(mysql.ArticleModel)
 	if err := handler.DetailPreHandleByParam(c, &article); err != nil {
-		return api.NotFoundErrorResponse(c, err.Error())
+		return NotFound(c)
 	}
 	return renderArticle(c, article, &queryParam)
 }
@@ -95,7 +95,7 @@ func retrieveBySlug(c *fiber.Ctx, articleType model.ArticleType) error {
 	}
 	article, err := dal.MySqlDB.Article.FindBySlug(c.Params("slug"), articleType)
 	if err != nil {
-		return c.SendStatus(fiber.StatusNotFound)
+		return NotFound(c)
 	}
 	return renderArticle(c, &article, &queryParam)
 }
@@ -106,7 +106,7 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 	res, err := service.S.Article.ArticleRetrieve(queryParam)
 	if err != nil {
 		if errors.Is(err, service.ErrArticleNotDisplayable) {
-			return c.SendStatus(fiber.StatusNotFound)
+			return NotFound(c)
 		}
 		if errors.Is(err, service.ErrArticlePasswordRequired) {
 			return c.Status(fiber.StatusForbidden).Render("article_password", respToMap(c, *article, PageMeta{

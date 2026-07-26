@@ -194,7 +194,8 @@ func TestBundledFlagIsServerOwned(t *testing.T) {
 	}
 }
 
-func TestBundledThemeCannotBeChangedOrDeleted(t *testing.T) {
+func TestBundledThemeCanBeCustomizedAndOverwrittenButCannotBeDeleted(t *testing.T) {
+	chdirServiceTestTemp(t)
 	setupServiceTestDB(t)
 	svc := &ThemeService{}
 	if err := svc.InitPresetThemes(); err != nil {
@@ -205,18 +206,63 @@ func TestBundledThemeCannotBeChangedOrDeleted(t *testing.T) {
 		t.Fatalf("GetThemeByName(anime) error = %v", err)
 	}
 
-	anime.DisplayName = "Changed"
-	if err := svc.UpdateTheme(anime); !errors.Is(err, ErrBundledThemeImmutable) {
-		t.Fatalf("UpdateTheme(bundled) error = %v, want ErrBundledThemeImmutable", err)
+	anime.CSS += "\nbody { --accent: hotpink; }"
+	anime.JS = "window.customized = true;"
+	if err := (*model.Theme)(anime).SetConfig(map[string]interface{}{"accent": "hotpink"}); err != nil {
+		t.Fatalf("SetConfig(bundled) error = %v", err)
+	}
+	if err := svc.UpdateTheme(anime); err != nil {
+		t.Fatalf("UpdateTheme(bundled) error = %v", err)
+	}
+	updated, err := svc.GetThemeByName("anime")
+	if err != nil {
+		t.Fatalf("GetThemeByName(anime) error = %v", err)
+	}
+	config, err := (*model.Theme)(updated).GetConfig()
+	if err != nil || config["accent"] != "hotpink" || config["bundled"] != true || !IsBundledTheme(updated) {
+		t.Fatalf("updated bundled theme = %+v config=%+v err=%v", updated, config, err)
+	}
+	overrideZip := writeThemeZip(t, map[string]string{
+		"theme/theme.json":             `{"name":"anime","display_name":"Override","config":{"accent":"purple"}}`,
+		"theme/templates/404.jet.html": "custom not found",
+	})
+	overridden, err := svc.InstallThemePackage(overrideZip)
+	if err != nil {
+		t.Fatalf("InstallThemePackage(bundled) error = %v", err)
+	}
+	config, err = (*model.Theme)(overridden).GetConfig()
+	if err != nil || overridden.ID != anime.ID || overridden.DisplayName != "Override" || !overridden.HasTemplates || config["bundled"] != true {
+		t.Fatalf("overridden bundled theme = %+v config=%+v err=%v", overridden, config, err)
 	}
 	if err := svc.DeleteTheme(int64(anime.ID)); !errors.Is(err, ErrBundledThemeImmutable) {
 		t.Fatalf("DeleteTheme(bundled) error = %v, want ErrBundledThemeImmutable", err)
 	}
-	overrideZip := writeThemeZip(t, map[string]string{
-		"theme/theme.json": `{"name":"anime","display_name":"Override"}`,
+}
+
+func TestDefaultThemeCanBeOverwrittenByPackage(t *testing.T) {
+	chdirServiceTestTemp(t)
+	setupServiceTestDB(t)
+	svc := &ThemeService{}
+	defaultTheme := &mysql.ThemeModel{
+		Name:        "default",
+		DisplayName: "Default",
+		IsDefault:   true,
+		IsActive:    true,
+	}
+	if err := svc.CreateTheme(defaultTheme); err != nil {
+		t.Fatalf("CreateTheme(default) error = %v", err)
+	}
+
+	zipPath := writeThemeZip(t, map[string]string{
+		"theme/theme.json":                 `{"name":"default","display_name":"Customized Default"}`,
+		"theme/templates/article.jet.html": "custom article",
 	})
-	if _, err := svc.InstallThemePackage(overrideZip); !errors.Is(err, ErrBundledThemeImmutable) {
-		t.Fatalf("InstallThemePackage(bundled) error = %v, want ErrBundledThemeImmutable", err)
+	overridden, err := svc.InstallThemePackage(zipPath)
+	if err != nil {
+		t.Fatalf("InstallThemePackage(default) error = %v", err)
+	}
+	if overridden.ID != defaultTheme.ID || !overridden.IsDefault || !overridden.IsActive || !overridden.HasTemplates {
+		t.Fatalf("overridden default theme = %+v", overridden)
 	}
 }
 

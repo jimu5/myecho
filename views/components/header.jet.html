@@ -32,6 +32,11 @@
             <li>
               <a href="/links">友链</a>
             </li>
+            {{ range NavigationStaticPages }}
+            <li>
+              <a href="{{ .URL }}">{{ .DisplayName }}</a>
+            </li>
+            {{ end }}
           </ul>
       </div>
     </nav>

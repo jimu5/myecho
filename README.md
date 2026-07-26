@@ -153,7 +153,9 @@ Example `theme.json`:
 }
 ```
 
-Supported template override paths include `templates/index.jet.html`, `templates/article.jet.html`, `templates/article_password.jet.html`, `templates/category.jet.html`, `templates/tags.jet.html`, `templates/archive.jet.html`, `templates/link.jet.html`, and `templates/components/*.jet.html`. The admin theme preview uses a short-lived signed URL to render the real frontend with the selected theme before activation.
+Supported template override paths include `templates/index.jet.html`, `templates/article.jet.html`, `templates/article_password.jet.html`, `templates/category.jet.html`, `templates/tags.jet.html`, `templates/archive.jet.html`, `templates/link.jet.html`, `templates/404.jet.html`, and `templates/components/*.jet.html`. The admin theme preview uses a short-lived signed URL to render the real frontend with the selected theme before activation.
+
+Every page template receives `NavigationStaticPages`. A theme that overrides `templates/components/header.jet.html` must render these entries itself, using each page's `DisplayName` and `URL`, to include the static pages selected for theme navigation in the admin.
 
 ## AI Development Notes
 

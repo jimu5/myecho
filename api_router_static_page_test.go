@@ -13,6 +13,7 @@ func TestSetupApiRouterRegistersStaticPageAdminRoutes(t *testing.T) {
 	want := map[string]bool{
 		fiber.MethodGet + " /api/static-pages":          false,
 		fiber.MethodPost + " /api/static-pages/upload":  false,
+		fiber.MethodPatch + " /api/static-pages/:name":  false,
 		fiber.MethodDelete + " /api/static-pages/:name": false,
 	}
 	for _, route := range app.GetRoutes() {

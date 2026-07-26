@@ -521,6 +521,7 @@ body > main {
     box-shadow: 0 8px 20px color-mix(in srgb, var(--link-color) 12%, transparent);
 }
 
+.empty-state h1,
 .empty-state h2 {
     margin: 0;
     color: var(--font-color);
@@ -2366,6 +2367,7 @@ input.comment-trap {
         padding: 32px 20px;
     }
 
+    .empty-state h1,
     .empty-state h2 {
         font-size: 23px;
     }

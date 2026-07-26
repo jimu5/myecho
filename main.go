@@ -12,6 +12,7 @@ import (
 	"myecho/config/yaml_config"
 	"myecho/dal/connect"
 	"myecho/dal/mysql"
+	"myecho/handler/view"
 	"myecho/middleware"
 	"myecho/service"
 	"myecho/view_engine"
@@ -57,6 +58,9 @@ func main() {
 	SetupThemeRouter(app) // 添加主题路由
 	setSwaggerRoute(app)
 	SetupViewRouter(app)
-	app.Use(middleware.Custom404ErrorHandler)
+	app.Use("/api", middleware.Custom404ErrorHandler)
+	app.Use("/mos", middleware.Custom404ErrorHandler)
+	app.Use("/admin", middleware.Custom404ErrorHandler)
+	app.Use(view.NotFound)
 	log.Fatal(app.Listen(*port))
 }

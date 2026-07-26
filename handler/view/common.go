@@ -111,10 +111,14 @@ func respToMap(c *fiber.Ctx, data interface{}, meta ...PageMeta) fiber.Map {
 	}
 	// 创建响应map
 	resp := fiber.Map{
-		"Data":        data,
-		"Settings":    config.MySqlSettingModelCache,
-		"Meta":        pageMeta,
-		"CurrentYear": time.Now().Year(),
+		"Data":                  data,
+		"Settings":              config.MySqlSettingModelCache,
+		"Meta":                  pageMeta,
+		"CurrentYear":           time.Now().Year(),
+		"NavigationStaticPages": []*service.StaticPage{},
+	}
+	if pages, err := service.S.StaticPage.ListNavigationPages(); err == nil {
+		resp["NavigationStaticPages"] = pages
 	}
 
 	theme, isPreview := resolveThemeForRequest(c)

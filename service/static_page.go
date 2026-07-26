@@ -24,24 +24,26 @@ const (
 type StaticPageService struct{}
 
 type StaticPageManifest struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name"`
-	Author      string `json:"author"`
-	Version     string `json:"version"`
-	Description string `json:"description"`
-	Entry       string `json:"entry"`
+	Name             string `json:"name"`
+	DisplayName      string `json:"display_name"`
+	Author           string `json:"author"`
+	Version          string `json:"version"`
+	Description      string `json:"description"`
+	Entry            string `json:"entry"`
+	ShowInNavigation bool   `json:"show_in_navigation"`
 }
 
 type StaticPage struct {
-	Name         string    `json:"name"`
-	DisplayName  string    `json:"display_name"`
-	Author       string    `json:"author"`
-	Version      string    `json:"version"`
-	Description  string    `json:"description"`
-	Entry        string    `json:"entry"`
-	URL          string    `json:"url"`
-	AssetBaseURL string    `json:"asset_base_url"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	Name             string    `json:"name"`
+	DisplayName      string    `json:"display_name"`
+	Author           string    `json:"author"`
+	Version          string    `json:"version"`
+	Description      string    `json:"description"`
+	Entry            string    `json:"entry"`
+	URL              string    `json:"url"`
+	AssetBaseURL     string    `json:"asset_base_url"`
+	ShowInNavigation bool      `json:"show_in_navigation"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 func (s *StaticPageService) InstallStaticPagePackage(zipPath string) (*StaticPage, error) {
@@ -73,6 +75,12 @@ func (s *StaticPageService) InstallStaticPagePackage(zipPath string) (*StaticPag
 	}
 
 	destDir := filepath.Join(StaticPageStorageDir, manifest.Name)
+	if current, err := readStaticPageManifestFile(filepath.Join(destDir, StaticPageManifestFile)); err == nil {
+		manifest.ShowInNavigation = current.ShowInNavigation
+		if err := writeStaticPageManifest(filepath.Join(tmpDir, StaticPageManifestFile), manifest); err != nil {
+			return nil, err
+		}
+	}
 	if err := os.RemoveAll(destDir); err != nil {
 		return nil, err
 	}
@@ -122,6 +130,59 @@ func (s *StaticPageService) DeleteStaticPage(name string) error {
 		return fmt.Errorf("static page name can only contain lowercase letters, numbers, hyphens and underscores")
 	}
 	return os.RemoveAll(filepath.Join(StaticPageStorageDir, name))
+}
+
+func (s *StaticPageService) SetNavigationVisibility(name string, visible bool) (*StaticPage, error) {
+	name = strings.TrimSpace(name)
+	if !themeNamePattern.MatchString(name) {
+		return nil, fmt.Errorf("static page name can only contain lowercase letters, numbers, hyphens and underscores")
+	}
+	pageDir := filepath.Join(StaticPageStorageDir, name)
+	manifestPath := filepath.Join(pageDir, StaticPageManifestFile)
+	manifest, err := readStaticPageManifestFile(manifestPath)
+	if err != nil {
+		return nil, err
+	}
+	manifest.ShowInNavigation = visible
+	if err := writeStaticPageManifest(manifestPath, manifest); err != nil {
+		return nil, err
+	}
+	return buildStaticPage(manifest, pageDir)
+}
+
+func writeStaticPageManifest(manifestPath string, manifest *StaticPageManifest) error {
+	content, err := json.MarshalIndent(manifest, "", "  ")
+	if err != nil {
+		return err
+	}
+	temp, err := os.CreateTemp(filepath.Dir(manifestPath), ".static-page-*.json")
+	if err != nil {
+		return err
+	}
+	tempPath := temp.Name()
+	defer os.Remove(tempPath)
+	if _, err := temp.Write(content); err != nil {
+		_ = temp.Close()
+		return err
+	}
+	if err := temp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tempPath, manifestPath)
+}
+
+func (s *StaticPageService) ListNavigationPages() ([]*StaticPage, error) {
+	pages, err := s.ListStaticPages()
+	if err != nil {
+		return nil, err
+	}
+	navigation := make([]*StaticPage, 0, len(pages))
+	for _, page := range pages {
+		if page.ShowInNavigation {
+			navigation = append(navigation, page)
+		}
+	}
+	return navigation, nil
 }
 
 func readStaticPageManifest(zipPath string) (*StaticPageManifest, string, error) {
@@ -311,15 +372,16 @@ func buildStaticPage(manifest *StaticPageManifest, pageDir string) (*StaticPage,
 		return nil, err
 	}
 	return &StaticPage{
-		Name:         manifest.Name,
-		DisplayName:  manifest.DisplayName,
-		Author:       manifest.Author,
-		Version:      manifest.Version,
-		Description:  manifest.Description,
-		Entry:        manifest.Entry,
-		URL:          StaticPagePublicURL(manifest.Name, manifest.Entry),
-		AssetBaseURL: StaticPagePublicBaseURL(manifest.Name),
-		UpdatedAt:    stat.ModTime(),
+		Name:             manifest.Name,
+		DisplayName:      manifest.DisplayName,
+		Author:           manifest.Author,
+		Version:          manifest.Version,
+		Description:      manifest.Description,
+		Entry:            manifest.Entry,
+		URL:              StaticPagePublicURL(manifest.Name, manifest.Entry),
+		AssetBaseURL:     StaticPagePublicBaseURL(manifest.Name),
+		ShowInNavigation: manifest.ShowInNavigation,
+		UpdatedAt:        stat.ModTime(),
 	}, nil
 }
 

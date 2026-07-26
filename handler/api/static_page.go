@@ -59,3 +59,17 @@ func DeleteStaticPage(c *fiber.Ctx) error {
 	}
 	return handler.Success(c, fiber.Map{"message": "删除成功"})
 }
+
+func UpdateStaticPage(c *fiber.Ctx) error {
+	req := struct {
+		ShowInNavigation *bool `json:"show_in_navigation"`
+	}{}
+	if err := c.BodyParser(&req); err != nil || req.ShowInNavigation == nil {
+		return errors.ErrInvalidParams
+	}
+	page, err := service.S.StaticPage.SetNavigationVisibility(c.Params("name"), *req.ShowInNavigation)
+	if err != nil {
+		return err
+	}
+	return handler.Success(c, page)
+}

@@ -21,6 +21,7 @@ func TestStaticPageHandlersUploadListAndDelete(t *testing.T) {
 	app.Use(middleware.CommonErrorHandler)
 	app.Get("/api/static-pages", StaticPageList)
 	app.Post("/api/static-pages/upload", UploadStaticPage)
+	app.Patch("/api/static-pages/:name", UpdateStaticPage)
 	app.Delete("/api/static-pages/:name", DeleteStaticPage)
 
 	resp := doJSONRequest(t, app, fiber.MethodGet, "/api/static-pages", "", "")
@@ -67,6 +68,23 @@ func TestStaticPageHandlersUploadListAndDelete(t *testing.T) {
 	}
 	if len(pages) != 1 || pages[0]["name"] != "campaign" {
 		t.Fatalf("static pages = %+v", pages)
+	}
+
+	resp = doJSONRequest(t, app, fiber.MethodPatch, "/api/static-pages/campaign", "", `{"show_in_navigation":true}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("navigation update status = %d, want 200", resp.StatusCode)
+	}
+	wrapped = decodeAPIResp(t, resp)
+	if err := json.Unmarshal(wrapped.Data, &page); err != nil {
+		t.Fatalf("decode navigation update: %v", err)
+	}
+	if page["show_in_navigation"] != true {
+		t.Fatalf("navigation update data = %+v", page)
+	}
+
+	resp = doJSONRequest(t, app, fiber.MethodPatch, "/api/static-pages/campaign", "", `{}`)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("invalid navigation update status = %d, want 400", resp.StatusCode)
 	}
 
 	resp = doJSONRequest(t, app, fiber.MethodDelete, "/api/static-pages/campaign", "", "")

@@ -3,6 +3,8 @@ package view
 import (
 	"io"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -31,6 +33,50 @@ func (s *spyViews) Render(out io.Writer, template string, data interface{}, layo
 	s.data = data
 	_, err := out.Write([]byte(template))
 	return err
+}
+
+func TestNotFoundRendersThemeTemplateWith404Status(t *testing.T) {
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	if err := os.Chdir(t.TempDir()); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(oldWD) })
+	pageDir := filepath.Join(service.StaticPageStorageDir, "campaign")
+	if err := os.MkdirAll(pageDir, 0755); err != nil {
+		t.Fatalf("mkdir static page: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pageDir, service.StaticPageManifestFile), []byte(`{"name":"campaign","display_name":"活动","show_in_navigation":true}`), 0644); err != nil {
+		t.Fatalf("write static page manifest: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(pageDir, "index.html"), []byte("<!doctype html>"), 0644); err != nil {
+		t.Fatalf("write static page entry: %v", err)
+	}
+
+	setupViewThemeTestDB(t)
+	createViewTheme(t, "default", true, nil)
+	views := &spyViews{}
+	app := fiber.New(fiber.Config{Views: views})
+	app.Use(NotFound)
+
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/missing", nil))
+	if err != nil {
+		t.Fatalf("not found request error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusNotFound || views.template != "404" {
+		t.Fatalf("not found status=%d template=%q", resp.StatusCode, views.template)
+	}
+	data := views.data.(fiber.Map)
+	meta := data["Meta"].(PageMeta)
+	if meta.OGTitle != "页面不存在" || data["Theme"] == nil {
+		t.Fatalf("not found data = %+v", data)
+	}
+	navigation := data["NavigationStaticPages"].([]*service.StaticPage)
+	if len(navigation) != 1 || navigation[0].Name != "campaign" {
+		t.Fatalf("navigation pages = %+v", navigation)
+	}
 }
 
 func TestArticlePagesRenderListAndDetail(t *testing.T) {
