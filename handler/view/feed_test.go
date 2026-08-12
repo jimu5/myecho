@@ -26,7 +26,7 @@ func setupFeedTestDB(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := db.AutoMigrate(&model.Article{}, &model.ArticleDetail{}); err != nil {
+	if err := db.AutoMigrate(&model.Article{}, &model.ArticleDetail{}, &model.ArticleSlugRedirect{}); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	connect.Database = db

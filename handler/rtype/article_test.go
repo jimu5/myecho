@@ -78,6 +78,9 @@ func TestModelToArticleResponseHandlesNilAndNestedModels(t *testing.T) {
 		AuthorID:       7,
 		Author:         &model.User{BaseModel: model.BaseModel{ID: 7}, NickName: "Admin"},
 		Title:          "Title",
+		SEOTitle:       "SEO title",
+		SEODescription: "SEO description",
+		ShareImage:     "https://example.com/share.png",
 		Summary:        "Summary",
 		ContentFormat:  model.ArticleContentFormatHTML,
 		DetailUID:      "detail-uid",
@@ -98,6 +101,9 @@ func TestModelToArticleResponseHandlesNilAndNestedModels(t *testing.T) {
 	}
 	if got.PostTime != postTime || got.ReadCount != 11 || len(got.Tags) != 1 || got.ContentFormat != model.ArticleContentFormatHTML {
 		t.Fatalf("unexpected scalar response: %+v", got)
+	}
+	if got.SEOTitle != article.SEOTitle || got.SEODescription != article.SEODescription || got.ShareImage != article.ShareImage {
+		t.Fatalf("unexpected SEO response: %+v", got)
 	}
 }
 

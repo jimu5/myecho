@@ -59,6 +59,9 @@ func setupAPITestDB(t *testing.T) {
 		&model.Comment{},
 		&model.File{},
 		&model.Article{},
+		&model.ArticleRevision{},
+		&model.ArticleSlugRedirect{},
+		&model.ArticleDailyStat{},
 		&model.Link{},
 		&model.Theme{},
 	); err != nil {
@@ -776,17 +779,19 @@ func TestSettingAndLinkHandlers(t *testing.T) {
 	app := fiber.New()
 	app.Use(middleware.CommonErrorHandler)
 	app.Post("/settings", SettingCreate)
+	app.Get("/settings/admin", SettingAdminAll)
 	app.Get("/settings/:key", SettingRetrieve)
 	app.Get("/api/settings/:key", SettingRetrieve)
 	app.Get("/settings", SettingAll)
 	app.Patch("/settings/:key", SettingUpdate)
+	app.Patch("/api/settings/:key", SettingUpdate)
 	app.Delete("/settings/:key", SettingDelete)
 	app.Post("/links", LinkCreate)
 	app.Get("/links", LinkAll)
 	app.Put("/links/:id", LinkUpdate)
 	app.Delete("/links/:id", LinkDelete)
 
-	resp := doJSONRequest(t, app, fiber.MethodPost, "/settings", "", `{"key":"SiteName","value":"Myecho","type":"string","description":"Site title"}`)
+	resp := doJSONRequest(t, app, fiber.MethodPost, "/settings", "", `{"key":"SiteName","value":"Myecho","type":"string","description":"Site title","is_public":true}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("setting create status = %d, want 200", resp.StatusCode)
 	}
@@ -806,6 +811,28 @@ func TestSettingAndLinkHandlers(t *testing.T) {
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("setting all status = %d, want 200", resp.StatusCode)
 	}
+	resp = doJSONRequest(t, app, fiber.MethodPost, "/settings", "", `{"key":"CommentNotificationWebhook","value":"https://203.0.113.1/comments","type":"string","description":"comment hook","is_public":false}`)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("private setting create status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/api/settings/CommentNotificationWebhook", "", "")
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("private setting retrieve status = %d, want 400", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/settings", "", "")
+	publicSettingsBody := readResponseBody(t, resp)
+	if strings.Contains(publicSettingsBody, "CommentNotificationWebhook") || strings.Contains(publicSettingsBody, "203.0.113.1") {
+		t.Fatalf("public settings leaked private value: %s", publicSettingsBody)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodGet, "/settings/admin", "", "")
+	adminSettingsBody := readResponseBody(t, resp)
+	if !strings.Contains(adminSettingsBody, "CommentNotificationWebhook") || !strings.Contains(adminSettingsBody, "203.0.113.1") {
+		t.Fatalf("admin settings omitted private value: %s", adminSettingsBody)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPatch, "/api/settings/CommentNotificationWebhook", "", `{"value":"https://203.0.113.1/comments","description":"comment hook","is_public":true}`)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Fatalf("sensitive public update status = %d, want 400", resp.StatusCode)
+	}
 	resp = doJSONRequest(t, app, fiber.MethodPatch, "/settings/SiteName", "", `{"value":"New","description":"desc"}`)
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("setting update status = %d, want 200", resp.StatusCode)
@@ -822,14 +849,25 @@ func TestSettingAndLinkHandlers(t *testing.T) {
 		t.Fatalf("setting all with hidden status = %d, want 200", resp.StatusCode)
 	}
 
-	linkBody := `{"name":"Go","description":"golang","url":"https://go.dev","category_uid":"cat-link"}`
+	linkBody := `{"name":"Go","description":"golang","url":"go.dev","icon_url":"cdn.example.com/go.png","category_uid":"cat-link"}`
 	resp = doJSONRequest(t, app, fiber.MethodPost, "/links", "", linkBody)
 	if resp.StatusCode != fiber.StatusCreated {
 		t.Fatalf("link create status = %d, want 201", resp.StatusCode)
 	}
+	var createdLink mysql.LinkModel
+	if err := json.Unmarshal(decodeAPIResp(t, resp).Data, &createdLink); err != nil {
+		t.Fatalf("decode link: %v", err)
+	}
+	if createdLink.URL != "https://go.dev" || createdLink.IconURL != "https://cdn.example.com/go.png" {
+		t.Fatalf("normalized link = %+v", createdLink)
+	}
 	resp = doJSONRequest(t, app, fiber.MethodGet, "/links?category_uid=cat-link", "", "")
 	if resp.StatusCode != fiber.StatusOK {
 		t.Fatalf("link all status = %d, want 200", resp.StatusCode)
+	}
+	resp = doJSONRequest(t, app, fiber.MethodPut, "/links/1", "", `{"name":"Go Dev","url":"ftp://go.dev","category_uid":"cat-link"}`)
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("invalid link update status = %d, want 403", resp.StatusCode)
 	}
 	resp = doJSONRequest(t, app, fiber.MethodPut, "/links/1", "", `{"name":"Go Dev","url":"https://go.dev","category_uid":"cat-link"}`)
 	if resp.StatusCode != fiber.StatusOK {

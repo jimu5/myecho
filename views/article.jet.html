@@ -2,7 +2,7 @@
 <html lang="zh-hans">
 
 <head>
-  <title>{{ Settings.GetStringValue("SiteTitle") }} - {{ Data.Title }}</title>
+  <title>{{ Settings.GetStringValue("SiteTitle") }} - {{ if Data.SEOTitle }}{{ Data.SEOTitle }}{{ else }}{{ Data.Title }}{{ end }}</title>
   {{ include "components/common_head" }}
   <link type="text/css" rel="stylesheet" href="/static/lib/prism/prism.css">
   <script src="/static/lib/prism/prism.js" defer></script>

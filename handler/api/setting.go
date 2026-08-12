@@ -6,6 +6,7 @@ import (
 	"myecho/handler"
 	"myecho/handler/api/errors"
 	"myecho/handler/rtype"
+	"myecho/model"
 	"myecho/service"
 )
 
@@ -22,6 +23,7 @@ func SettingCreate(c *fiber.Ctx) error {
 		Value:       setting.Value,
 		Type:        setting.Type,
 		Description: setting.Description,
+		IsPublic:    setting.IsPublic,
 	})
 	if err != nil {
 		return err
@@ -30,7 +32,7 @@ func SettingCreate(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return handler.Success(c, &result)
+	return handler.Success(c, rtype.NewSetting(model.Setting(result), service.IsSettingPublic(&result)))
 }
 
 func SettingUpdate(c *fiber.Ctx) error {
@@ -42,11 +44,11 @@ func SettingUpdate(c *fiber.Ctx) error {
 	if err := c.BodyParser(&reqParam); err != nil {
 		return err
 	}
-	result, err := service.S.Setting.UpdateValueAndDesc(key, reqParam.Value, reqParam.Description)
+	result, err := service.S.Setting.UpdateValueDescAndVisibility(key, reqParam.Value, reqParam.Description, reqParam.IsPublic)
 	if err != nil {
 		return err
 	}
-	return handler.Success(c, &result)
+	return handler.Success(c, rtype.NewSetting(model.Setting(result), service.IsSettingPublic(&result)))
 }
 
 func SettingRetrieve(c *fiber.Ctx) error {
@@ -58,10 +60,10 @@ func SettingRetrieve(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if service.IsHiddenSettingKey(result.Key) {
+	if !service.IsSettingPublic(&result) {
 		return errors.ErrSettingKey
 	}
-	return handler.Success(c, &result)
+	return handler.Success(c, rtype.NewSetting(model.Setting(result), true))
 }
 
 func SettingAll(c *fiber.Ctx) error {
@@ -69,14 +71,29 @@ func SettingAll(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	filtered := make([]*mysql.SettingModel, 0, len(result))
+	filtered := make([]rtype.Setting, 0, len(result))
 	for _, setting := range result {
-		if setting != nil && service.IsHiddenSettingKey(setting.Key) {
+		if !service.IsSettingPublic(setting) {
 			continue
 		}
-		filtered = append(filtered, setting)
+		filtered = append(filtered, rtype.NewSetting(model.Setting(*setting), true))
 	}
 	return handler.Success(c, &filtered)
+}
+
+func SettingAdminAll(c *fiber.Ctx) error {
+	result, err := service.S.Setting.GetAll()
+	if err != nil {
+		return err
+	}
+	settings := make([]rtype.Setting, 0, len(result))
+	for _, setting := range result {
+		if setting == nil || service.IsHiddenSettingKey(setting.Key) {
+			continue
+		}
+		settings = append(settings, rtype.NewSetting(model.Setting(*setting), service.IsSettingPublic(setting)))
+	}
+	return handler.Success(c, &settings)
 }
 
 func SettingDelete(c *fiber.Ctx) error {

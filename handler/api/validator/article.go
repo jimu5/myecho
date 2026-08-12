@@ -5,6 +5,7 @@ import (
 	"myecho/handler/rtype"
 	"myecho/model"
 	"time"
+	"unicode/utf8"
 )
 
 func ValidateArticleRequest(articleRequest *rtype.ArticleRequest) error {
@@ -13,6 +14,11 @@ func ValidateArticleRequest(articleRequest *rtype.ArticleRequest) error {
 	}
 	if len(articleRequest.Content) == 0 {
 		return errors.ErrContentEmpty
+	}
+	if utf8.RuneCountInString(articleRequest.SEOTitle) > 160 ||
+		utf8.RuneCountInString(articleRequest.SEODescription) > 255 ||
+		utf8.RuneCountInString(articleRequest.ShareImage) > 512 {
+		return errors.ErrInvalidParams
 	}
 	if articleRequest.PostTime.IsZero() {
 		articleRequest.PostTime = time.Now()

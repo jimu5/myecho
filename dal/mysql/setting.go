@@ -48,32 +48,43 @@ func (s *SettingModel) checkExist(tx *gorm.DB) error {
 }
 
 func getDefaultSettings() map[string]SettingModel {
+	public := true
+	private := false
 	settings := make([]SettingModel, 0)
 	settings = append(settings, SettingModel{
 		Key:         "SiteTitle",
 		Value:       "Myecho 默认网站名",
 		Description: "网站名",
+		IsPublic:    &public,
 	})
 	settings = append(settings,
-		SettingModel{Key: "SiteDescription", Description: "网站描述"},
-		SettingModel{Key: "SiteLogo", Description: "网站 Logo"},
-		SettingModel{Key: "SiteAuthor", Description: "作者名称"},
-		SettingModel{Key: "SiteAuthorBio", Description: "作者简介"},
-		SettingModel{Key: "SiteFooter", Description: "页脚文本"},
-		SettingModel{Key: "SiteICP", Description: "备案号"},
-		SettingModel{Key: "SiteSocialLinks", Value: "[]", Description: "社交链接"},
-		SettingModel{Key: "SiteShareImage", Description: "默认分享图"},
-		SettingModel{Key: "BaseURL", Description: "站点地址"},
+		SettingModel{Key: "SiteDescription", Description: "网站描述", IsPublic: &public},
+		SettingModel{Key: "SiteLogo", Description: "网站 Logo", IsPublic: &public},
+		SettingModel{Key: "SiteAuthor", Description: "作者名称", IsPublic: &public},
+		SettingModel{Key: "SiteAuthorBio", Description: "作者简介", IsPublic: &public},
+		SettingModel{Key: "SiteFooter", Description: "页脚文本", IsPublic: &public},
+		SettingModel{Key: "SiteICP", Description: "备案号", IsPublic: &public},
+		SettingModel{Key: "SiteSocialLinks", Value: "[]", Description: "社交链接", IsPublic: &public},
+		SettingModel{Key: "SiteShareImage", Description: "默认分享图", IsPublic: &public},
+		SettingModel{Key: "BaseURL", Description: "站点地址", IsPublic: &public},
 	)
 	settings = append(settings, SettingModel{
 		Key:         "SiteIndexMetaKeyword",
 		Value:       "myecho",
 		Description: "站点主页关键词",
+		IsPublic:    &public,
 	})
 	settings = append(settings, SettingModel{
 		Key:         "SiteFaviconIcon",
 		Value:       "",
 		Description: "网站icon",
+		IsPublic:    &public,
+	})
+	settings = append(settings, SettingModel{
+		Key:         "CommentNotificationWebhook",
+		Value:       "",
+		Description: "新评论通知 Webhook",
+		IsPublic:    &private,
 	})
 	result := make(map[string]SettingModel, len(settings))
 	for i := range settings {
@@ -121,6 +132,24 @@ func (s *SettingRepo) UpdateValueAndDesc(key, value, desc string) (SettingModel,
 		"value":       value,
 		"description": desc,
 	})
+	if result.Error != nil {
+		return SettingModel{}, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return SettingModel{}, gorm.ErrRecordNotFound
+	}
+	return s.GetByKey(key)
+}
+
+func (s *SettingRepo) UpdateValueDescAndVisibility(key, value, desc string, isPublic *bool) (SettingModel, error) {
+	updates := map[string]interface{}{
+		"value":       value,
+		"description": desc,
+	}
+	if isPublic != nil {
+		updates["is_public"] = *isPublic
+	}
+	result := db.Model(&SettingModel{}).Where("key = ?", key).Updates(updates)
 	if result.Error != nil {
 		return SettingModel{}, result.Error
 	}

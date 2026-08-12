@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -30,8 +31,11 @@ type exportUser struct {
 	model.BaseModel
 	Name           string    `json:"name"`
 	NickName       string    `json:"nick_name"`
+	Email          string    `json:"email,omitempty"`
 	LastLogin      time.Time `json:"last_login"`
 	PermissionType int8      `json:"permission_type"`
+	Password       string    `json:"password,omitempty"`
+	Token          string    `json:"token,omitempty"`
 }
 
 type exportArticle struct {
@@ -40,6 +44,9 @@ type exportArticle struct {
 	AuthorID       uint                       `json:"author_id"`
 	Title          string                     `json:"title"`
 	Slug           string                     `json:"slug"`
+	SEOTitle       string                     `json:"seo_title"`
+	SEODescription string                     `json:"seo_description"`
+	ShareImage     string                     `json:"share_image"`
 	Type           model.ArticleType          `json:"type"`
 	ContentFormat  model.ArticleContentFormat `json:"content_format"`
 	Summary        string                     `json:"summary"`
@@ -51,19 +58,23 @@ type exportArticle struct {
 	DetailUID      string                     `json:"detail_uid"`
 	PostTime       time.Time                  `json:"post_time"`
 	Status         int8                       `json:"status"`
+	Password       string                     `json:"password,omitempty"`
 }
 
 type exportComment struct {
 	model.BaseModel
-	ArticleUID string    `json:"article_uid"`
-	AuthorName string    `json:"author_name"`
-	AuthorURL  string    `json:"author_url"`
-	Content    string    `json:"content"`
-	Status     *int8     `json:"status"`
-	LikeCount  int       `json:"like_count"`
-	ParentID   uint      `json:"parent_id"`
-	UserID     uint      `json:"user_id"`
-	PostTime   time.Time `json:"post_time"`
+	ArticleUID  string    `json:"article_uid"`
+	AuthorName  string    `json:"author_name"`
+	AuthorEmail string    `json:"author_email,omitempty"`
+	AuthorIP    string    `json:"author_ip,omitempty"`
+	AuthorURL   string    `json:"author_url"`
+	AuthorAgent string    `json:"author_agent,omitempty"`
+	Content     string    `json:"content"`
+	Status      *int8     `json:"status"`
+	LikeCount   int       `json:"like_count"`
+	ParentID    uint      `json:"parent_id"`
+	UserID      uint      `json:"user_id"`
+	PostTime    time.Time `json:"post_time"`
 }
 
 type exportSetting struct {
@@ -73,6 +84,7 @@ type exportSetting struct {
 	Type        string `json:"type"`
 	Description string `json:"description"`
 	IsSystem    bool   `json:"is_system"`
+	IsPublic    *bool  `json:"is_public"`
 }
 
 type exportTheme struct {
@@ -98,22 +110,31 @@ type exportArticleTag struct {
 }
 
 type exportData struct {
-	ExportedAt     time.Time             `json:"exported_at"`
-	Users          []exportUser          `json:"users"`
-	Articles       []exportArticle       `json:"articles"`
-	ArticleDetails []model.ArticleDetail `json:"article_details"`
-	Comments       []exportComment       `json:"comments"`
-	Categories     []model.Category      `json:"categories"`
-	Tags           []model.Tag           `json:"tags"`
-	ArticleTags    []exportArticleTag    `json:"article_tags"`
-	Links          []model.Link          `json:"links"`
-	Files          []model.File          `json:"files"`
-	Themes         []exportTheme         `json:"themes"`
-	Settings       []exportSetting       `json:"settings"`
+	Version           int                         `json:"version"`
+	ExportedAt        time.Time                   `json:"exported_at"`
+	IncludesSensitive bool                        `json:"includes_sensitive,omitempty"`
+	Users             []exportUser                `json:"users"`
+	Articles          []exportArticle             `json:"articles"`
+	ArticleDetails    []model.ArticleDetail       `json:"article_details"`
+	Revisions         []model.ArticleRevision     `json:"article_revisions"`
+	SlugRedirects     []model.ArticleSlugRedirect `json:"article_slug_redirects"`
+	DailyStats        []model.ArticleDailyStat    `json:"article_daily_stats"`
+	Comments          []exportComment             `json:"comments"`
+	Categories        []model.Category            `json:"categories"`
+	Tags              []model.Tag                 `json:"tags"`
+	ArticleTags       []exportArticleTag          `json:"article_tags"`
+	Links             []model.Link                `json:"links"`
+	Files             []model.File                `json:"files"`
+	Themes            []exportTheme               `json:"themes"`
+	Settings          []exportSetting             `json:"settings"`
 }
 
 func CreateExportArchive() (archivePath string, size int64, err error) {
-	data, err := loadExportData()
+	return createExportArchive(false)
+}
+
+func createExportArchive(includeSensitive bool) (archivePath string, size int64, err error) {
+	data, err := loadExportDataWithSensitive(includeSensitive)
 	if err != nil {
 		return "", 0, err
 	}
@@ -165,7 +186,11 @@ func CreateExportArchive() (archivePath string, size int64, err error) {
 }
 
 func loadExportData() (exportData, error) {
-	data := exportData{ExportedAt: time.Now()}
+	return loadExportDataWithSensitive(false)
+}
+
+func loadExportDataWithSensitive(includeSensitive bool) (exportData, error) {
+	data := exportData{Version: 1, ExportedAt: time.Now(), IncludesSensitive: includeSensitive}
 	queries := []struct {
 		model interface{}
 		dest  interface{}
@@ -173,6 +198,9 @@ func loadExportData() (exportData, error) {
 		{&model.User{}, &data.Users},
 		{&model.Article{}, &data.Articles},
 		{&model.ArticleDetail{}, &data.ArticleDetails},
+		{&model.ArticleRevision{}, &data.Revisions},
+		{&model.ArticleSlugRedirect{}, &data.SlugRedirects},
+		{&model.ArticleDailyStat{}, &data.DailyStats},
 		{&model.Comment{}, &data.Comments},
 		{&model.Category{}, &data.Categories},
 		{&model.Tag{}, &data.Tags},
@@ -193,15 +221,126 @@ func loadExportData() (exportData, error) {
 		return exportData{}, err
 	}
 	for _, setting := range settings {
-		if !isSensitiveSettingKey(setting.Key) {
+		if includeSensitive || !IsSensitiveSettingKey(setting.Key) {
 			data.Settings = append(data.Settings, setting)
+		}
+	}
+	normalizeExportRelations(&data)
+	if !includeSensitive {
+		for i := range data.Users {
+			data.Users[i].Email = ""
+			data.Users[i].Password = ""
+			data.Users[i].Token = ""
+		}
+		for i := range data.Articles {
+			data.Articles[i].Password = ""
+		}
+		for i := range data.Comments {
+			data.Comments[i].AuthorEmail = ""
+			data.Comments[i].AuthorIP = ""
+			data.Comments[i].AuthorAgent = ""
 		}
 	}
 	return data, nil
 }
 
-func isSensitiveSettingKey(key string) bool {
+func normalizeExportRelations(data *exportData) {
+	userIDs := make(map[uint]struct{}, len(data.Users))
+	for _, user := range data.Users {
+		userIDs[user.ID] = struct{}{}
+	}
+	categoryIndexes := make(map[string]int, len(data.Categories))
+	for i := range data.Categories {
+		categoryIndexes[data.Categories[i].UID] = i
+	}
+	for i := range data.Categories {
+		category := &data.Categories[i]
+		if parentIndex, exists := categoryIndexes[category.FatherUID]; category.FatherUID != "" &&
+			(!exists || data.Categories[parentIndex].Type != category.Type) {
+			category.FatherUID = ""
+		}
+	}
+	for i := range data.Categories {
+		seen := map[string]struct{}{data.Categories[i].UID: {}}
+		for parentUID := data.Categories[i].FatherUID; parentUID != ""; parentUID = data.Categories[categoryIndexes[parentUID]].FatherUID {
+			if _, exists := seen[parentUID]; exists {
+				data.Categories[i].FatherUID = ""
+				break
+			}
+			seen[parentUID] = struct{}{}
+		}
+	}
+
+	articleIDs := make(map[uint]struct{}, len(data.Articles))
+	articleUIDs := make(map[string]struct{}, len(data.Articles))
+	detailUIDs := make(map[string]struct{}, len(data.Articles))
+	for i := range data.Articles {
+		article := &data.Articles[i]
+		articleIDs[article.ID] = struct{}{}
+		articleUIDs[article.UID] = struct{}{}
+		detailUIDs[article.DetailUID] = struct{}{}
+		if _, exists := userIDs[article.AuthorID]; article.AuthorID != 0 && !exists {
+			article.AuthorID = 0
+		}
+		if categoryIndex, exists := categoryIndexes[article.CategoryUID]; article.CategoryUID != "" &&
+			(!exists || data.Categories[categoryIndex].Type != model.CategoryTypeArticle) {
+			article.CategoryUID = ""
+		}
+	}
+	data.ArticleDetails = slices.DeleteFunc(data.ArticleDetails, func(detail model.ArticleDetail) bool {
+		_, exists := detailUIDs[detail.UID]
+		return !exists
+	})
+	data.Revisions = slices.DeleteFunc(data.Revisions, func(revision model.ArticleRevision) bool {
+		_, exists := articleIDs[revision.ArticleID]
+		return !exists
+	})
+	data.SlugRedirects = slices.DeleteFunc(data.SlugRedirects, func(redirect model.ArticleSlugRedirect) bool {
+		_, exists := articleUIDs[redirect.ArticleUID]
+		return !exists
+	})
+	data.DailyStats = slices.DeleteFunc(data.DailyStats, func(stat model.ArticleDailyStat) bool {
+		_, exists := articleUIDs[stat.ArticleUID]
+		return !exists
+	})
+	data.Comments = slices.DeleteFunc(data.Comments, func(comment exportComment) bool {
+		_, exists := articleUIDs[comment.ArticleUID]
+		return !exists
+	})
+	commentIDs := make(map[uint]struct{}, len(data.Comments))
+	for _, comment := range data.Comments {
+		commentIDs[comment.ID] = struct{}{}
+	}
+	for i := range data.Comments {
+		if _, exists := userIDs[data.Comments[i].UserID]; data.Comments[i].UserID != 0 && !exists {
+			data.Comments[i].UserID = 0
+		}
+		if _, exists := commentIDs[data.Comments[i].ParentID]; data.Comments[i].ParentID != 0 && !exists {
+			data.Comments[i].ParentID = 0
+		}
+	}
+	tagUIDs := make(map[string]struct{}, len(data.Tags))
+	for _, tag := range data.Tags {
+		tagUIDs[tag.UID] = struct{}{}
+	}
+	data.ArticleTags = slices.DeleteFunc(data.ArticleTags, func(relation exportArticleTag) bool {
+		_, articleExists := articleUIDs[relation.ArticleUID]
+		_, tagExists := tagUIDs[relation.TagUID]
+		return !articleExists || !tagExists
+	})
+	for i := range data.Links {
+		if categoryIndex, exists := categoryIndexes[data.Links[i].CategoryUID]; data.Links[i].CategoryUID != "" &&
+			(!exists || data.Categories[categoryIndex].Type != model.CategoryTypeLink) {
+			data.Links[i].CategoryUID = ""
+		}
+	}
+}
+
+func IsSensitiveSettingKey(key string) bool {
 	if IsHiddenSettingKey(key) {
+		return true
+	}
+	if key == "CommentNotificationWebhook" {
 		return true
 	}
 	normalized := strings.NewReplacer("_", "", "-", "", ".", "").Replace(strings.ToLower(key))

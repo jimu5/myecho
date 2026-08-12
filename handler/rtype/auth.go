@@ -36,3 +36,13 @@ type LoginResponse struct {
 type RegisterResponse struct {
 	LoginResponse
 }
+
+type ProfileUpdateRequest struct {
+	NickName string `json:"nick_name"`
+	Email    string `json:"email"`
+}
+
+type PasswordUpdateRequest struct {
+	OldPassword string `json:"old_password"`
+	NewPassword string `json:"new_password"`
+}

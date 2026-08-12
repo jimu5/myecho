@@ -52,7 +52,7 @@ func (c *CategoryRepo) All() ([]*CategoryModel, error) {
 
 func (c *CategoryRepo) AllByType(_type model.CategoryType) ([]*CategoryModel, error) {
 	res := make([]*CategoryModel, 0)
-	err := db.Model(&CategoryModel{}).Where("type = ?", _type).Order("id").Find(&res).Error
+	err := db.Model(&CategoryModel{}).Where("type = ? AND uid <> ''", _type).Order("id").Find(&res).Error
 	return res, err
 }
 

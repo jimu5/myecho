@@ -65,7 +65,7 @@ func Login(c *fiber.Ctx) error {
 	return handler.Success(c, res)
 }
 
-// 注册
+// Register is kept for API compatibility; initial account creation only happens through Setup.
 func Register(c *fiber.Ctx) error {
 	return LoginErrorResponse(c, CanNotRegister)
 }

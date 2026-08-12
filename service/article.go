@@ -131,9 +131,9 @@ func (a *ArticleService) ArticleRetrieve(param *ArticleRetrieveQueryParam) (mysq
 	if !param.IncludeNonPublic && article.Password != "" && !param.PasswordUnlocked {
 		return mysql.ArticleModel{}, ErrArticlePasswordRequired
 	}
-	if !param.NoRead {
+	if !param.NoRead && IsArticlePubliclyVisible(article.Status, article.PostTime) {
 		go func() {
-			if err := dal.MySqlDB.Article.AddReadCountByID(article.ID, 1); err != nil {
+			if err := dal.MySqlDB.Article.RecordPublicView(&article); err != nil {
 				log.Println(err)
 			}
 		}()
@@ -150,6 +150,37 @@ func (a *ArticleService) PostNeighbors(article *mysql.ArticleModel) (*mysql.Arti
 
 func (a *ArticleService) RelatedPosts(article *mysql.ArticleModel) ([]*mysql.ArticleModel, error) {
 	return dal.MySqlDB.Article.FindRelatedPosts(article, 3)
+}
+
+func (a *ArticleService) ArticleRevisions(articleID uint) ([]model.ArticleRevision, error) {
+	if _, err := dal.MySqlDB.Article.FindByID(articleID); err != nil {
+		return nil, err
+	}
+	return dal.MySqlDB.Article.ListRevisions(articleID)
+}
+
+func (a *ArticleService) RestoreArticleRevision(articleID, revisionID uint) (mysql.ArticleModel, error) {
+	article, err := dal.MySqlDB.Article.FindByID(articleID)
+	if err != nil {
+		return mysql.ArticleModel{}, err
+	}
+	revision, err := dal.MySqlDB.Article.FindRevision(articleID, revisionID)
+	if err != nil {
+		return mysql.ArticleModel{}, err
+	}
+	article.Title = revision.Title
+	article.Slug = revision.Slug
+	article.Type = revision.Type
+	article.ContentFormat = revision.ContentFormat
+	article.Summary = revision.Summary
+	article.SEOTitle = revision.SEOTitle
+	article.SEODescription = revision.SEODescription
+	article.ShareImage = revision.ShareImage
+	article.Detail = &model.ArticleDetail{Content: revision.Content}
+	if err := dal.MySqlDB.Article.Update(&article); err != nil {
+		return mysql.ArticleModel{}, err
+	}
+	return dal.MySqlDB.Article.FindByID(articleID)
 }
 
 func HashArticlePassword(password string) (string, error) {

@@ -100,13 +100,16 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 		Detail:         &model.ArticleDetail{Content: "hello **world**"},
 	}
 	htmlArticle := &mysql.ArticleModel{
-		Title:         "HTML",
-		Summary:       "html summary",
-		CategoryUID:   category.UID,
-		Status:        int8(mysql.ARTILCE_STATUS_PUBLIC),
-		PostTime:      time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC),
-		ContentFormat: model.ArticleContentFormatHTML,
-		Detail:        &model.ArticleDetail{Content: `<section class="fancy"><style>.fancy{color:red}</style><h2>*Not Markdown*</h2></section>`},
+		Title:          "HTML",
+		SEOTitle:       "Custom SEO title",
+		SEODescription: "Custom SEO description",
+		ShareImage:     "/article-share.png",
+		Summary:        "html summary",
+		CategoryUID:    category.UID,
+		Status:         int8(mysql.ARTILCE_STATUS_PUBLIC),
+		PostTime:       time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC),
+		ContentFormat:  model.ArticleContentFormatHTML,
+		Detail:         &model.ArticleDetail{Content: `<section class="fancy"><style>.fancy{color:red}</style><h2>*Not Markdown*</h2></section>`},
 	}
 	draftArticle := &mysql.ArticleModel{
 		Title:    "Draft",
@@ -176,8 +179,9 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 		t.Fatal("IsAllowComment = false, want true")
 	}
 	meta := detailData["Meta"].(PageMeta)
-	wantURL := "https://blog.example.com/articles/" + strconv.Itoa(int(publicArticle.ID))
-	if meta.Canonical != wantURL || meta.OGURL != wantURL || meta.OGTitle != publicArticle.Title || meta.OGType != "article" {
+	wantURL := "https://blog.example.com/posts/" + publicArticle.Slug
+	if meta.Canonical != wantURL || meta.OGURL != wantURL || meta.OGTitle != publicArticle.Title ||
+		meta.Description != publicArticle.Summary || meta.Image != "https://blog.example.com/share.png" || meta.OGType != "article" {
 		t.Fatalf("article meta = %+v", meta)
 	}
 	var jsonLD map[string]interface{}
@@ -207,6 +211,13 @@ func TestArticlePagesRenderListAndDetail(t *testing.T) {
 	htmlRendered := htmlData["Data"].(mysql.ArticleModel)
 	if !strings.Contains(htmlRendered.Detail.Content, `<section class="fancy">`) || strings.Contains(htmlRendered.Detail.Content, "<em>Not Markdown</em>") {
 		t.Fatalf("rendered html content = %q", htmlRendered.Detail.Content)
+	}
+	htmlMeta := htmlData["Meta"].(PageMeta)
+	if htmlMeta.OGTitle != htmlArticle.SEOTitle ||
+		htmlMeta.Description != htmlArticle.SEODescription ||
+		htmlMeta.Image != "https://blog.example.com/article-share.png" ||
+		htmlMeta.Canonical != "https://blog.example.com/posts/"+htmlArticle.Slug {
+		t.Fatalf("custom article meta = %+v", htmlMeta)
 	}
 }
 
@@ -272,6 +283,17 @@ func TestPostPageTagAndArchiveViews(t *testing.T) {
 	}
 	if got := postViews.data.(fiber.Map)["Data"].(mysql.ArticleModel); got.ID != post.ID {
 		t.Fatalf("post slug data = %+v, want id %d", got, post.ID)
+	}
+	post.Slug = "renamed-post"
+	if err := repo.Update(post); err != nil {
+		t.Fatalf("rename post: %v", err)
+	}
+	resp, err = app.Test(httptest.NewRequest(fiber.MethodGet, "/posts/slug-post?no_read=true", nil))
+	if err != nil {
+		t.Fatalf("old post slug request error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusMovedPermanently || resp.Header.Get(fiber.HeaderLocation) != "/posts/renamed-post" {
+		t.Fatalf("old post slug redirect status=%d location=%q", resp.StatusCode, resp.Header.Get(fiber.HeaderLocation))
 	}
 
 	pageViews := &spyViews{}

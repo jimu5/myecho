@@ -17,6 +17,8 @@ type ArticleDBRepo struct {
 
 type ArticleModel model.Article
 
+const articleRevisionLimit = 20
+
 func (ArticleModel) TableName() string {
 	return "articles"
 }
@@ -118,6 +120,16 @@ func uniqueArticleSlug(tx *gorm.DB, base string, articleType model.ArticleType, 
 		}
 		if err := query.Count(&count).Error; err != nil {
 			return "", err
+		}
+		if count == 0 {
+			redirectQuery := tx.Model(&model.ArticleSlugRedirect{}).
+				Where("slug = ? AND type = ?", slug, articleType)
+			if excludeID != 0 {
+				redirectQuery = redirectQuery.Where("article_uid <> (SELECT uid FROM articles WHERE id = ?)", excludeID)
+			}
+			if err := redirectQuery.Count(&count).Error; err != nil {
+				return "", err
+			}
 		}
 		if count == 0 {
 			return slug, nil
@@ -310,6 +322,15 @@ func (a *ArticleDBRepo) CountDisplayable(queryParam ArticleCommonQueryParam) (in
 
 func (a *ArticleDBRepo) Update(article *ArticleModel) error {
 	return db.Transaction(func(tx *gorm.DB) error {
+		var original ArticleModel
+		if err := tx.Model(&ArticleModel{}).
+			Preload("Detail").
+			First(&original, article.ID).Error; err != nil {
+			return err
+		}
+		if err := createArticleRevision(tx, &original); err != nil {
+			return err
+		}
 		if article.Detail != nil {
 			if article.DetailUID == "" {
 				article.Detail.UID = utils.GenUID20()
@@ -326,8 +347,54 @@ func (a *ArticleDBRepo) Update(article *ArticleModel) error {
 				return err
 			}
 		}
-		return tx.Model(article).Omit("User", "Tags", "Detail").Updates(article).Error
+		if err := tx.Model(article).Omit("User", "Tags", "Detail").Updates(article).Error; err != nil {
+			return err
+		}
+		if original.Slug == article.Slug && original.Type == article.Type {
+			return nil
+		}
+		if err := tx.Where("article_uid = ? AND slug = ? AND type = ?", article.UID, article.Slug, article.Type).
+			Delete(&model.ArticleSlugRedirect{}).Error; err != nil {
+			return err
+		}
+		return tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&model.ArticleSlugRedirect{
+			ArticleUID: original.UID,
+			Slug:       original.Slug,
+			Type:       original.Type,
+		}).Error
 	})
+}
+
+func createArticleRevision(tx *gorm.DB, article *ArticleModel) error {
+	revision := model.ArticleRevision{
+		ArticleID:      article.ID,
+		Title:          article.Title,
+		Slug:           article.Slug,
+		Type:           article.Type,
+		ContentFormat:  article.ContentFormat,
+		Summary:        article.Summary,
+		SEOTitle:       article.SEOTitle,
+		SEODescription: article.SEODescription,
+		ShareImage:     article.ShareImage,
+	}
+	if article.Detail != nil {
+		revision.Content = article.Detail.Content
+	}
+	if err := tx.Create(&revision).Error; err != nil {
+		return err
+	}
+	var expiredIDs []uint
+	if err := tx.Model(&model.ArticleRevision{}).
+		Where("article_id = ?", article.ID).
+		Order("id desc").
+		Offset(articleRevisionLimit).
+		Pluck("id", &expiredIDs).Error; err != nil {
+		return err
+	}
+	if len(expiredIDs) == 0 {
+		return nil
+	}
+	return tx.Where("id IN ?", expiredIDs).Delete(&model.ArticleRevision{}).Error
 }
 
 func (a *ArticleDBRepo) FindByID(id uint) (ArticleModel, error) {
@@ -342,6 +409,33 @@ func (a *ArticleDBRepo) FindBySlug(slug string, articleType model.ArticleType) (
 		Where("slug = ? AND type = ?", slug, articleType).
 		First(&result).Error
 	return result, err
+}
+
+func (a *ArticleDBRepo) FindByRedirectSlug(slug string, articleType model.ArticleType) (ArticleModel, error) {
+	var redirect model.ArticleSlugRedirect
+	if err := db.Where("slug = ? AND type = ?", slug, articleType).First(&redirect).Error; err != nil {
+		return ArticleModel{}, err
+	}
+	var article ArticleModel
+	err := db.Model(&ArticleModel{}).Preload(clause.Associations).
+		Where("uid = ?", redirect.ArticleUID).
+		First(&article).Error
+	return article, err
+}
+
+func (a *ArticleDBRepo) ListRevisions(articleID uint) ([]model.ArticleRevision, error) {
+	revisions := make([]model.ArticleRevision, 0)
+	err := db.Where("article_id = ?", articleID).
+		Order("id desc").
+		Limit(articleRevisionLimit).
+		Find(&revisions).Error
+	return revisions, err
+}
+
+func (a *ArticleDBRepo) FindRevision(articleID, revisionID uint) (model.ArticleRevision, error) {
+	var revision model.ArticleRevision
+	err := db.Where("article_id = ? AND id = ?", articleID, revisionID).First(&revision).Error
+	return revision, err
 }
 
 func (a *ArticleDBRepo) FindPostNeighbors(article *ArticleModel) (*ArticleModel, *ArticleModel, error) {
@@ -413,9 +507,34 @@ func (a *ArticleDBRepo) FindRelatedPosts(article *ArticleModel, limit int) ([]*A
 }
 
 func (a *ArticleDBRepo) DeleteByID(id uint) error {
-	article := &ArticleModel{}
-	article.ID = id
-	return db.Model(&ArticleModel{}).Select("Detail").Delete(article).Error
+	return db.Transaction(func(tx *gorm.DB) error {
+		var article ArticleModel
+		if err := tx.First(&article, id).Error; err != nil {
+			return err
+		}
+		for _, deletion := range []struct {
+			query *gorm.DB
+			value interface{}
+		}{
+			{tx.Where("article_id = ?", article.ID), &model.ArticleRevision{}},
+			{tx.Where("article_uid = ?", article.UID), &model.ArticleSlugRedirect{}},
+			{tx.Where("article_uid = ?", article.UID), &model.ArticleDailyStat{}},
+		} {
+			if err := deletion.query.Delete(deletion.value).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Unscoped().Where("article_uid = ?", article.UID).Delete(&model.Comment{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Exec("DELETE FROM article_tags WHERE article_uid = ?", article.UID).Error; err != nil {
+			return err
+		}
+		if err := tx.Delete(&article).Error; err != nil {
+			return err
+		}
+		return tx.Where("uid = ?", article.DetailUID).Delete(&model.ArticleDetail{}).Error
+	})
 }
 
 func (a *ArticleDBRepo) AddReadCountByID(id uint, addCount uint) error {
@@ -427,6 +546,32 @@ func (a *ArticleDBRepo) AddReadCountByID(id uint, addCount uint) error {
 		return gorm.ErrRecordNotFound
 	}
 	return nil
+}
+
+func (a *ArticleDBRepo) RecordPublicView(article *ArticleModel) error {
+	if article == nil || article.ID == 0 || article.UID == "" {
+		return gorm.ErrRecordNotFound
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&ArticleModel{}).
+			Where("id = ?", article.ID).
+			Update("read_count", gorm.Expr("read_count + 1"))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		stat := model.ArticleDailyStat{
+			ArticleUID: article.UID,
+			Date:       time.Now().Format("2006-01-02"),
+			Views:      1,
+		}
+		return tx.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "article_uid"}, {Name: "date"}},
+			DoUpdates: clause.Assignments(map[string]interface{}{"views": gorm.Expr("article_daily_stats.views + 1")}),
+		}).Create(&stat).Error
+	})
 }
 
 func (a *ArticleDBRepo) BatchUpdateStatus(ids []uint, status ArticleStatus) error {

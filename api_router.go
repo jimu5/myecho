@@ -19,6 +19,8 @@ func SetupApiRouter(app *fiber.App) {
 			apiRoute.Get("/all_articles", mw.Authentication, mw.AdminRequired, api.ArticleAllList)
 			apiRoute.Post("/articles", mw.Authentication, mw.AdminRequired, api.ArticleCreate)
 			apiRoute.Post("/articles/batch", mw.Authentication, mw.AdminRequired, api.ArticleBatch)
+			apiRoute.Get("/articles/:id/revisions", mw.Authentication, mw.AdminRequired, api.ArticleRevisionList)
+			apiRoute.Post("/articles/:id/revisions/:revision_id/restore", mw.Authentication, mw.AdminRequired, api.ArticleRevisionRestore)
 			apiRoute.Patch("/articles/:id", mw.Authentication, mw.AdminRequired, api.ArticleUpdate)
 			apiRoute.Delete("/articles/:id", mw.Authentication, mw.AdminRequired, api.ArticleDelete)
 			apiRoute.Get("/dashboard", mw.Authentication, mw.AdminRequired, api.Dashboard)
@@ -26,8 +28,14 @@ func SetupApiRouter(app *fiber.App) {
 
 			apiRoute.Get("/comments", mw.Authentication, mw.AdminRequired, api.CommentAllList)
 			apiRoute.Patch("/comments/:id", mw.Authentication, mw.AdminRequired, api.CommentUpdate)
+			apiRoute.Post("/comments/:id/reply", mw.Authentication, mw.AdminRequired, api.CommentReply)
 			apiRoute.Post("/comments/batch", mw.Authentication, mw.AdminRequired, api.CommentBatch)
 			apiRoute.Delete("/comments/:id", mw.Authentication, mw.AdminRequired, api.CommentDelete)
+
+			apiRoute.Get("/account/profile", mw.Authentication, api.Profile)
+			apiRoute.Patch("/account/profile", mw.Authentication, api.ProfileUpdate)
+			apiRoute.Patch("/account/password", mw.Authentication, api.PasswordUpdate)
+			apiRoute.Post("/logout", mw.Authentication, api.Logout)
 
 			apiRoute.Post("/article/categories", mw.Authentication, mw.AdminRequired, api.ArticleCategoryCreate)
 			apiRoute.Post("/link/categories", mw.Authentication, mw.AdminRequired, api.LinkCategoryCreate)
@@ -39,8 +47,10 @@ func SetupApiRouter(app *fiber.App) {
 			apiRoute.Delete("/tags/:id", mw.Authentication, mw.AdminRequired, api.TagDelete)
 
 			apiRoute.Post("/settings", mw.Authentication, mw.AdminRequired, api.SettingCreate)
+			apiRoute.Get("/settings/admin", mw.Authentication, mw.AdminRequired, api.SettingAdminAll)
 			apiRoute.Patch("/settings/:key", mw.Authentication, mw.AdminRequired, api.SettingUpdate)
 			apiRoute.Delete("/settings/:key", mw.Authentication, mw.AdminRequired, api.SettingDelete)
+			apiRoute.Post("/import", mw.Authentication, mw.AdminRequired, api.Import)
 
 			apiRoute.Post("/links", mw.Authentication, mw.AdminRequired, api.LinkCreate)
 			apiRoute.Put("/links/:id", mw.Authentication, mw.AdminRequired, api.LinkUpdate)

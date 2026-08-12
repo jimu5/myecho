@@ -14,7 +14,9 @@ import (
 	"myecho/model"
 	"myecho/service"
 	"myecho/utils"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // ShowAccount godoc
@@ -274,6 +276,58 @@ func ArticleUpdate(c *fiber.Ctx) error {
 	}
 	res := rtype.ModelToArticleResponse(&article)
 	return handler.Success(c, &res)
+}
+
+type articleRevisionSummary struct {
+	ID        uint      `json:"id"`
+	Title     string    `json:"title"`
+	Slug      string    `json:"slug"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+func ArticleRevisionList(c *fiber.Ctx) error {
+	articleID, err := articleIDFromParam(c)
+	if err != nil {
+		return ValidateErrorResponse(c, err.Error())
+	}
+	revisions, err := service.S.Article.ArticleRevisions(articleID)
+	if err != nil {
+		return NotFoundErrorResponse(c, err.Error())
+	}
+	result := make([]articleRevisionSummary, 0, len(revisions))
+	for _, revision := range revisions {
+		result = append(result, articleRevisionSummary{
+			ID:        revision.ID,
+			Title:     revision.Title,
+			Slug:      revision.Slug,
+			CreatedAt: revision.CreatedAt,
+		})
+	}
+	return handler.Success(c, result)
+}
+
+func ArticleRevisionRestore(c *fiber.Ctx) error {
+	articleID, err := articleIDFromParam(c)
+	if err != nil {
+		return ValidateErrorResponse(c, err.Error())
+	}
+	revisionID, err := strconv.ParseUint(c.Params("revision_id"), 10, 64)
+	if err != nil || revisionID == 0 {
+		return ValidateErrorResponse(c, apierrors.ErrInvalidParams.Error())
+	}
+	article, err := service.S.Article.RestoreArticleRevision(articleID, uint(revisionID))
+	if err != nil {
+		return NotFoundErrorResponse(c, err.Error())
+	}
+	return handler.Success(c, rtype.ModelToUnlockedArticleResponse(&article))
+}
+
+func articleIDFromParam(c *fiber.Ctx) (uint, error) {
+	id, err := strconv.ParseUint(c.Params("id"), 10, 64)
+	if err != nil || id == 0 {
+		return 0, apierrors.ErrInvalidParams
+	}
+	return uint(id), nil
 }
 
 func prepareArticleRequestForSave(req *rtype.ArticleRequest, user *model.User) {

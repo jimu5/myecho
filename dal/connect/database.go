@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"myecho/config/yaml_config"
 	"myecho/model"
+	"myecho/utils"
 	"regexp"
 	"strings"
 	"time"
@@ -48,12 +49,53 @@ func ConnectDB() {
 		&model.Comment{},
 		&model.File{},
 		&model.Article{},
+		&model.ArticleRevision{},
+		&model.ArticleSlugRedirect{},
+		&model.ArticleDailyStat{},
 		&model.Link{},
 		&model.Theme{},
 	)
 	if err != nil {
 		panic(err)
 	}
+	if err := repairEmptyCategoryUIDs(Database); err != nil {
+		panic(err)
+	}
+	if err := repairOrphanArticleRelations(Database); err != nil {
+		panic(err)
+	}
+}
+
+func repairEmptyCategoryUIDs(db *gorm.DB) error {
+	var categories []model.Category
+	if err := db.Where("uid IS NULL OR uid = ?", "").Find(&categories).Error; err != nil {
+		return err
+	}
+	for _, category := range categories {
+		if err := db.Model(&model.Category{}).
+			Where("id = ?", category.ID).
+			Update("uid", utils.GenUID20()).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func repairOrphanArticleRelations(db *gorm.DB) error {
+	for _, deletion := range []struct {
+		query *gorm.DB
+		value interface{}
+	}{
+		{db.Where("article_id NOT IN (?)", db.Model(&model.Article{}).Select("id")), &model.ArticleRevision{}},
+		{db.Where("article_uid NOT IN (?)", db.Model(&model.Article{}).Select("uid")), &model.ArticleSlugRedirect{}},
+		{db.Where("article_uid NOT IN (?)", db.Model(&model.Article{}).Select("uid")), &model.ArticleDailyStat{}},
+		{db.Unscoped().Where("article_uid NOT IN (?)", db.Model(&model.Article{}).Select("uid")), &model.Comment{}},
+	} {
+		if err := deletion.query.Delete(deletion.value).Error; err != nil {
+			return err
+		}
+	}
+	return db.Exec("DELETE FROM article_tags WHERE article_uid NOT IN (SELECT uid FROM articles WHERE deleted_at IS NULL)").Error
 }
 
 func getDialectorFromYamlConfig() gorm.Dialector {

@@ -42,6 +42,9 @@ func setupServiceTestDB(t *testing.T) {
 		&model.Comment{},
 		&model.File{},
 		&model.Article{},
+		&model.ArticleRevision{},
+		&model.ArticleSlugRedirect{},
+		&model.ArticleDailyStat{},
 		&model.Link{},
 		&model.Theme{},
 	); err != nil {
@@ -65,6 +68,9 @@ func TestSettingServiceCRUD(t *testing.T) {
 	if err := svc.Create(setting); err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
+	if setting.IsPublic == nil || *setting.IsPublic || IsSettingPublic(setting) {
+		t.Fatalf("custom setting should default private: %+v", setting)
+	}
 	if _, err := svc.GetByKey("SiteName"); err != nil {
 		t.Fatalf("GetByKey() error = %v", err)
 	}
@@ -74,6 +80,14 @@ func TestSettingServiceCRUD(t *testing.T) {
 	}
 	if updated.Value != "New" || updated.Description != "updated" {
 		t.Fatalf("updated setting = %+v", updated)
+	}
+	public := true
+	updated, err = svc.UpdateValueDescAndVisibility("SiteName", "Public", "public", &public)
+	if err != nil {
+		t.Fatalf("UpdateValueDescAndVisibility() error = %v", err)
+	}
+	if !IsSettingPublic(&updated) {
+		t.Fatalf("updated setting should be public: %+v", updated)
 	}
 	all, err := svc.GetAll()
 	if err != nil {

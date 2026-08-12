@@ -14,6 +14,7 @@ import (
 	"myecho/model"
 	"myecho/service"
 	"myecho/utils"
+	"net/url"
 	"strings"
 )
 
@@ -96,7 +97,11 @@ func retrieveBySlug(c *fiber.Ctx, articleType model.ArticleType) error {
 	}
 	article, err := dal.MySqlDB.Article.FindBySlug(c.Params("slug"), articleType)
 	if err != nil {
-		return NotFound(c)
+		target, redirectErr := dal.MySqlDB.Article.FindByRedirectSlug(c.Params("slug"), articleType)
+		if redirectErr != nil || !service.IsArticlePubliclyVisible(target.Status, target.PostTime) {
+			return NotFound(c)
+		}
+		return c.Redirect(articlePublicPath(target), fiber.StatusMovedPermanently)
 	}
 	return renderArticle(c, &article, &queryParam)
 }
@@ -111,10 +116,11 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 		}
 		if errors.Is(err, service.ErrArticlePasswordRequired) {
 			return c.Status(fiber.StatusForbidden).Render("article_password", respToMap(c, *article, PageMeta{
-				Description: article.Summary,
-				Canonical:   absoluteURL(c),
-				OGTitle:     article.Title,
+				Description: articleMetaDescription(article),
+				Canonical:   articleCanonicalURL(c, article),
+				OGTitle:     articleMetaTitle(article),
 				OGType:      "article",
+				Image:       articleShareImageURL(c, article.ShareImage),
 			}))
 		}
 		return err
@@ -139,10 +145,11 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 		return err
 	}
 	data := respToMap(c, res, PageMeta{
-		Description: res.Summary,
-		Canonical:   absoluteURL(c),
-		OGTitle:     res.Title,
+		Description: articleMetaDescription(&res),
+		Canonical:   articleCanonicalURL(c, &res),
+		OGTitle:     articleMetaTitle(&res),
 		OGType:      "article",
+		Image:       articleShareImageURL(c, res.ShareImage),
 		JSONLD:      articleJSONLD(c, &res),
 	})
 	data["Comments"] = comments
@@ -161,13 +168,17 @@ func articleJSONLD(c *fiber.Ctx, article *mysql.ArticleModel) string {
 	doc := map[string]interface{}{
 		"@context":      "https://schema.org",
 		"@type":         "BlogPosting",
-		"headline":      article.Title,
-		"description":   article.Summary,
-		"url":           absoluteURL(c),
+		"headline":      articleMetaTitle(article),
+		"description":   articleMetaDescription(article),
+		"url":           articleCanonicalURL(c, article),
 		"datePublished": article.PostTime.Format("2006-01-02T15:04:05Z07:00"),
 		"dateModified":  article.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
-	if image := settingAbsoluteURL(c, "SiteShareImage"); image != "" {
+	image := articleShareImageURL(c, article.ShareImage)
+	if image == "" {
+		image = settingAbsoluteURL(c, "SiteShareImage")
+	}
+	if image != "" {
 		doc["image"] = image
 	}
 	if article.Author != nil {
@@ -181,6 +192,52 @@ func articleJSONLD(c *fiber.Ctx, article *mysql.ArticleModel) string {
 	}
 	body, _ := json.Marshal(doc)
 	return string(body)
+}
+
+func articleMetaTitle(article *mysql.ArticleModel) string {
+	if article != nil && strings.TrimSpace(article.SEOTitle) != "" {
+		return strings.TrimSpace(article.SEOTitle)
+	}
+	if article == nil {
+		return ""
+	}
+	return article.Title
+}
+
+func articleMetaDescription(article *mysql.ArticleModel) string {
+	if article != nil && strings.TrimSpace(article.SEODescription) != "" {
+		return strings.TrimSpace(article.SEODescription)
+	}
+	if article == nil {
+		return ""
+	}
+	return article.Summary
+}
+
+func articleShareImageURL(c *fiber.Ctx, value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	ref, err := url.Parse(value)
+	if err != nil {
+		return ""
+	}
+	if ref.IsAbs() {
+		if ref.Scheme == "http" || ref.Scheme == "https" {
+			return ref.String()
+		}
+		return ""
+	}
+	base, err := url.Parse(siteBaseURL(c) + "/")
+	if err != nil {
+		return ""
+	}
+	return base.ResolveReference(ref).String()
+}
+
+func articleCanonicalURL(c *fiber.Ctx, article *mysql.ArticleModel) string {
+	return siteBaseURL(c) + articlePublicPath(*article)
 }
 
 func renderArticleContent(content string, contentFormat model.ArticleContentFormat) (string, error) {

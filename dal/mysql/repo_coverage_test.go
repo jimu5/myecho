@@ -29,6 +29,9 @@ func setupMysqlRepoTestDB(t *testing.T) {
 		&model.Comment{},
 		&model.File{},
 		&model.Article{},
+		&model.ArticleRevision{},
+		&model.ArticleSlugRedirect{},
+		&model.ArticleDailyStat{},
 		&model.Link{},
 		&model.Theme{},
 	); err != nil {
@@ -216,6 +219,21 @@ func TestCategoryRepoChildrenAndDuplicateNames(t *testing.T) {
 	if err := repo.Create(&CategoryModel{Name: "Root", UID: "link-root", Type: model.CategoryTypeLink}); err != nil {
 		t.Fatalf("Create(same name different type) error = %v", err)
 	}
+	if err := db.Session(&gorm.Session{SkipHooks: true}).Create(&CategoryModel{Name: "Legacy", Type: model.CategoryTypeArticle}).Error; err != nil {
+		t.Fatalf("create legacy category: %v", err)
+	}
+	articleCategories, err := repo.AllByType(model.CategoryTypeArticle)
+	if err != nil {
+		t.Fatalf("AllByType() error = %v", err)
+	}
+	if len(articleCategories) != 3 {
+		t.Fatalf("AllByType() len = %d, want 3 valid article categories", len(articleCategories))
+	}
+	for _, category := range articleCategories {
+		if category.UID == "" {
+			t.Fatal("AllByType() returned a category with an empty UID")
+		}
+	}
 	root.Name = "Renamed"
 	if err := db.Save(root).Error; err != nil {
 		t.Fatalf("Save(renamed root) error = %v", err)
@@ -231,14 +249,18 @@ func TestSettingRepoDefaultsAndTypeUpdates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetAll() error = %v", err)
 	}
-	if len(all) != len(defaults) || len(defaults) != 12 {
-		t.Fatalf("default settings persisted=%d defined=%d, want 12", len(all), len(defaults))
+	if len(all) != len(defaults) || len(defaults) != 13 {
+		t.Fatalf("default settings persisted=%d defined=%d, want 13", len(all), len(defaults))
 	}
 	for _, key := range []string{"SiteTitle", "SiteDescription", "SiteLogo", "SiteAuthor", "SiteAuthorBio", "SiteFooter", "SiteICP", "SiteSocialLinks", "SiteShareImage", "BaseURL", "SiteIndexMetaKeyword", "SiteFaviconIcon"} {
 		setting, ok := defaults[key]
-		if !ok || !setting.IsSystem {
+		if !ok || !setting.IsSystem || setting.IsPublic == nil || !*setting.IsPublic {
 			t.Fatalf("default setting %q = %+v, exists=%v", key, setting, ok)
 		}
+	}
+	webhook, ok := defaults["CommentNotificationWebhook"]
+	if !ok || !webhook.IsSystem || webhook.IsPublic == nil || *webhook.IsPublic {
+		t.Fatalf("private webhook setting = %+v, exists=%v", webhook, ok)
 	}
 	if defaults["SiteSocialLinks"].Value != "[]" {
 		t.Fatalf("SiteSocialLinks default = %q, want []", defaults["SiteSocialLinks"].Value)
@@ -258,6 +280,14 @@ func TestSettingRepoDefaultsAndTypeUpdates(t *testing.T) {
 	}
 	if updatedDesc.Value != "new" || updatedDesc.Description != "desc" {
 		t.Fatalf("UpdateValueAndDesc() = %+v", updatedDesc)
+	}
+	private := false
+	updatedVisibility, err := repo.UpdateValueDescAndVisibility("Custom", "private", "private desc", &private)
+	if err != nil {
+		t.Fatalf("UpdateValueDescAndVisibility() error = %v", err)
+	}
+	if updatedVisibility.Value != "private" || updatedVisibility.Description != "private desc" || updatedVisibility.IsPublic == nil || *updatedVisibility.IsPublic {
+		t.Fatalf("UpdateValueDescAndVisibility() = %+v", updatedVisibility)
 	}
 	if _, err := repo.UpdateValueAndDesc("missing-desc", "x", "y"); !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("UpdateValueAndDesc(missing) error = %v, want ErrRecordNotFound", err)

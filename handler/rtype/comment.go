@@ -49,6 +49,9 @@ type CommentListQueryParam struct {
 	Status     *model.CommentStatus `query:"status"`
 	ArticleID  *uint                `query:"article_id"`
 	ArticleUID *string              `query:"article_uid"`
+	Keyword    string               `query:"keyword"`
+	DateFrom   string               `query:"date_from"`
+	DateTo     string               `query:"date_to"`
 }
 
 type CommentUpdateReq struct {
@@ -64,4 +67,8 @@ type CommentBatchReq struct {
 	IDs    []uint              `json:"ids"`
 	Action string              `json:"action"`
 	Status model.CommentStatus `json:"status"`
+}
+
+type CommentReplyReq struct {
+	Content string `json:"content"`
 }

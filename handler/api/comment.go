@@ -17,7 +17,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var commentRateLimiter = newCommentRateLimiter(30, time.Minute)
+var commentRateLimiter = newCommentRateLimiter(30, time.Minute, 10_000)
 
 type commentRateState struct {
 	Count       int
@@ -26,19 +26,34 @@ type commentRateState struct {
 
 type commentRateLimit struct {
 	sync.Mutex
-	limit  int
-	window time.Duration
-	hits   map[string]commentRateState
+	limit      int
+	window     time.Duration
+	maxEntries int
+	hits       map[string]commentRateState
 }
 
-func newCommentRateLimiter(limit int, window time.Duration) *commentRateLimit {
-	return &commentRateLimit{limit: limit, window: window, hits: make(map[string]commentRateState)}
+func newCommentRateLimiter(limit int, window time.Duration, maxEntries int) *commentRateLimit {
+	if maxEntries < 1 {
+		maxEntries = 1
+	}
+	return &commentRateLimit{limit: limit, window: window, maxEntries: maxEntries, hits: make(map[string]commentRateState)}
 }
 
 func (r *commentRateLimit) allow(key string, now time.Time) bool {
 	r.Lock()
 	defer r.Unlock()
-	state := r.hits[key]
+	state, exists := r.hits[key]
+	if !exists && len(r.hits) >= r.maxEntries {
+		for existingKey, existing := range r.hits {
+			if now.Sub(existing.WindowStart) > r.window {
+				delete(r.hits, existingKey)
+			}
+		}
+		// ponytail: fixed in-memory cap fits one process; use a shared limiter if deployments become distributed.
+		if len(r.hits) >= r.maxEntries {
+			return false
+		}
+	}
 	if state.WindowStart.IsZero() || now.Sub(state.WindowStart) > r.window {
 		r.hits[key] = commentRateState{Count: 1, WindowStart: now}
 		return true
@@ -96,6 +111,9 @@ func CommentCreate(c *fiber.Ctx) error {
 		return err
 	}
 	_ = refreshApprovedCommentCount(article.UID)
+	go func() {
+		_ = service.NotifyPendingComment(&article, &comment)
+	}()
 	return handler.SuccessWithStatus(c, fiber.StatusCreated, &comment)
 }
 
@@ -188,7 +206,7 @@ func CommentAllList(c *fiber.Ctx) error {
 	}
 	query, err := buildAdminCommentQuery(&queryParam)
 	if err != nil {
-		return err
+		return ValidateErrorResponse(c, err.Error())
 	}
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
@@ -264,6 +282,46 @@ func CommentBatch(c *fiber.Ctx) error {
 	return handler.Success(c, nil)
 }
 
+func CommentReply(c *fiber.Ctx) error {
+	var req rtype.CommentReplyReq
+	if err := c.BodyParser(&req); err != nil {
+		return ParseErrorResponse(c, err.Error())
+	}
+	req.Content = strings.TrimSpace(req.Content)
+	if req.Content == "" {
+		return ValidateErrorResponse(c, apierrors.ErrCommentContentEmpty.Error())
+	}
+	if len([]rune(req.Content)) > 2000 {
+		return ValidateErrorResponse(c, apierrors.ErrInvalidParams.Error())
+	}
+	var parent model.Comment
+	if err := handler.DetailPreHandleByParam(c, &parent); err != nil {
+		return NotFoundErrorResponse(c, err.Error())
+	}
+	user := handler.GetUserFromCtx(c)
+	authorName := strings.TrimSpace(user.NickName)
+	if authorName == "" {
+		authorName = user.Name
+	}
+	status := int8(model.CommentStatusApproved)
+	reply := model.Comment{
+		ArticleUID:  parent.ArticleUID,
+		AuthorName:  authorName,
+		AuthorEmail: user.Email,
+		Content:     req.Content,
+		Status:      &status,
+		ParentID:    parent.ID,
+		UserID:      user.ID,
+		PostTime:    time.Now(),
+	}
+	if err := connect.Database.Create(&reply).Error; err != nil {
+		return InternalErrorResponse(c, InternalSQLError, err.Error())
+	}
+	_ = refreshApprovedCommentCount(parent.ArticleUID)
+	response := buildAdminCommentResponses([]model.Comment{reply})
+	return handler.SuccessWithStatus(c, fiber.StatusCreated, &response[0])
+}
+
 func isCommentableArticle(article *model.Article) bool {
 	return service.IsArticlePubliclyVisible(article.Status, article.PostTime)
 }
@@ -275,14 +333,28 @@ func publicCommentStatusSQL() *gorm.DB {
 func buildAdminCommentQuery(param *rtype.CommentListQueryParam) (*gorm.DB, error) {
 	query := connect.Database.Model(&model.Comment{})
 	if param.ArticleID != nil && *param.ArticleID != 0 {
-		var article model.Article
-		if err := connect.Database.First(&article, *param.ArticleID).Error; err != nil {
-			return nil, err
-		}
-		query = query.Where("article_uid = ?", article.UID)
+		query = query.Where("article_uid IN (?)", connect.Database.Model(&model.Article{}).Select("uid").Where("id = ?", *param.ArticleID))
 	}
 	if param.ArticleUID != nil && *param.ArticleUID != "" {
 		query = query.Where("article_uid = ?", *param.ArticleUID)
+	}
+	if keyword := strings.TrimSpace(param.Keyword); keyword != "" {
+		pattern := "%" + keyword + "%"
+		query = query.Where("content LIKE ? OR author_name LIKE ? OR author_email LIKE ?", pattern, pattern, pattern)
+	}
+	if param.DateFrom != "" {
+		from, err := time.ParseInLocation("2006-01-02", param.DateFrom, time.Local)
+		if err != nil {
+			return nil, apierrors.ErrInvalidParams
+		}
+		query = query.Where("created_at >= ?", from)
+	}
+	if param.DateTo != "" {
+		to, err := time.ParseInLocation("2006-01-02", param.DateTo, time.Local)
+		if err != nil {
+			return nil, apierrors.ErrInvalidParams
+		}
+		query = query.Where("created_at < ?", to.AddDate(0, 0, 1))
 	}
 	if param.Status != nil {
 		if *param.Status == model.CommentStatusApproved {

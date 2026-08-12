@@ -20,6 +20,9 @@ type ArticleDisplayListQueryParam struct {
 type ArticleRequest struct {
 	Title          string                     `json:"title"`
 	Slug           string                     `json:"slug"`
+	SEOTitle       string                     `json:"seo_title"`
+	SEODescription string                     `json:"seo_description"`
+	ShareImage     string                     `json:"share_image"`
 	Type           model.ArticleType          `json:"type"`
 	ContentFormat  model.ArticleContentFormat `json:"content_format"`
 	Summary        string                     `json:"summary"`
@@ -98,6 +101,9 @@ type ArticleResponse struct {
 	Author              *User                      `json:"author"`
 	Title               string                     `json:"title"`
 	Slug                string                     `json:"slug"`
+	SEOTitle            string                     `json:"seo_title"`
+	SEODescription      string                     `json:"seo_description"`
+	ShareImage          string                     `json:"share_image"`
 	Type                model.ArticleType          `json:"type"`
 	ContentFormat       model.ArticleContentFormat `json:"content_format"`
 	Summary             string                     `json:"summary"`
@@ -151,6 +157,9 @@ func ModelToArticleResponse(article *mysql.ArticleModel) *ArticleResponse {
 		Author:              ModelToUser(article.Author),
 		Title:               article.Title,
 		Slug:                article.Slug,
+		SEOTitle:            article.SEOTitle,
+		SEODescription:      article.SEODescription,
+		ShareImage:          article.ShareImage,
 		Type:                article.Type,
 		ContentFormat:       model.NormalizeArticleContentFormat(article.ContentFormat),
 		Summary:             article.Summary,

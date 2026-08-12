@@ -7,6 +7,7 @@ type Setting struct {
 	Type        string `json:"type" gorm:"size:20"`
 	Description string `json:"description" gorm:"size:255"`
 	IsSystem    bool   `json:"is_system"`
+	IsPublic    *bool  `json:"is_public" gorm:"default:null"`
 }
 
 const (

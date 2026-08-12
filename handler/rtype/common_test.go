@@ -3,6 +3,7 @@ package rtype
 import (
 	"errors"
 	apierrors "myecho/handler/api/errors"
+	"myecho/model"
 	"testing"
 )
 
@@ -34,5 +35,23 @@ func TestLinkQueryParamToDALParam(t *testing.T) {
 	got := (&LinkQueryParam{CategoryUID: &uid}).ToDALParam()
 	if got.CategoryUID == nil || *got.CategoryUID != uid {
 		t.Fatalf("ToDALParam() = %+v, want category uid", got)
+	}
+}
+
+func TestNewSettingVisibility_BitsUT(t *testing.T) {
+	setting := model.Setting{
+		BaseModel:   model.BaseModel{ID: 7},
+		Key:         "SiteTitle",
+		Value:       "Myecho",
+		Type:        model.SettingModelTypeString,
+		Description: "site title",
+		IsSystem:    true,
+	}
+	for _, isPublic := range []bool{false, true} {
+		got := NewSetting(setting, isPublic)
+		if got.ID != setting.ID || got.Key != setting.Key || got.Value != setting.Value || got.Type != setting.Type ||
+			got.Description != setting.Description || got.IsSystem != setting.IsSystem || got.IsPublic != isPublic {
+			t.Fatalf("NewSetting(%v) = %+v", isPublic, got)
+		}
 	}
 }

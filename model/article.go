@@ -52,6 +52,9 @@ type Article struct {
 	Author         *User                `json:"author"`
 	Title          string               `json:"title" gorm:"size:128"`
 	Slug           string               `json:"slug" gorm:"size:160;index"`
+	SEOTitle       string               `json:"seo_title" gorm:"size:160"`
+	SEODescription string               `json:"seo_description" gorm:"size:255"`
+	ShareImage     string               `json:"share_image" gorm:"size:512"`
 	Type           ArticleType          `json:"type" gorm:"default:1;index"`
 	ContentFormat  ArticleContentFormat `json:"content_format" gorm:"size:16;default:markdown"`
 	Summary        string               `json:"summary" gorm:"size:255"`

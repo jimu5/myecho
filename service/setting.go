@@ -1,13 +1,15 @@
 package service
 
 import (
+	"os"
+	"strings"
+
 	"myecho/config"
 	"myecho/config/static_config"
 	"myecho/dal"
 	"myecho/dal/mysql"
 	"myecho/handler/api/errors"
 	"myecho/utils"
-	"os"
 )
 
 type SettingService struct {
@@ -20,6 +22,16 @@ type Setting[T int | string] struct {
 
 func (s *SettingService) Create(model *mysql.SettingModel) error {
 	model.IsSystem = false
+	if model.IsPublic == nil {
+		isPublic := false
+		model.IsPublic = &isPublic
+	}
+	if *model.IsPublic && IsSensitiveSettingKey(model.Key) {
+		return errors.ErrSettingKey
+	}
+	if err := validateSettingValue(model.Key, model.Value); err != nil {
+		return err
+	}
 	err := dal.MySqlDB.Setting.Create(model)
 	if err != nil {
 		return err
@@ -40,7 +52,17 @@ func (s *SettingService) GetByKey(key string) (mysql.SettingModel, error) {
 	return dal.MySqlDB.Setting.GetByKey(key)
 }
 func (s *SettingService) UpdateValueAndDesc(key, value, desc string) (mysql.SettingModel, error) {
-	result, err := dal.MySqlDB.Setting.UpdateValueAndDesc(key, value, desc)
+	return s.UpdateValueDescAndVisibility(key, value, desc, nil)
+}
+
+func (s *SettingService) UpdateValueDescAndVisibility(key, value, desc string, isPublic *bool) (mysql.SettingModel, error) {
+	if isPublic != nil && *isPublic && IsSensitiveSettingKey(key) {
+		return mysql.SettingModel{}, errors.ErrSettingKey
+	}
+	if err := validateSettingValue(key, value); err != nil {
+		return mysql.SettingModel{}, err
+	}
+	result, err := dal.MySqlDB.Setting.UpdateValueDescAndVisibility(key, value, desc, isPublic)
 	if err != nil {
 		return result, err
 	}
@@ -48,6 +70,23 @@ func (s *SettingService) UpdateValueAndDesc(key, value, desc string) (mysql.Sett
 	cacheSetting(&result)
 	go saveIcon(key, value)
 	return result, nil
+}
+
+func validateSettingValue(key, value string) error {
+	if key == "CommentNotificationWebhook" && strings.TrimSpace(value) != "" {
+		return utils.ValidateRemoteFileURL(value)
+	}
+	return nil
+}
+
+func IsSettingPublic(setting *mysql.SettingModel) bool {
+	if setting == nil || IsSensitiveSettingKey(setting.Key) {
+		return false
+	}
+	if setting.IsPublic != nil {
+		return *setting.IsPublic
+	}
+	return dal.MySqlDB.Setting.CheckIsInitKey(setting.Key) && setting.Key != "CommentNotificationWebhook"
 }
 
 func (s *SettingService) DeleteByKey(key string) error {

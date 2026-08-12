@@ -3,6 +3,7 @@ package validator
 import (
 	"errors"
 	"path/filepath"
+	"strings"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -92,6 +93,29 @@ func TestValidateArticleRequestRequiredFields(t *testing.T) {
 	}
 	if err := ValidateArticleRequest(&rtype.ArticleRequest{Title: "title"}); !errors.Is(err, apierrors.ErrContentEmpty) {
 		t.Fatalf("ValidateArticleRequest() error = %v, want ErrContentEmpty", err)
+	}
+}
+
+func TestValidateArticleRequestSEOLengths_BitsUT(t *testing.T) {
+	setupValidatorTestDB(t)
+	tests := []struct {
+		name string
+		req  rtype.ArticleRequest
+		want error
+	}{
+		{name: "SEO title at limit", req: rtype.ArticleRequest{Title: "title", Content: "body", SEOTitle: strings.Repeat("界", 160)}},
+		{name: "SEO title over limit", req: rtype.ArticleRequest{Title: "title", Content: "body", SEOTitle: strings.Repeat("界", 161)}, want: apierrors.ErrInvalidParams},
+		{name: "SEO description at limit", req: rtype.ArticleRequest{Title: "title", Content: "body", SEODescription: strings.Repeat("界", 255)}},
+		{name: "SEO description over limit", req: rtype.ArticleRequest{Title: "title", Content: "body", SEODescription: strings.Repeat("界", 256)}, want: apierrors.ErrInvalidParams},
+		{name: "share image at limit", req: rtype.ArticleRequest{Title: "title", Content: "body", ShareImage: strings.Repeat("a", 512)}},
+		{name: "share image over limit", req: rtype.ArticleRequest{Title: "title", Content: "body", ShareImage: strings.Repeat("a", 513)}, want: apierrors.ErrInvalidParams},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := ValidateArticleRequest(&tt.req); !errors.Is(err, tt.want) {
+				t.Fatalf("ValidateArticleRequest() error = %v, want %v", err, tt.want)
+			}
+		})
 	}
 }
 
