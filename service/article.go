@@ -33,10 +33,10 @@ type ArticleDisplayListQueryParam struct {
 }
 
 type ArticleRetrieveQueryParam struct {
-	ID               uint `json:"id"`
+	ID               uint `json:"id" query:"-"`
 	NoRead           bool `query:"no_read"`
-	IncludeNonPublic bool `json:"-"`
-	PasswordUnlocked bool `json:"-"`
+	IncludeNonPublic bool `json:"-" query:"-"`
+	PasswordUnlocked bool `json:"-" query:"-"`
 }
 
 var ErrArticleNotDisplayable = errors.New("article is not displayable")
@@ -159,14 +159,74 @@ func (a *ArticleService) ArticleRevisions(articleID uint) ([]model.ArticleRevisi
 	return dal.MySqlDB.Article.ListRevisions(articleID)
 }
 
-func (a *ArticleService) RestoreArticleRevision(articleID, revisionID uint) (mysql.ArticleModel, error) {
+func (a *ArticleService) RestoreArticleRevision(articleID, revisionID uint, actorIDs ...uint) (mysql.ArticleModel, error) {
+	article, _, err := a.RestoreArticleRevisionWithSubmission(articleID, revisionID, actorIDs...)
+	return article, err
+}
+
+// RestoreArticleRevisionWithSubmission restores a revision into a private draft
+// for an online article and returns that exact submission with the live article.
+func (a *ArticleService) RestoreArticleRevisionWithSubmission(articleID, revisionID uint, actorIDs ...uint) (mysql.ArticleModel, *model.ArticleSubmission, error) {
 	article, err := dal.MySqlDB.Article.FindByID(articleID)
 	if err != nil {
-		return mysql.ArticleModel{}, err
+		return mysql.ArticleModel{}, nil, err
+	}
+	if article.Status == int8(mysql.ARTICLE_STATUS_WAIT_REVIEW) {
+		return mysql.ArticleModel{}, nil, mysql.ErrArticleSubmissionChanged
 	}
 	revision, err := dal.MySqlDB.Article.FindRevision(articleID, revisionID)
 	if err != nil {
-		return mysql.ArticleModel{}, err
+		return mysql.ArticleModel{}, nil, err
+	}
+	actorID := uint(0)
+	if len(actorIDs) > 0 {
+		actorID = actorIDs[0]
+	}
+	if article.Status == int8(mysql.ARTILCE_STATUS_PUBLIC) || article.Status == int8(mysql.ARTICLE_STATUS_TOP) || article.Status == int8(mysql.ARTICLE_STATUS_PRIVATE) {
+		passwordHash := article.Password
+		ownSubmission, err := LatestEditableSubmissionForSubmitter(article.ID, actorID)
+		if err != nil {
+			return mysql.ArticleModel{}, nil, err
+		}
+		if ownSubmission != nil && ownSubmission.Status != model.ArticleSubmissionPending {
+			ownSnapshot, err := DecodeArticleSubmissionSnapshot(ownSubmission)
+			if err != nil {
+				return mysql.ArticleModel{}, nil, err
+			}
+			passwordHash = ownSnapshot.PasswordHash
+		}
+		tagUIDs := make([]string, 0, len(article.Tags))
+		for _, tag := range article.Tags {
+			if tag != nil {
+				tagUIDs = append(tagUIDs, tag.UID)
+			}
+		}
+		snapshot := model.ArticleSubmissionSnapshot{
+			Title: revision.Title, Slug: revision.Slug, Type: revision.Type,
+			ContentFormat:  model.NormalizeArticleContentFormat(revision.ContentFormat),
+			Summary:        revision.Summary,
+			Content:        revision.Content,
+			SEOTitle:       revision.SEOTitle,
+			SEODescription: revision.SEODescription,
+			ShareImage:     revision.ShareImage, CategoryUID: article.CategoryUID,
+			IsAllowComment: article.IsAllowComment, PostTime: article.PostTime,
+			TargetStatus: article.Status, PasswordHash: passwordHash, TagUIDs: tagUIDs,
+		}
+		encoded, err := EncodeArticleSubmissionSnapshot(snapshot)
+		if err != nil {
+			return mysql.ArticleModel{}, nil, err
+		}
+		submission := &model.ArticleSubmission{
+			ArticleID: article.ID, SubmitterID: actorID,
+			Status: model.ArticleSubmissionDraft, Snapshot: encoded,
+		}
+		expectedVersion := article.EditVersion
+		committedVersion, err := dal.MySqlDB.Article.SaveSubmissionForEditing(submission, nil, &expectedVersion)
+		if err != nil {
+			return mysql.ArticleModel{}, nil, err
+		}
+		article.EditVersion = committedVersion
+		return article, submission, nil
 	}
 	article.Title = revision.Title
 	article.Slug = revision.Slug
@@ -177,10 +237,16 @@ func (a *ArticleService) RestoreArticleRevision(articleID, revisionID uint) (mys
 	article.SEODescription = revision.SEODescription
 	article.ShareImage = revision.ShareImage
 	article.Detail = &model.ArticleDetail{Content: revision.Content}
-	if err := dal.MySqlDB.Article.Update(&article); err != nil {
-		return mysql.ArticleModel{}, err
+	expectedVersion := article.EditVersion
+	if err := dal.MySqlDB.Article.UpdateForEditing(&article, &expectedVersion, actorIDs...); err != nil {
+		return mysql.ArticleModel{}, nil, err
 	}
-	return dal.MySqlDB.Article.FindByID(articleID)
+	updated, err := dal.MySqlDB.Article.FindByID(articleID)
+	if err != nil {
+		return mysql.ArticleModel{}, nil, err
+	}
+	updated.EditVersion = article.EditVersion
+	return updated, nil, nil
 }
 
 func HashArticlePassword(password string) (string, error) {

@@ -37,6 +37,13 @@ mac:
 build:
 	@go build -o ${APP}
 
+.PHONY: cli cli-test
+cli:
+	@go build -o ./bin/myecho-cli ./cmd/myecho
+
+cli-test:
+	@go test ./cmd/myecho
+
 ## 编译win，linux，mac平台
 .PHONY: all
 all:win linux mac
@@ -104,12 +111,15 @@ package: validate-package-compression admin-build
 
 ## 清理二进制文件
 clean:
+	@rm -f ./bin/myecho-cli
 	@if [ -f ./bin/${APP}-linux64 ] ; then rm ./bin/${APP}-linux64; fi
 	@if [ -f ./bin/${APP}-win64.exe ] ; then rm ./bin/${APP}-win64.exe; fi
 	@if [ -f ./bin/${APP}-darwin64 ] ; then rm ./bin/${APP}-darwin64; fi
 
 help:
 	@echo "make build - 编译当前平台二进制"
+	@echo "make cli - 编译内容管理 CLI 到 bin/myecho-cli"
+	@echo "make cli-test - 运行内容管理 CLI 测试"
 	@echo "make - 格式化 Go 代码, 并编译生成二进制文件"
 	@echo "make mac - 编译 Go 代码, 生成mac的二进制文件"
 	@echo "make linux - 编译 Go 代码, 生成linux二进制文件"

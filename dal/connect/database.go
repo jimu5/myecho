@@ -44,6 +44,8 @@ func ConnectDB() {
 		&model.Setting{},
 		&model.Category{},
 		&model.User{},
+		&model.AgentToken{},
+		&model.ArticleCreateRequest{},
 		&model.Tag{},
 		&model.ArticleDetail{},
 		&model.Comment{},
@@ -52,6 +54,9 @@ func ConnectDB() {
 		&model.ArticleRevision{},
 		&model.ArticleSlugRedirect{},
 		&model.ArticleDailyStat{},
+		&model.ArticleReview{},
+		&model.ArticleSubmission{},
+		&model.ArticlePreview{},
 		&model.Link{},
 		&model.Theme{},
 	)
@@ -89,11 +94,24 @@ func repairOrphanArticleRelations(db *gorm.DB) error {
 		{db.Where("article_id NOT IN (?)", db.Model(&model.Article{}).Select("id")), &model.ArticleRevision{}},
 		{db.Where("article_uid NOT IN (?)", db.Model(&model.Article{}).Select("uid")), &model.ArticleSlugRedirect{}},
 		{db.Where("article_uid NOT IN (?)", db.Model(&model.Article{}).Select("uid")), &model.ArticleDailyStat{}},
+		{db.Where("article_id NOT IN (?)", db.Model(&model.Article{}).Select("id")), &model.ArticleReview{}},
+		{db.Where("article_id NOT IN (?)", db.Model(&model.Article{}).Select("id")), &model.ArticleSubmission{}},
+		{db.Unscoped().Where("article_id NOT IN (?)", db.Model(&model.Article{}).Select("id")), &model.ArticlePreview{}},
 		{db.Unscoped().Where("article_uid NOT IN (?)", db.Model(&model.Article{}).Select("uid")), &model.Comment{}},
 	} {
 		if err := deletion.query.Delete(deletion.value).Error; err != nil {
 			return err
 		}
+	}
+	if err := db.Model(&model.ArticleReview{}).
+		Where("submission_id <> 0 AND submission_id NOT IN (?)", db.Model(&model.ArticleSubmission{}).Select("id")).
+		Update("submission_id", 0).Error; err != nil {
+		return err
+	}
+	if err := db.Model(&model.ArticleRevision{}).
+		Where("actor_id <> 0 AND actor_id NOT IN (?)", db.Model(&model.User{}).Select("id")).
+		Update("actor_id", 0).Error; err != nil {
+		return err
 	}
 	return db.Exec("DELETE FROM article_tags WHERE article_uid NOT IN (SELECT uid FROM articles WHERE deleted_at IS NULL)").Error
 }

@@ -58,6 +58,7 @@ type Article struct {
 	Type           ArticleType          `json:"type" gorm:"default:1;index"`
 	ContentFormat  ArticleContentFormat `json:"content_format" gorm:"size:16;default:markdown"`
 	Summary        string               `json:"summary" gorm:"size:255"`
+	EditVersion    uint64               `json:"edit_version" gorm:"not null;default:1"`
 	ReadCount      uint                 `json:"read_count" gorm:"default:0"`
 	LikeCount      int                  `json:"like_count" gorm:"default:0"`
 	IsAllowComment *bool                `json:"is_allow_comment" gorm:"default:true"`
@@ -75,6 +76,13 @@ type Article struct {
 func (articleDetail *ArticleDetail) BeforeCreate(tx *gorm.DB) error {
 	if len(articleDetail.UID) == 0 {
 		articleDetail.UID = utils.GenUID20()
+	}
+	return nil
+}
+
+func (article *Article) BeforeCreate(tx *gorm.DB) error {
+	if article.EditVersion == 0 {
+		article.EditVersion = 1
 	}
 	return nil
 }

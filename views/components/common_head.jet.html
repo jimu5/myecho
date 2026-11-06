@@ -3,6 +3,8 @@
 <meta name="theme-color" content="#faf9f5" data-myecho-theme-color>
 {{ if Theme }}
 {{ if SupportsColorMode }}
+{{ if IsArticlePreview }}
+{{ else }}
 <script>
   (function () {
     var root = document.documentElement;
@@ -23,8 +25,12 @@
 </script>
 {{ end }}
 {{ end }}
+{{ end }}
 <link rel="icon" href="/favicon.ico" />
 <link rel="alternate" type="application/rss+xml" title="{{ Settings.GetStringValue("SiteTitle") }} RSS" href="/rss.xml">
+{{ if IsArticlePreview }}
+<meta name="robots" content="noindex,nofollow,noarchive">
+{{ end }}
 <meta name="keywords" content="{{ Settings.GetStringValue("SiteIndexMetaKeyword") }}">
 {{ if Meta.Description }}
 <meta name="description" content="{{ Meta.Description }}">
@@ -70,4 +76,7 @@
     </style>
   {{ end }}
 {{ end }}
+{{ if IsArticlePreview }}
+{{ else }}
 <script src="/static/js/main.js" defer></script>
+{{ end }}

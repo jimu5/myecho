@@ -172,6 +172,7 @@ func setupViewThemeTestDB(t *testing.T) {
 		&model.Category{},
 		&model.ArticleDetail{},
 		&model.Article{},
+		&model.ArticlePreview{}, &model.ArticleSubmission{}, &model.ArticleReview{},
 		&model.ArticleRevision{},
 		&model.ArticleSlugRedirect{},
 		&model.ArticleDailyStat{},

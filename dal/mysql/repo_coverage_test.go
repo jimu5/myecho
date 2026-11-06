@@ -24,6 +24,7 @@ func setupMysqlRepoTestDB(t *testing.T) {
 		&model.Setting{},
 		&model.Category{},
 		&model.User{},
+		&model.ArticleCreateRequest{},
 		&model.Tag{},
 		&model.ArticleDetail{},
 		&model.Comment{},
@@ -32,6 +33,9 @@ func setupMysqlRepoTestDB(t *testing.T) {
 		&model.ArticleRevision{},
 		&model.ArticleSlugRedirect{},
 		&model.ArticleDailyStat{},
+		&model.ArticleSubmission{},
+		&model.ArticlePreview{},
+		&model.ArticleReview{},
 		&model.Link{},
 		&model.Theme{},
 	); err != nil {
@@ -373,8 +377,8 @@ func TestFileRepoQueriesAndMutations(t *testing.T) {
 		t.Fatalf("GenFileModel() = %+v", generated)
 	}
 
-	first := &FileModel{Name: "avatar", ExtensionName: ".png", UUID: "file-avatar", MD5: "md5-avatar", Note: "old"}
-	second := &FileModel{Name: "banner", ExtensionName: ".jpg", UUID: "file-banner", MD5: "md5-banner"}
+	first := &FileModel{Name: "avatar", ExtensionName: ".png", UUID: "file-avatar", MD5: "md5-avatar", Note: "old", UploaderID: 7}
+	second := &FileModel{Name: "banner", ExtensionName: ".jpg", UUID: "file-banner", MD5: "md5-banner", UploaderID: 8}
 	for _, file := range []*FileModel{first, second} {
 		if err := repo.Create(file); err != nil {
 			t.Fatalf("Create(%s) error = %v", file.Name, err)
@@ -390,8 +394,17 @@ func TestFileRepoQueriesAndMutations(t *testing.T) {
 	first.Name = "avatar-new"
 	first.ExtensionName = ".webp"
 	first.Note = "new"
+	first.AltText = "avatar alt"
+	first.Caption = "avatar caption"
 	if err := repo.UpdateBasicInfo(first); err != nil {
 		t.Fatalf("UpdateBasicInfo() error = %v", err)
+	}
+	updated, err := repo.Get(first.ID)
+	if err != nil {
+		t.Fatalf("Get(updated) error = %v", err)
+	}
+	if updated.AltText != "avatar alt" || updated.Caption != "avatar caption" {
+		t.Fatalf("updated metadata = %+v", updated)
 	}
 	if total, err := repo.CountByName("avatar"); err != nil || total != 1 {
 		t.Fatalf("CountByName(avatar) total=%d err=%v, want 1 nil", total, err)
@@ -399,12 +412,23 @@ func TestFileRepoQueriesAndMutations(t *testing.T) {
 	if total, err := repo.CountByName(""); err != nil || total != 2 {
 		t.Fatalf("CountByName(empty) total=%d err=%v, want 2 nil", total, err)
 	}
+	uploaderID := uint(7)
+	if total, err := repo.CountByName("", &uploaderID); err != nil || total != 1 {
+		t.Fatalf("CountByName(uploader) total=%d err=%v, want 1 nil", total, err)
+	}
 	files, err := repo.PageQueryByName(&PageFindParam{NoPage: true}, "avatar")
 	if err != nil {
 		t.Fatalf("PageQueryByName(avatar) error = %v", err)
 	}
 	if len(files) != 1 || files[0].Name != "avatar-new" {
 		t.Fatalf("PageQueryByName(avatar) = %+v", files)
+	}
+	files, err = repo.PageQueryByName(&PageFindParam{NoPage: true}, "", &uploaderID)
+	if err != nil {
+		t.Fatalf("PageQueryByName(uploader) error = %v", err)
+	}
+	if len(files) != 1 || files[0].Name != "avatar-new" {
+		t.Fatalf("PageQueryByName(uploader) = %+v", files)
 	}
 	files, err = repo.FindFilesByMD5s([]string{"md5-avatar", "missing"})
 	if err != nil {

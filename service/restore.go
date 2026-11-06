@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -32,19 +33,21 @@ var (
 )
 
 type RestoreCounts struct {
-	Users          int `json:"users"`
-	Articles       int `json:"articles"`
-	ArticleDetails int `json:"article_details"`
-	Revisions      int `json:"article_revisions"`
-	SlugRedirects  int `json:"article_slug_redirects"`
-	DailyStats     int `json:"article_daily_stats"`
-	Comments       int `json:"comments"`
-	Categories     int `json:"categories"`
-	Tags           int `json:"tags"`
-	Links          int `json:"links"`
-	Files          int `json:"files"`
-	Themes         int `json:"themes"`
-	Settings       int `json:"settings"`
+	Users              int `json:"users"`
+	Articles           int `json:"articles"`
+	ArticleDetails     int `json:"article_details"`
+	Revisions          int `json:"article_revisions"`
+	SlugRedirects      int `json:"article_slug_redirects"`
+	DailyStats         int `json:"article_daily_stats"`
+	ArticleReviews     int `json:"article_reviews"`
+	ArticleSubmissions int `json:"article_submissions"`
+	Comments           int `json:"comments"`
+	Categories         int `json:"categories"`
+	Tags               int `json:"tags"`
+	Links              int `json:"links"`
+	Files              int `json:"files"`
+	Themes             int `json:"themes"`
+	Settings           int `json:"settings"`
 }
 
 type RestorePreview struct {
@@ -265,7 +268,8 @@ func validateRestoreData(data exportData) error {
 		return fmt.Errorf("%w: unsupported or incomplete data.json", ErrInvalidBackup)
 	}
 	total := len(data.Users) + len(data.Articles) + len(data.ArticleDetails) + len(data.Revisions) +
-		len(data.SlugRedirects) + len(data.DailyStats) + len(data.Comments) +
+		len(data.SlugRedirects) + len(data.DailyStats) + len(data.ArticleReviews) + len(data.Comments) +
+		len(data.ArticleSubmissions) +
 		len(data.Categories) + len(data.Tags) + len(data.ArticleTags) + len(data.Links) +
 		len(data.Files) + len(data.Themes) + len(data.Settings)
 	if total > maxRestoreRecords {
@@ -277,6 +281,8 @@ func validateRestoreData(data exportData) error {
 		duplicateUintIDs(data.Revisions, func(item model.ArticleRevision) uint { return item.ID }) ||
 		duplicateUintIDs(data.SlugRedirects, func(item model.ArticleSlugRedirect) uint { return item.ID }) ||
 		duplicateUintIDs(data.DailyStats, func(item model.ArticleDailyStat) uint { return item.ID }) ||
+		duplicateUintIDs(data.ArticleReviews, func(item model.ArticleReview) uint { return item.ID }) ||
+		duplicateUintIDs(data.ArticleSubmissions, func(item exportArticleSubmission) uint { return item.ID }) ||
 		duplicateUintIDs(data.Comments, func(item exportComment) uint { return item.ID }) ||
 		duplicateUintIDs(data.Categories, func(item model.Category) uint { return item.ID }) ||
 		duplicateUintIDs(data.Tags, func(item model.Tag) uint { return item.ID }) ||
@@ -288,8 +294,18 @@ func validateRestoreData(data exportData) error {
 	}
 
 	userIDs := make(map[uint]struct{}, len(data.Users))
+	activeAdmins := 0
 	for _, user := range data.Users {
+		if !model.IsValidPermissionType(user.PermissionType) {
+			return invalidRestoreData("invalid user role")
+		}
+		if user.PermissionType == model.Admin && !user.Disabled {
+			activeAdmins++
+		}
 		userIDs[user.ID] = struct{}{}
+	}
+	if activeAdmins == 0 {
+		return invalidRestoreData("at least one active administrator is required")
 	}
 	detailUIDs := make(map[string]struct{}, len(data.ArticleDetails))
 	for _, detail := range data.ArticleDetails {
@@ -366,6 +382,47 @@ func validateRestoreData(data exportData) error {
 	for _, revision := range data.Revisions {
 		if _, exists := articleIDs[revision.ArticleID]; !exists {
 			return invalidRestoreData("revision references missing article")
+		}
+		if revision.ActorID != 0 {
+			if _, exists := userIDs[revision.ActorID]; !exists {
+				return invalidRestoreData("revision references missing actor")
+			}
+		}
+	}
+	submissionIDs := make(map[uint]struct{}, len(data.ArticleSubmissions))
+	for i := range data.ArticleSubmissions {
+		submission := &data.ArticleSubmissions[i]
+		if _, exists := articleIDs[submission.ArticleID]; !exists {
+			return invalidRestoreData("submission references missing article")
+		}
+		if _, exists := userIDs[submission.SubmitterID]; !exists {
+			return invalidRestoreData("submission references missing submitter")
+		}
+		if submission.ReviewerID != 0 {
+			if _, exists := userIDs[submission.ReviewerID]; !exists {
+				return invalidRestoreData("submission references missing reviewer")
+			}
+		}
+		if submission.Status < model.ArticleSubmissionDraft || submission.Status > model.ArticleSubmissionWithdrawn {
+			return invalidRestoreData("invalid submission status")
+		}
+		if _, err := DecodeArticleSubmissionSnapshot(&model.ArticleSubmission{Snapshot: submission.Snapshot}); err != nil {
+			return invalidRestoreData("invalid submission snapshot")
+		}
+		submissionIDs[submission.ID] = struct{}{}
+	}
+	for _, review := range data.ArticleReviews {
+		if _, exists := articleIDs[review.ArticleID]; !exists {
+			return invalidRestoreData("review references missing article")
+		}
+		if _, exists := userIDs[review.ActorID]; !exists || len([]rune(review.Note)) > 500 ||
+			(review.Action != model.ArticleReviewSubmit && review.Action != model.ArticleReviewApprove && review.Action != model.ArticleReviewReject && review.Action != model.ArticleReviewWithdraw) {
+			return invalidRestoreData("invalid article review")
+		}
+		if review.SubmissionID != 0 {
+			if _, exists := submissionIDs[review.SubmissionID]; !exists {
+				return invalidRestoreData("review references missing submission")
+			}
 		}
 	}
 	redirectKeys := make(map[struct {
@@ -446,6 +503,16 @@ func validateRestoreData(data exportData) error {
 	for _, link := range data.Links {
 		if link.CategoryUID != "" && categoryUIDs[link.CategoryUID] != model.CategoryTypeLink {
 			return invalidRestoreData("link references invalid category")
+		}
+	}
+	for _, file := range data.Files {
+		if file.UploaderID != 0 {
+			if _, exists := userIDs[file.UploaderID]; !exists {
+				return invalidRestoreData("file references missing uploader")
+			}
+		}
+		if file.Width < 0 || file.Height < 0 {
+			return invalidRestoreData("invalid file dimensions")
 		}
 	}
 
@@ -579,19 +646,21 @@ func restorePreview(data exportData, storageFiles int, storageBytes int64) Resto
 		Version:    data.Version,
 		ExportedAt: data.ExportedAt,
 		Counts: RestoreCounts{
-			Users:          len(data.Users),
-			Articles:       len(data.Articles),
-			ArticleDetails: len(data.ArticleDetails),
-			Revisions:      len(data.Revisions),
-			SlugRedirects:  len(data.SlugRedirects),
-			DailyStats:     len(data.DailyStats),
-			Comments:       len(data.Comments),
-			Categories:     len(data.Categories),
-			Tags:           len(data.Tags),
-			Links:          len(data.Links),
-			Files:          len(data.Files),
-			Themes:         len(data.Themes),
-			Settings:       len(data.Settings),
+			Users:              len(data.Users),
+			Articles:           len(data.Articles),
+			ArticleDetails:     len(data.ArticleDetails),
+			Revisions:          len(data.Revisions),
+			SlugRedirects:      len(data.SlugRedirects),
+			DailyStats:         len(data.DailyStats),
+			ArticleReviews:     len(data.ArticleReviews),
+			ArticleSubmissions: len(data.ArticleSubmissions),
+			Comments:           len(data.Comments),
+			Categories:         len(data.Categories),
+			Tags:               len(data.Tags),
+			Links:              len(data.Links),
+			Files:              len(data.Files),
+			Themes:             len(data.Themes),
+			Settings:           len(data.Settings),
 		},
 		StorageFiles: storageFiles,
 		StorageBytes: storageBytes,
@@ -619,11 +688,21 @@ func replaceRestoreData(tx *gorm.DB, data exportData, currentUserID uint) error 
 			PermissionType: item.PermissionType,
 			Password:       item.Password,
 			Token:          item.Token,
+			TokenExpiresAt: item.TokenExpiresAt,
+			Disabled:       item.Disabled,
+			CanPublish:     item.CanPublish,
+			Slug:           item.Slug,
+			AvatarURL:      item.AvatarURL,
 		}
 		if current, exists := currentUsersByID[item.ID]; exists && (!data.IncludesSensitive || item.ID == currentUserID) {
 			user.Email = current.Email
 			user.Password = current.Password
 			user.Token = current.Token
+			user.TokenExpiresAt = current.TokenExpiresAt
+			if item.ID == currentUserID {
+				user.PermissionType = current.PermissionType
+				user.Disabled = current.Disabled
+			}
 		}
 		users = append(users, user)
 		seenUsers[item.ID] = struct{}{}
@@ -635,23 +714,49 @@ func replaceRestoreData(tx *gorm.DB, data exportData, currentUserID uint) error 
 	}
 
 	var currentArticles []model.Article
-	if err := tx.Select("uid", "password").Find(&currentArticles).Error; err != nil {
+	if err := tx.Unscoped().Select("id", "uid", "password", "edit_version").Find(&currentArticles).Error; err != nil {
 		return err
 	}
-	passwords := make(map[string]string, len(currentArticles))
+	currentArticlesByUID := make(map[string]model.Article, len(currentArticles))
+	currentArticlesByID := make(map[uint]model.Article, len(currentArticles))
 	for _, article := range currentArticles {
-		passwords[article.UID] = article.Password
+		currentArticlesByUID[article.UID] = article
+		currentArticlesByID[article.ID] = article
 	}
 	articles := make([]model.Article, 0, len(data.Articles))
 	for _, item := range data.Articles {
 		allowComment := item.IsAllowComment
 		password := item.Password
+		editVersion := item.EditVersion
 		if !data.IncludesSensitive {
-			password = passwords[item.UID]
+			password = currentArticlesByUID[item.UID].Password
+		}
+		matchedCurrentArticle := false
+		if current, exists := currentArticlesByUID[item.UID]; exists {
+			matchedCurrentArticle = true
+			if current.EditVersion > editVersion {
+				editVersion = current.EditVersion
+			}
+		}
+		if current, exists := currentArticlesByID[item.ID]; exists {
+			matchedCurrentArticle = true
+			if current.EditVersion > editVersion {
+				editVersion = current.EditVersion
+			}
+		}
+		if editVersion == math.MaxUint64 {
+			return invalidRestoreData("article edit version exhausted")
+		}
+		if matchedCurrentArticle {
+			editVersion++
+		}
+		if editVersion == 0 {
+			editVersion = 1
 		}
 		articles = append(articles, model.Article{
 			BaseModel:      item.BaseModel,
 			UID:            item.UID,
+			EditVersion:    editVersion,
 			AuthorID:       item.AuthorID,
 			Title:          item.Title,
 			Slug:           item.Slug,
@@ -738,7 +843,10 @@ func replaceRestoreData(tx *gorm.DB, data exportData, currentUserID uint) error 
 	}
 
 	deleteModels := []interface{}{
-		&model.Comment{}, &model.ArticleRevision{}, &model.ArticleSlugRedirect{}, &model.ArticleDailyStat{},
+		// Credentials and cached responses must not survive restored identities.
+		&model.AgentToken{}, &model.ArticleCreateRequest{},
+		&model.ArticlePreview{},
+		&model.Comment{}, &model.ArticleReview{}, &model.ArticleSubmission{}, &model.ArticleRevision{}, &model.ArticleSlugRedirect{}, &model.ArticleDailyStat{},
 		&model.Article{}, &model.ArticleDetail{}, &model.Tag{}, &model.Category{},
 		&model.Link{}, &model.File{}, &model.Theme{}, &model.Setting{}, &model.User{},
 	}
@@ -751,9 +859,14 @@ func replaceRestoreData(tx *gorm.DB, data exportData, currentUserID uint) error 
 			return err
 		}
 	}
+	submissions := make([]model.ArticleSubmission, len(data.ArticleSubmissions))
+	for i, item := range data.ArticleSubmissions {
+		submissions[i] = item.ArticleSubmission
+		submissions[i].Snapshot = item.Snapshot
+	}
 	createValues := []interface{}{
 		&users, &data.Categories, &data.Tags, &data.ArticleDetails, &articles,
-		&data.Revisions, &data.SlugRedirects, &data.DailyStats, &comments,
+		&data.Revisions, &data.SlugRedirects, &data.DailyStats, &submissions, &data.ArticleReviews, &comments,
 		&data.Links, &data.Files, &data.Themes, &settings,
 	}
 	for _, value := range createValues {
@@ -779,6 +892,7 @@ func resetPostgresRestoreSequences(tx *gorm.DB) error {
 	for _, table := range []string{
 		"users", "categories", "tags", "article_details", "articles", "article_revisions",
 		"article_slug_redirects", "article_daily_stats", "comments", "links", "files", "themes", "settings",
+		"article_reviews", "article_submissions",
 	} {
 		query := fmt.Sprintf(
 			`SELECT setval(pg_get_serial_sequence('%s', 'id'), COALESCE(MAX(id), 1), MAX(id) IS NOT NULL) FROM "%s"`,
@@ -809,6 +923,10 @@ func isEmptyRestoreSlice(value interface{}) bool {
 	case *[]model.ArticleSlugRedirect:
 		return len(*items) == 0
 	case *[]model.ArticleDailyStat:
+		return len(*items) == 0
+	case *[]model.ArticleReview:
+		return len(*items) == 0
+	case *[]model.ArticleSubmission:
 		return len(*items) == 0
 	case *[]model.Comment:
 		return len(*items) == 0

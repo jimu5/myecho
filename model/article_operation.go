@@ -8,6 +8,8 @@ type ArticleRevision struct {
 	ID             uint                 `json:"id" gorm:"primarykey"`
 	CreatedAt      time.Time            `json:"created_at"`
 	ArticleID      uint                 `json:"article_id" gorm:"index"`
+	ActorID        uint                 `json:"actor_id" gorm:"index"`
+	Actor          *User                `json:"actor,omitempty"`
 	Title          string               `json:"title" gorm:"size:128"`
 	Slug           string               `json:"slug" gorm:"size:160"`
 	Type           ArticleType          `json:"type"`

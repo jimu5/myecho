@@ -1,6 +1,11 @@
 package model
 
 import (
+	"bytes"
+	"image"
+	"image/color"
+	_ "image/jpeg"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -81,6 +86,74 @@ func TestFileBeforeCreateAndMoveDelete(t *testing.T) {
 	}
 	if err := file.HardDelete(); err != nil {
 		t.Fatalf("HardDelete() error = %v", err)
+	}
+}
+
+func TestFileImageMetadataThumbnailAndHardDelete(t *testing.T) {
+	file := &File{Name: "photo", ExtensionName: ".png", DirPath: "thumb", UUID: "thumb-file"}
+	if err := file.CreateDirIfNotExist(); err != nil {
+		t.Fatalf("CreateDirIfNotExist() error = %v", err)
+	}
+	t.Cleanup(func() { _ = os.RemoveAll(filepath.Join("storage", "thumb")) })
+
+	originalImage := image.NewRGBA(image.Rect(0, 0, 640, 320))
+	for y := 0; y < 320; y++ {
+		for x := 0; x < 640; x++ {
+			originalImage.Set(x, y, color.RGBA{R: uint8(x % 256), G: uint8(y % 256), B: 120, A: 255})
+		}
+	}
+	originalFile, err := os.Create(file.GetActualSavePath())
+	if err != nil {
+		t.Fatalf("create original image: %v", err)
+	}
+	if err := png.Encode(originalFile, originalImage); err != nil {
+		_ = originalFile.Close()
+		t.Fatalf("encode original image: %v", err)
+	}
+	if err := originalFile.Close(); err != nil {
+		t.Fatalf("close original image: %v", err)
+	}
+	originalBytes, err := os.ReadFile(file.GetActualSavePath())
+	if err != nil {
+		t.Fatalf("read original image: %v", err)
+	}
+
+	if err := file.PopulateImageMetadata(file.GetActualSavePath()); err != nil {
+		t.Fatalf("PopulateImageMetadata() error = %v", err)
+	}
+	if file.Width != 640 || file.Height != 320 {
+		t.Fatalf("dimensions = %dx%d, want 640x320", file.Width, file.Height)
+	}
+	if file.ThumbnailURL != "/mos/thumb/thumb-file.thumb.jpg" {
+		t.Fatalf("ThumbnailURL = %q", file.ThumbnailURL)
+	}
+	thumbnailBytes, err := os.ReadFile(file.GetThumbnailSavePath())
+	if err != nil {
+		t.Fatalf("read thumbnail: %v", err)
+	}
+	thumbnailConfig, format, err := image.DecodeConfig(bytes.NewReader(thumbnailBytes))
+	if err != nil {
+		t.Fatalf("decode thumbnail config: %v", err)
+	}
+	if format != "jpeg" || thumbnailConfig.Width != 320 || thumbnailConfig.Height != 160 {
+		t.Fatalf("thumbnail = %s %dx%d, want jpeg 320x160", format, thumbnailConfig.Width, thumbnailConfig.Height)
+	}
+	afterBytes, err := os.ReadFile(file.GetActualSavePath())
+	if err != nil {
+		t.Fatalf("read original image after thumbnail: %v", err)
+	}
+	if !bytes.Equal(originalBytes, afterBytes) {
+		t.Fatal("thumbnail generation modified the original image")
+	}
+
+	if err := file.HardDelete(); err != nil {
+		t.Fatalf("HardDelete() error = %v", err)
+	}
+	if _, err := os.Stat(file.GetActualSavePath()); !os.IsNotExist(err) {
+		t.Fatalf("original image still exists, stat error = %v", err)
+	}
+	if _, err := os.Stat(file.GetThumbnailSavePath()); !os.IsNotExist(err) {
+		t.Fatalf("thumbnail still exists, stat error = %v", err)
 	}
 }
 

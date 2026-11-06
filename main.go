@@ -2,11 +2,13 @@ package main
 
 import (
 	"flag"
+	"log"
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cache"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
-	"log"
 	"myecho/config"
 	"myecho/config/static_config"
 	"myecho/config/yaml_config"
@@ -46,7 +48,9 @@ func main() {
 		EnableStackTrace: true,
 	}))
 	app.Use(middleware.MWRequestTimeCost)
-	app.Use(logger.New())
+	app.Use(logger.New(logger.Config{
+		Next: func(c *fiber.Ctx) bool { return strings.HasPrefix(strings.ToLower(c.Path()), "/article-preview/") },
+	}))
 	app.Use(cache.New(middleware.CacheConfig))
 	app.Use(middleware.CommonErrorHandler)
 	app.Static("/admin", "./static/admin")

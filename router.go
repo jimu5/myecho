@@ -15,6 +15,7 @@ func SetupViewRouter(app *fiber.App) {
 		ViewRoute.Get("favicon.ico", view.GetFavicon)
 		ViewRoute.Get("/theme-preview", view.ThemePreview)
 		ViewRoute.Get("/theme-preview/clear", view.ClearThemePreview)
+		ViewRoute.Get("/article-preview/:token", view.ArticlePreview)
 		ViewRoute.Get("", view.ArticleDisplayList)
 		ViewRoute.Get("/rss.xml", view.RSS)
 		ViewRoute.Get("/sitemap.xml", view.Sitemap)

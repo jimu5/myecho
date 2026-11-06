@@ -16,6 +16,7 @@ import (
 	"myecho/utils"
 	"net/url"
 	"strings"
+	"time"
 )
 
 func ArticleDisplayList(c *fiber.Ctx) error {
@@ -108,6 +109,7 @@ func retrieveBySlug(c *fiber.Ctx, articleType model.ArticleType) error {
 
 func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *service.ArticleRetrieveQueryParam) error {
 	queryParam.ID = article.ID
+	queryParam.IncludeNonPublic = false
 	queryParam.PasswordUnlocked = service.ValidateArticlePasswordToken(article, c.Cookies(service.ArticlePasswordCookieName(article.ID)))
 	res, err := service.S.Article.ArticleRetrieve(queryParam)
 	if err != nil {
@@ -125,6 +127,10 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 		}
 		return err
 	}
+	return renderArticlePage(c, res, nil)
+}
+
+func renderArticlePage(c *fiber.Ctx, res mysql.ArticleModel, previewExpiresAt *time.Time) error {
 	if res.Detail != nil {
 		content, err := renderArticleContent(res.Detail.Content, res.ContentFormat)
 		if err != nil {
@@ -132,32 +138,47 @@ func renderArticle(c *fiber.Ctx, article *mysql.ArticleModel, queryParam *servic
 		}
 		res.Detail.Content = content
 	}
-	comments, err := approvedComments(res.UID)
-	if err != nil {
-		return err
+	var comments []rtype.CommentResponse
+	var previousArticle, nextArticle *mysql.ArticleModel
+	var relatedArticles []*mysql.ArticleModel
+	var err error
+	if previewExpiresAt == nil {
+		comments, err = approvedComments(res.UID)
+		if err != nil {
+			return err
+		}
+		previousArticle, nextArticle, err = service.S.Article.PostNeighbors(&res)
+		if err != nil {
+			return err
+		}
+		relatedArticles, err = service.S.Article.RelatedPosts(&res)
+		if err != nil {
+			return err
+		}
 	}
-	previousArticle, nextArticle, err := service.S.Article.PostNeighbors(&res)
-	if err != nil {
-		return err
+	meta := PageMeta{}
+	if previewExpiresAt == nil {
+		meta = PageMeta{
+			Description: articleMetaDescription(&res),
+			Canonical:   articleCanonicalURL(c, &res),
+			OGTitle:     articleMetaTitle(&res),
+			OGType:      "article",
+			Image:       articleShareImageURL(c, res.ShareImage),
+			JSONLD:      articleJSONLD(c, &res),
+		}
 	}
-	relatedArticles, err := service.S.Article.RelatedPosts(&res)
-	if err != nil {
-		return err
-	}
-	data := respToMap(c, res, PageMeta{
-		Description: articleMetaDescription(&res),
-		Canonical:   articleCanonicalURL(c, &res),
-		OGTitle:     articleMetaTitle(&res),
-		OGType:      "article",
-		Image:       articleShareImageURL(c, res.ShareImage),
-		JSONLD:      articleJSONLD(c, &res),
-	})
+	data := respToMap(c, res, meta)
 	data["Comments"] = comments
 	data["IsAllowComment"] = isAllowComment(res.IsAllowComment)
 	data["PreviousArticle"] = previousArticle
 	data["NextArticle"] = nextArticle
 	data["HasArticleNeighbors"] = previousArticle != nil || nextArticle != nil
 	data["RelatedArticles"] = relatedArticles
+	data["IsArticlePreview"] = previewExpiresAt != nil
+	data["ArticlePreviewExpiresAt"] = ""
+	if previewExpiresAt != nil {
+		data["ArticlePreviewExpiresAt"] = previewExpiresAt.Local().Format("2006年1月2日 15:04")
+	}
 	return c.Render("article", data)
 }
 

@@ -121,6 +121,7 @@ func respToMap(c *fiber.Ctx, data interface{}, meta ...PageMeta) fiber.Map {
 	// 创建响应map
 	resp := fiber.Map{
 		"Data":                  data,
+		"IsArticlePreview":      false,
 		"Settings":              config.MySqlSettingModelCache,
 		"Meta":                  pageMeta,
 		"CurrentYear":           time.Now().Year(),

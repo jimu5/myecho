@@ -30,6 +30,8 @@ type LoginResponse struct {
 	NickName       string    `json:"nick_name"`
 	LastLogin      time.Time `json:"last_login"`
 	PermissionType int8      `json:"permission_type"`
+	CanPublish     bool      `json:"can_publish"`
+	TokenExpiresAt time.Time `json:"token_expires_at"`
 	Token          string    `json:"token"`
 }
 

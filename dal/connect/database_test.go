@@ -77,7 +77,7 @@ func TestRepairOrphanArticleRelations_BitsUT(t *testing.T) {
 		t.Fatalf("gorm.Open() error = %v", err)
 	}
 	if err := db.AutoMigrate(
-		&model.Article{}, &model.ArticleDetail{}, &model.ArticleRevision{}, &model.ArticleSlugRedirect{},
+		&model.Article{}, &model.ArticleSubmission{}, &model.ArticleReview{}, &model.ArticlePreview{}, &model.ArticleDetail{}, &model.ArticleRevision{}, &model.ArticleSlugRedirect{},
 		&model.ArticleDailyStat{}, &model.Comment{}, &model.Tag{},
 	); err != nil {
 		t.Fatalf("AutoMigrate() error = %v", err)

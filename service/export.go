@@ -36,11 +36,17 @@ type exportUser struct {
 	PermissionType int8      `json:"permission_type"`
 	Password       string    `json:"password,omitempty"`
 	Token          string    `json:"token,omitempty"`
+	TokenExpiresAt time.Time `json:"token_expires_at"`
+	Disabled       bool      `json:"disabled"`
+	CanPublish     bool      `json:"can_publish"`
+	Slug           string    `json:"slug"`
+	AvatarURL      string    `json:"avatar_url"`
 }
 
 type exportArticle struct {
 	model.BaseModel
 	UID            string                     `json:"uid"`
+	EditVersion    uint64                     `json:"edit_version"`
 	AuthorID       uint                       `json:"author_id"`
 	Title          string                     `json:"title"`
 	Slug           string                     `json:"slug"`
@@ -109,24 +115,32 @@ type exportArticleTag struct {
 	TagUID     string `json:"tag_uid"`
 }
 
+type exportArticleSubmission struct {
+	model.ArticleSubmission
+	// Snapshots are hidden from API model JSON but required in backup archives.
+	Snapshot string `json:"snapshot"`
+}
+
 type exportData struct {
-	Version           int                         `json:"version"`
-	ExportedAt        time.Time                   `json:"exported_at"`
-	IncludesSensitive bool                        `json:"includes_sensitive,omitempty"`
-	Users             []exportUser                `json:"users"`
-	Articles          []exportArticle             `json:"articles"`
-	ArticleDetails    []model.ArticleDetail       `json:"article_details"`
-	Revisions         []model.ArticleRevision     `json:"article_revisions"`
-	SlugRedirects     []model.ArticleSlugRedirect `json:"article_slug_redirects"`
-	DailyStats        []model.ArticleDailyStat    `json:"article_daily_stats"`
-	Comments          []exportComment             `json:"comments"`
-	Categories        []model.Category            `json:"categories"`
-	Tags              []model.Tag                 `json:"tags"`
-	ArticleTags       []exportArticleTag          `json:"article_tags"`
-	Links             []model.Link                `json:"links"`
-	Files             []model.File                `json:"files"`
-	Themes            []exportTheme               `json:"themes"`
-	Settings          []exportSetting             `json:"settings"`
+	Version            int                         `json:"version"`
+	ExportedAt         time.Time                   `json:"exported_at"`
+	IncludesSensitive  bool                        `json:"includes_sensitive,omitempty"`
+	Users              []exportUser                `json:"users"`
+	Articles           []exportArticle             `json:"articles"`
+	ArticleDetails     []model.ArticleDetail       `json:"article_details"`
+	Revisions          []model.ArticleRevision     `json:"article_revisions"`
+	SlugRedirects      []model.ArticleSlugRedirect `json:"article_slug_redirects"`
+	DailyStats         []model.ArticleDailyStat    `json:"article_daily_stats"`
+	ArticleReviews     []model.ArticleReview       `json:"article_reviews"`
+	ArticleSubmissions []exportArticleSubmission   `json:"article_submissions"`
+	Comments           []exportComment             `json:"comments"`
+	Categories         []model.Category            `json:"categories"`
+	Tags               []model.Tag                 `json:"tags"`
+	ArticleTags        []exportArticleTag          `json:"article_tags"`
+	Links              []model.Link                `json:"links"`
+	Files              []model.File                `json:"files"`
+	Themes             []exportTheme               `json:"themes"`
+	Settings           []exportSetting             `json:"settings"`
 }
 
 func CreateExportArchive() (archivePath string, size int64, err error) {
@@ -201,6 +215,8 @@ func loadExportDataWithSensitive(includeSensitive bool) (exportData, error) {
 		{&model.ArticleRevision{}, &data.Revisions},
 		{&model.ArticleSlugRedirect{}, &data.SlugRedirects},
 		{&model.ArticleDailyStat{}, &data.DailyStats},
+		{&model.ArticleReview{}, &data.ArticleReviews},
+		{&model.ArticleSubmission{}, &data.ArticleSubmissions},
 		{&model.Comment{}, &data.Comments},
 		{&model.Category{}, &data.Categories},
 		{&model.Tag{}, &data.Tags},
@@ -234,6 +250,17 @@ func loadExportDataWithSensitive(includeSensitive bool) (exportData, error) {
 		}
 		for i := range data.Articles {
 			data.Articles[i].Password = ""
+		}
+		for i := range data.ArticleSubmissions {
+			snapshot, err := DecodeArticleSubmissionSnapshot(&model.ArticleSubmission{Snapshot: data.ArticleSubmissions[i].Snapshot})
+			if err != nil {
+				return exportData{}, err
+			}
+			snapshot.PasswordHash = ""
+			data.ArticleSubmissions[i].Snapshot, err = EncodeArticleSubmissionSnapshot(snapshot)
+			if err != nil {
+				return exportData{}, err
+			}
 		}
 		for i := range data.Comments {
 			data.Comments[i].AuthorEmail = ""
@@ -293,7 +320,8 @@ func normalizeExportRelations(data *exportData) {
 	})
 	data.Revisions = slices.DeleteFunc(data.Revisions, func(revision model.ArticleRevision) bool {
 		_, exists := articleIDs[revision.ArticleID]
-		return !exists
+		_, actorExists := userIDs[revision.ActorID]
+		return !exists || (revision.ActorID != 0 && !actorExists)
 	})
 	data.SlugRedirects = slices.DeleteFunc(data.SlugRedirects, func(redirect model.ArticleSlugRedirect) bool {
 		_, exists := articleUIDs[redirect.ArticleUID]
@@ -302,6 +330,17 @@ func normalizeExportRelations(data *exportData) {
 	data.DailyStats = slices.DeleteFunc(data.DailyStats, func(stat model.ArticleDailyStat) bool {
 		_, exists := articleUIDs[stat.ArticleUID]
 		return !exists
+	})
+	data.ArticleReviews = slices.DeleteFunc(data.ArticleReviews, func(review model.ArticleReview) bool {
+		_, articleExists := articleIDs[review.ArticleID]
+		_, actorExists := userIDs[review.ActorID]
+		return !articleExists || !actorExists
+	})
+	data.ArticleSubmissions = slices.DeleteFunc(data.ArticleSubmissions, func(submission exportArticleSubmission) bool {
+		_, articleExists := articleIDs[submission.ArticleID]
+		_, submitterExists := userIDs[submission.SubmitterID]
+		_, reviewerExists := userIDs[submission.ReviewerID]
+		return !articleExists || !submitterExists || (submission.ReviewerID != 0 && !reviewerExists)
 	})
 	data.Comments = slices.DeleteFunc(data.Comments, func(comment exportComment) bool {
 		_, exists := articleUIDs[comment.ArticleUID]
@@ -332,6 +371,11 @@ func normalizeExportRelations(data *exportData) {
 		if categoryIndex, exists := categoryIndexes[data.Links[i].CategoryUID]; data.Links[i].CategoryUID != "" &&
 			(!exists || data.Categories[categoryIndex].Type != model.CategoryTypeLink) {
 			data.Links[i].CategoryUID = ""
+		}
+	}
+	for i := range data.Files {
+		if _, exists := userIDs[data.Files[i].UploaderID]; data.Files[i].UploaderID != 0 && !exists {
+			data.Files[i].UploaderID = 0
 		}
 	}
 }

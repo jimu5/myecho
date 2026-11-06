@@ -1,0 +1,537 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "myecho Agent Content API",
+    "version": "1.0.0",
+    "description": "Machine-readable contract for content automation. Login tokens and scoped agent credentials are both accepted where listed; scopes do not bypass the user's role and ownership rules."
+  },
+  "servers": [{"url": "/", "description": "Application origin"}],
+  "tags": [
+    {"name": "articles", "description": "Articles, editing versions, revisions, previews, and review submissions."},
+    {"name": "taxonomy", "description": "Categories and tags."},
+    {"name": "media", "description": "Uploaded files and metadata."},
+    {"name": "content portability", "description": "Markdown ZIP export and import."},
+    {"name": "agent credentials", "description": "Scoped credentials managed with an ordinary login token."},
+    {"name": "comments", "description": "Moderation and replies; Editor/Admin role required."},
+    {"name": "settings", "description": "Public settings reads and administrator settings management."}
+  ],
+  "paths": {
+    "/api/openapi.json": {
+      "get": {
+        "tags": ["content portability"],
+        "operationId": "getOpenAPI",
+        "summary": "Download this API specification",
+        "security": [],
+        "responses": {"200": {"description": "OpenAPI 3.1 JSON document", "content": {"application/json": {"schema": {"type": "object"}}}}}
+      }
+    },
+    "/api/account/tokens": {
+      "get": {
+        "tags": ["agent credentials"],
+        "operationId": "listAgentTokens",
+        "summary": "List the current user's agent credentials",
+        "description": "Requires an ordinary login token. Agent credentials cannot list or create credentials.",
+        "security": [{"LoginToken": []}],
+        "responses": {"200": {"description": "Credential metadata; raw tokens are never returned", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TokenListEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}}
+      },
+      "post": {
+        "tags": ["agent credentials"],
+        "operationId": "createAgentToken",
+        "summary": "Create a scoped agent credential",
+        "description": "Requires an ordinary login token. The raw `mye_` token is returned once; store it as a secret. Omitted or zero `expires_in_days` uses 90 days; the maximum is 365 days.",
+        "security": [{"LoginToken": []}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TokenCreateRequest"}}}},
+        "responses": {"201": {"description": "Credential metadata and one-time raw token", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TokenCreateEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}}
+      }
+    },
+    "/api/account/tokens/{id}": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "delete": {
+        "tags": ["agent credentials"],
+        "operationId": "revokeAgentToken",
+        "summary": "Revoke one of the current user's agent credentials",
+        "description": "Requires an ordinary login token. Revocation is permanent.",
+        "security": [{"LoginToken": []}],
+        "responses": {"200": {"description": "Revoked", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "404": {"$ref": "#/components/responses/NotFound"}}
+      }
+    },
+    "/api/all_articles": {
+      "get": {
+        "tags": ["articles"],
+        "operationId": "listArticles",
+        "summary": "List manageable articles",
+        "description": "Authors are restricted to their own articles. Results are paginated; `page_size` is capped at 100.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:read",
+        "parameters": [
+          {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1, "default": 1}},
+          {"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
+          {"name": "author_id", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+          {"name": "category_uid", "in": "query", "schema": {"type": "string"}},
+          {"name": "tag_uid", "in": "query", "schema": {"type": "string"}},
+          {"name": "keyword", "in": "query", "schema": {"type": "string"}},
+          {"name": "status", "in": "query", "schema": {"$ref": "#/components/schemas/ArticleStatus"}},
+          {"name": "type", "in": "query", "schema": {"$ref": "#/components/schemas/ArticleType"}},
+          {"name": "date_from", "in": "query", "schema": {"type": "string", "format": "date"}},
+          {"name": "date_to", "in": "query", "schema": {"type": "string", "format": "date"}}
+        ],
+        "responses": {"200": {"description": "Article page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticlePageEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}
+      }
+    },
+    "/api/articles/{id}": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "get": {
+        "tags": ["articles"],
+        "operationId": "getArticle",
+        "summary": "Read an article and its editable version",
+        "description": "Public articles can be read without credentials. For an authorized editor or the article's author, `detail.content` is the editable Markdown or HTML body. Agent access to editable content requires `articles:read`. Read `edit_version` before saving.",
+        "security": [{}, {"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:read",
+        "responses": {"200": {"description": "Article", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticleEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}
+      },
+      "patch": {
+        "tags": ["articles"],
+        "operationId": "updateArticle",
+        "summary": "Save an article",
+        "description": "Despite the PATCH method, send the full editable representation, including title and content; omitted properties can reset to defaults or clear values. Agent credentials must send `expected_edit_version` from the latest read. Status 1, 2, or 3 additionally requires `articles:publish`; status 6 additionally requires `articles:delete`. A stale version returns 409; fetch and reconcile before saving again.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:write",
+        "x-agent-status-scopes": {"1": "articles:publish", "2": "articles:publish", "3": "articles:publish", "6": "articles:delete"},
+        "x-agent-required-fields": ["expected_edit_version", "title", "content"],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticleWriteRequest"}}}},
+        "responses": {"200": {"description": "Saved article", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticleEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      },
+      "delete": {
+        "tags": ["articles"],
+        "operationId": "trashArticle",
+        "summary": "Move an article to the recycle bin",
+        "description": "Preserves content and history. Use permanent delete only after confirming the article is in the recycle bin.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:delete",
+        "responses": {"200": {"description": "Moved to recycle bin", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      }
+    },
+    "/api/articles": {
+      "get": {
+        "tags": ["articles"],
+        "operationId": "listPublicArticles",
+        "summary": "List public articles",
+        "description": "Public display feed. Authenticated article automation should use `/api/all_articles` to list manageable drafts and submissions.",
+        "security": [],
+        "x-agent-scope": "articles:read",
+        "parameters": [
+          {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1, "default": 1}},
+          {"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
+          {"name": "category_uid", "in": "query", "schema": {"type": "string"}}
+        ],
+        "responses": {"200": {"description": "Public article page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticlePageEnvelope"}}}}}
+      },
+      "post": {
+        "tags": ["articles"],
+        "operationId": "createArticle",
+        "summary": "Create an article",
+        "description": "Defaults to draft status 4. Agent requests require an `Idempotency-Key`; reusing a key with the identical request body replays the original 201 response, while a different body with that key returns 409. Keys are scoped to the current user. Status 1, 2, or 3 additionally requires `articles:publish`; status 6 additionally requires `articles:delete`.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:write",
+        "x-agent-status-scopes": {"1": "articles:publish", "2": "articles:publish", "3": "articles:publish", "6": "articles:delete"},
+        "parameters": [{"name": "Idempotency-Key", "in": "header", "required": false, "description": "1 to 128 printable ASCII characters, no whitespace. Required for agent credentials; optional for login-token clients.", "x-required-for-agent": true, "schema": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[!-~]+$"}}],
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticleWriteRequest"}}}},
+        "responses": {"201": {"description": "Created article", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticleEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      }
+    },
+    "/api/articles/{id}/duplicate": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "post": {
+        "tags": ["articles"],
+        "operationId": "duplicateArticle",
+        "summary": "Duplicate an article as a new draft",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:write",
+        "responses": {"201": {"description": "New draft article", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticleEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      }
+    },
+    "/api/articles/{id}/previews": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "post": {
+        "tags": ["articles"],
+        "operationId": "createArticlePreview",
+        "summary": "Create a shareable preview snapshot",
+        "description": "Anyone with the returned link can view its immutable snapshot until it expires or is revoked. Treat the link as a secret.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:write",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"type": "object", "required": ["expected_edit_version"], "properties": {"expected_edit_version": {"type": "integer", "format": "uint64", "minimum": 1}}}}}},
+        "responses": {"200": {"description": "Preview URL and expiry", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/PreviewEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      },
+      "delete": {
+        "tags": ["articles"],
+        "operationId": "revokeArticlePreviews",
+        "summary": "Revoke the current user's article previews",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:write",
+        "responses": {"200": {"description": "Revoked", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}
+      }
+    },
+    "/api/articles/{id}/revisions": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "get": {
+        "tags": ["articles"],
+        "operationId": "listArticleRevisions",
+        "summary": "List saved article revisions",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:read",
+        "responses": {"200": {"description": "Revision summaries", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RevisionListEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}
+      }
+    },
+    "/api/articles/{id}/revisions/{revision_id}": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}, {"$ref": "#/components/parameters/RevisionID"}],
+      "get": {
+        "tags": ["articles"],
+        "operationId": "getArticleRevision",
+        "summary": "Read a revision body and metadata",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:read",
+        "responses": {"200": {"description": "Revision snapshot", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/RevisionEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}
+      }
+    },
+    "/api/articles/{id}/revisions/{revision_id}/restore": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}, {"$ref": "#/components/parameters/RevisionID"}],
+      "post": {
+        "tags": ["articles"],
+        "operationId": "restoreArticleRevision",
+        "summary": "Restore a revision as an editable draft",
+        "description": "Restoring a revision does not publish it. Include the current version in any later agent save.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:write",
+        "responses": {"200": {"description": "Restored editable article", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticleEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      }
+    },
+    "/api/articles/{id}/reviews": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "get": {
+        "tags": ["articles"],
+        "operationId": "listArticleReviews",
+        "summary": "List review activity for an article",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:read",
+        "responses": {"200": {"description": "Review activity", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ReviewListEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}
+      }
+    },
+    "/api/submissions": {
+      "get": {
+        "tags": ["articles"],
+        "operationId": "listSubmissions",
+        "summary": "List article submissions for review",
+        "description": "Editor/Admin role required. Defaults to pending status 2.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:read",
+        "parameters": [
+          {"name": "status", "in": "query", "schema": {"type": "integer", "enum": [1, 2, 3, 4, 5], "default": 2}},
+          {"name": "author_id", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+          {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1, "default": 1}},
+          {"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}}
+        ],
+        "responses": {"200": {"description": "Submission workbench page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SubmissionPageEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}
+      }
+    },
+    "/api/submissions/authors": {
+      "get": {
+        "tags": ["articles"],
+        "operationId": "listSubmissionAuthors",
+        "summary": "List authors with pending submissions",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:read",
+        "responses": {"200": {"description": "Authors", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/UserListEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}
+      }
+    },
+    "/api/submissions/{id}": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "get": {
+        "tags": ["articles"],
+        "operationId": "getSubmission",
+        "summary": "Read a submission snapshot",
+        "description": "An author can read only their own submission; Editor/Admin can read all submissions.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:read",
+        "responses": {"200": {"description": "Submission and current article", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SubmissionWorkbenchEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}
+      }
+    },
+    "/api/submissions/{id}/review": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "post": {
+        "tags": ["articles"],
+        "operationId": "reviewSubmission",
+        "summary": "Approve or reject a submission",
+        "description": "Editor/Admin role and `articles:publish` scope required for agent credentials. A rejection requires a non-empty note (up to 500 characters).",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:publish",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ReviewRequest"}}}},
+        "responses": {"200": {"description": "Reviewed article", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticleEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      }
+    },
+    "/api/submissions/{id}/withdraw": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "post": {
+        "tags": ["articles"],
+        "operationId": "withdrawSubmission",
+        "summary": "Withdraw a pending submission",
+        "description": "The submitting author or an Editor/Admin may withdraw the pending submission.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:write",
+        "responses": {"200": {"description": "Withdrawn", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      }
+    },
+    "/api/articles/{id}/restore": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "post": {
+        "tags": ["articles"],
+        "operationId": "restoreTrashedArticle",
+        "summary": "Restore a trashed article as a draft",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:delete",
+        "responses": {"200": {"description": "Restored draft", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ArticleEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      }
+    },
+    "/api/articles/{id}/permanent": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "delete": {
+        "tags": ["articles"],
+        "operationId": "permanentlyDeleteArticle",
+        "summary": "Permanently delete an article in the recycle bin",
+        "description": "This cannot be undone. The article must already be in the recycle bin.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "articles:delete",
+        "responses": {"200": {"description": "Permanently deleted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}
+      }
+    },
+    "/api/article/categories/all": {
+      "get": {"tags": ["taxonomy"], "operationId": "listArticleCategories", "summary": "List public article categories", "security": [], "responses": {"200": {"description": "Categories", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CategoryListEnvelope"}}}}}}
+    },
+    "/api/link/categories/all": {
+      "get": {"tags": ["taxonomy"], "operationId": "listLinkCategories", "summary": "List public link categories", "security": [], "responses": {"200": {"description": "Categories", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CategoryListEnvelope"}}}}}}
+    },
+    "/api/article/categories": {
+      "post": {"tags": ["taxonomy"], "operationId": "createArticleCategory", "summary": "Create an article category", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "taxonomy:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CategoryCreateRequest"}}}}, "responses": {"201": {"description": "Created category", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CategoryEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}}
+    },
+    "/api/link/categories": {
+      "post": {"tags": ["taxonomy"], "operationId": "createLinkCategory", "summary": "Create a link category", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "taxonomy:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CategoryCreateRequest"}}}}, "responses": {"201": {"description": "Created category", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CategoryEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}}
+    },
+    "/api/categories/{id}": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "patch": {"tags": ["taxonomy"], "operationId": "updateCategory", "summary": "Update category fields", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "taxonomy:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CategoryUpdateRequest"}}}}, "responses": {"200": {"description": "Updated category", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CategoryEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}},
+      "delete": {"tags": ["taxonomy"], "operationId": "deleteCategory", "summary": "Delete category", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "taxonomy:write", "responses": {"200": {"description": "Deleted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}}
+    },
+    "/api/tags/all": {"get": {"tags": ["taxonomy"], "operationId": "listTags", "summary": "List public tags", "security": [], "responses": {"200": {"description": "Tags", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TagListEnvelope"}}}}}}},
+    "/api/tags": {"post": {"tags": ["taxonomy"], "operationId": "createTag", "summary": "Create a tag", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "taxonomy:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TagRequest"}}}}, "responses": {"201": {"description": "Created tag", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TagEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}}},
+    "/api/tags/{id}": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "patch": {"tags": ["taxonomy"], "operationId": "updateTag", "summary": "Update tag name", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "taxonomy:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TagRequest"}}}}, "responses": {"200": {"description": "Updated tag", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/TagEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}},
+      "delete": {"tags": ["taxonomy"], "operationId": "deleteTag", "summary": "Delete tag", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "taxonomy:write", "responses": {"200": {"description": "Deleted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}}
+    },
+    "/mos/files": {
+      "get": {
+        "tags": ["media"],
+        "operationId": "listMedia",
+        "summary": "List media files",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "media:read",
+        "parameters": [
+          {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1, "default": 1}},
+          {"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
+          {"name": "name", "in": "query", "schema": {"type": "string"}},
+          {"name": "uploader_id", "in": "query", "schema": {"type": "integer", "minimum": 1}}
+        ],
+        "responses": {"200": {"description": "Media file page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FilePageEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}
+      }
+    },
+    "/mos/files/upload": {
+      "post": {"tags": ["media"], "operationId": "uploadMedia", "summary": "Upload one media file", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "media:write", "requestBody": {"required": true, "content": {"multipart/form-data": {"schema": {"type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}}}}}}, "responses": {"200": {"description": "Uploaded file", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FileEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}}
+    },
+    "/mos/files/{id}": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "put": {"tags": ["media"], "operationId": "updateMediaMetadata", "summary": "Update media metadata", "description": "The `full_name` extension must match the original file extension.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "media:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FileUpdateRequest"}}}}, "responses": {"200": {"description": "Updated file", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FileEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}},
+      "delete": {"tags": ["media"], "operationId": "deleteMedia", "summary": "Delete an unused media file", "description": "Deletion fails with 409 while the file is referenced by an article, submission, or setting.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "media:delete", "responses": {"200": {"description": "Deleted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}, "409": {"$ref": "#/components/responses/Conflict"}}}
+    },
+    "/mos/files/{id}/usages": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "get": {"tags": ["media"], "operationId": "listMediaUsages", "summary": "List content that references a file", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "media:read", "responses": {"200": {"description": "References", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/FileUsageListEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}}
+    },
+    "/api/comments": {
+      "get": {
+        "tags": ["comments"],
+        "operationId": "listComments",
+        "summary": "List comments for moderation",
+        "description": "Editor/Admin role and `comments:read` scope required for agent credentials.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "comments:read",
+        "parameters": [
+          {"name": "page", "in": "query", "schema": {"type": "integer", "minimum": 1, "default": 1}},
+          {"name": "page_size", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20}},
+          {"name": "status", "in": "query", "schema": {"type": "integer", "enum": [1, 2, 3, 4]}},
+          {"name": "article_id", "in": "query", "schema": {"type": "integer", "minimum": 1}},
+          {"name": "article_uid", "in": "query", "schema": {"type": "string"}},
+          {"name": "keyword", "in": "query", "schema": {"type": "string"}},
+          {"name": "date_from", "in": "query", "schema": {"type": "string", "format": "date"}},
+          {"name": "date_to", "in": "query", "schema": {"type": "string", "format": "date"}}
+        ],
+        "responses": {"200": {"description": "Comment page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CommentPageEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}
+      }
+    },
+    "/api/comments/{id}": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "patch": {"tags": ["comments"], "operationId": "updateComment", "summary": "Update or moderate a comment", "description": "Editor/Admin role and `comments:write` scope required for agent credentials.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "comments:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CommentUpdateRequest"}}}}, "responses": {"200": {"description": "Updated comment", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CommentEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}},
+      "delete": {"tags": ["comments"], "operationId": "deleteComment", "summary": "Delete a comment", "description": "Editor/Admin role and `comments:write` scope required for agent credentials.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "comments:write", "responses": {"200": {"description": "Deleted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}}
+    },
+    "/api/comments/{id}/reply": {
+      "parameters": [{"$ref": "#/components/parameters/ID"}],
+      "post": {"tags": ["comments"], "operationId": "replyToComment", "summary": "Reply to a comment", "description": "Editor/Admin role and `comments:write` scope required for agent credentials.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "comments:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CommentReplyRequest"}}}}, "responses": {"201": {"description": "Created reply", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CommentEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}}
+    },
+    "/api/comments/batch": {
+      "post": {"tags": ["comments"], "operationId": "batchUpdateComments", "summary": "Moderate or delete comments in a batch", "description": "Editor/Admin role and `comments:write` scope required for agent credentials.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "comments:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/CommentBatchRequest"}}}}, "responses": {"200": {"description": "Updated or deleted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}}
+    },
+    "/api/settings": {
+      "get": {"tags": ["settings"], "operationId": "listPublicSettings", "summary": "List public settings", "description": "Unauthenticated reads include only public settings. Agent credentials must have `settings:read`.", "security": [], "x-agent-scope": "settings:read", "responses": {"200": {"description": "Public settings", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SettingListEnvelope"}}}}}},
+      "post": {"tags": ["settings"], "operationId": "createSetting", "summary": "Create a setting", "description": "Admin role and `settings:write` scope required for agent credentials.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "settings:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SettingCreateRequest"}}}}, "responses": {"200": {"description": "Created setting", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SettingEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}}
+    },
+    "/api/settings/admin": {
+      "get": {"tags": ["settings"], "operationId": "listAdminSettings", "summary": "List administrator settings", "description": "Admin role and `settings:read` scope required for agent credentials.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "settings:read", "responses": {"200": {"description": "Administrator settings", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SettingListEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}}}
+    },
+    "/api/settings/{key}": {
+      "parameters": [{"name": "key", "in": "path", "required": true, "schema": {"type": "string"}}],
+      "get": {"tags": ["settings"], "operationId": "getPublicSetting", "summary": "Read a public setting", "description": "Unauthenticated reads return public settings only. Agent credentials must have `settings:read`.", "security": [], "x-agent-scope": "settings:read", "responses": {"200": {"description": "Setting", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SettingEnvelope"}}}}, "404": {"$ref": "#/components/responses/NotFound"}}},
+      "patch": {"tags": ["settings"], "operationId": "updateSetting", "summary": "Update a setting", "description": "Admin role and `settings:write` scope required for agent credentials.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "settings:write", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SettingUpdateRequest"}}}}, "responses": {"200": {"description": "Updated setting", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/SettingEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}},
+      "delete": {"tags": ["settings"], "operationId": "deleteSetting", "summary": "Delete a setting", "description": "Admin role and `settings:write` scope required for agent credentials.", "security": [{"LoginToken": []}, {"AgentToken": []}], "x-agent-scope": "settings:write", "responses": {"200": {"description": "Deleted", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/EmptyEnvelope"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "404": {"$ref": "#/components/responses/NotFound"}}}
+    },
+    "/api/content/export": {
+      "get": {
+        "tags": ["content portability"],
+        "operationId": "exportContent",
+        "summary": "Export Markdown content as ZIP",
+        "description": "Admin role and `content:export` scope required for agent credentials. Includes Markdown/YAML front matter; local media is excluded unless requested.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scope": "content:export",
+        "parameters": [{"name": "include_media", "in": "query", "schema": {"type": "boolean", "default": false}}],
+        "responses": {"200": {"description": "ZIP archive", "content": {"application/zip": {"schema": {"type": "string", "format": "binary"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "413": {"$ref": "#/components/responses/TooLarge"}}
+      }
+    },
+    "/api/content/import": {
+      "post": {
+        "tags": ["content portability"],
+        "operationId": "importContent",
+        "summary": "Preview or import Markdown ZIP",
+        "description": "Admin role plus `content:import` and `articles:publish` scopes are required for agent credentials. Preview first (`dry_run=true`, the default). Applying rechecks `edit_version` and reports conflicts instead of overwriting newer edits.",
+        "security": [{"LoginToken": []}, {"AgentToken": []}],
+        "x-agent-scopes": ["content:import", "articles:publish"],
+        "parameters": [{"name": "dry_run", "in": "query", "schema": {"type": "boolean", "default": true}}],
+        "requestBody": {"required": true, "content": {"multipart/form-data": {"schema": {"type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}, "author_map": {"type": "string", "description": "Optional JSON object mapping exported author names to user IDs; used on apply."}}}}}},
+        "responses": {"200": {"description": "Preview or apply result", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ContentImportEnvelope"}}}}, "400": {"$ref": "#/components/responses/BadRequest"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Forbidden"}, "409": {"$ref": "#/components/responses/Conflict"}, "413": {"$ref": "#/components/responses/TooLarge"}}
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "LoginToken": {"type": "apiKey", "in": "header", "name": "Authorization", "description": "Ordinary user token: `Authorization: token <login-token>`."},
+      "AgentToken": {"type": "http", "scheme": "bearer", "bearerFormat": "mye_<base64url>", "description": "Scoped credential: `Authorization: Bearer mye_<token>`."}
+    },
+    "parameters": {
+      "ID": {"name": "id", "in": "path", "required": true, "schema": {"type": "integer", "format": "uint64", "minimum": 1}},
+      "RevisionID": {"name": "revision_id", "in": "path", "required": true, "schema": {"type": "integer", "format": "uint64", "minimum": 1}}
+    },
+    "responses": {
+      "BadRequest": {"description": "Invalid request (400; API error code 4001 or 4002)", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+      "Unauthorized": {"description": "Missing, expired, or revoked credential (401; code 4011)", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+      "Forbidden": {"description": "Role, ownership, or credential scope does not permit the action (403; code 4031 or 4033)", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+      "NotFound": {"description": "Resource not found (404; code 4041)", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+      "Conflict": {"description": "Stale edit version, changed state, or idempotency conflict (409; usually code 4001)", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}},
+      "TooLarge": {"description": "Archive exceeds 512 MiB limit (413; code 4001)", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Error"}}}}
+    },
+    "schemas": {
+      "Error": {"type": "object", "required": ["code", "msg"], "properties": {"code": {"type": "integer"}, "msg": {"type": "string"}}},
+      "SuccessEnvelope": {"type": "object", "required": ["code", "msg", "data", "meta"], "properties": {"code": {"const": 0}, "msg": {"type": "string", "example": "ok"}, "data": {}, "meta": {"type": "object"}}},
+      "PageMeta": {"type": "object", "required": ["total", "page", "page_size"], "properties": {"total": {"type": "integer", "format": "int64"}, "page": {"type": "integer"}, "page_size": {"type": "integer", "maximum": 100}}},
+      "ArticleType": {"type": "integer", "enum": [1, 2], "description": "1=post, 2=page."},
+      "ArticleStatus": {"type": "integer", "enum": [1, 2, 3, 4, 5, 6], "description": "1=published, 2=pinned, 3=private, 4=draft, 5=pending review, 6=recycle bin. Unspecified article status defaults to 4."},
+      "ArticleWriteRequest": {
+        "type": "object",
+        "required": ["title", "content"],
+        "properties": {
+          "title": {"type": "string", "maxLength": 128},
+          "slug": {"type": "string", "maxLength": 160},
+          "seo_title": {"type": "string", "maxLength": 160},
+          "seo_description": {"type": "string", "maxLength": 255},
+          "share_image": {"type": "string", "maxLength": 512},
+          "type": {"allOf": [{"$ref": "#/components/schemas/ArticleType"}], "default": 1},
+          "content_format": {"type": "string", "enum": ["markdown", "html"], "default": "markdown"},
+          "summary": {"type": "string", "maxLength": 255},
+          "content": {"type": "string"},
+          "category_uid": {"type": "string"},
+          "is_allow_comment": {"type": ["boolean", "null"]},
+          "post_time": {"type": "string", "format": "date-time"},
+          "status": {"allOf": [{"$ref": "#/components/schemas/ArticleStatus"}], "default": 4},
+          "expected_edit_version": {"type": "integer", "format": "uint64", "minimum": 1, "description": "Required on PATCH with an agent credential; use the latest `edit_version`."},
+          "autosave": {"type": "boolean", "default": false, "description": "When true, forces status 4."},
+          "visibility": {"type": "integer", "enum": [1, 2, 3]},
+          "password": {"type": "string", "writeOnly": true},
+          "clear_password": {"type": "boolean", "default": false},
+          "tag_uids": {"type": "array", "items": {"type": "string"}}
+        }
+      },
+      "ArticleDetail": {"type": ["object", "null"], "properties": {"uid": {"type": "string"}, "content": {"type": "string"}}},
+      "UserSummary": {"type": ["object", "null"], "properties": {"id": {"type": "integer"}, "nick_name": {"type": "string"}, "slug": {"type": "string"}, "avatar_url": {"type": "string"}}},
+      "CategorySummary": {"type": ["object", "null"], "properties": {"id": {"type": "integer"}, "name": {"type": "string"}}},
+      "Tag": {"type": "object", "properties": {"id": {"type": "integer"}, "uid": {"type": "string"}, "name": {"type": "string"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}},
+      "SubmissionSnapshot": {"type": "object", "properties": {"title": {"type": "string"}, "slug": {"type": "string"}, "seo_title": {"type": "string"}, "seo_description": {"type": "string"}, "share_image": {"type": "string"}, "type": {"$ref": "#/components/schemas/ArticleType"}, "content_format": {"type": "string", "enum": ["markdown", "html"]}, "summary": {"type": "string"}, "content": {"type": "string"}, "category_uid": {"type": "string"}, "is_allow_comment": {"type": ["boolean", "null"]}, "post_time": {"type": "string", "format": "date-time"}, "target_status": {"$ref": "#/components/schemas/ArticleStatus"}, "tag_uids": {"type": "array", "items": {"type": "string"}}, "is_password_protected": {"type": "boolean"}}},
+      "ArticleSubmission": {"type": "object", "properties": {"id": {"type": "integer"}, "status": {"type": "integer", "enum": [1, 2, 3, 4, 5], "description": "1=draft, 2=pending, 3=approved, 4=rejected, 5=withdrawn."}, "submitter": {"$ref": "#/components/schemas/UserSummary"}, "reviewer": {"$ref": "#/components/schemas/UserSummary"}, "note": {"type": "string"}, "submitted_at": {"type": ["string", "null"], "format": "date-time"}, "reviewed_at": {"type": ["string", "null"], "format": "date-time"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}, "snapshot": {"$ref": "#/components/schemas/SubmissionSnapshot"}}},
+      "Article": {"type": "object", "properties": {"id": {"type": "integer"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}, "author": {"$ref": "#/components/schemas/UserSummary"}, "title": {"type": "string"}, "slug": {"type": "string"}, "seo_title": {"type": "string"}, "seo_description": {"type": "string"}, "share_image": {"type": "string"}, "type": {"$ref": "#/components/schemas/ArticleType"}, "content_format": {"type": "string", "enum": ["markdown", "html"]}, "summary": {"type": "string"}, "edit_version": {"type": "integer", "format": "uint64", "minimum": 1}, "detail": {"$ref": "#/components/schemas/ArticleDetail"}, "category_uid": {"type": "string"}, "category": {"$ref": "#/components/schemas/CategorySummary"}, "is_allow_comment": {"type": ["boolean", "null"]}, "read_count": {"type": "integer"}, "like_count": {"type": "integer"}, "comment_count": {"type": "integer"}, "post_time": {"type": "string", "format": "date-time"}, "status": {"$ref": "#/components/schemas/ArticleStatus"}, "visibility": {"type": "integer", "enum": [1, 2, 3]}, "is_password_protected": {"type": "boolean"}, "tags": {"type": "array", "items": {"$ref": "#/components/schemas/Tag"}}, "submission": {"oneOf": [{"$ref": "#/components/schemas/ArticleSubmission"}, {"type": "null"}]}}},
+      "ArticleEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/Article"}}}]},
+      "ArticlePageEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Article"}}, "meta": {"$ref": "#/components/schemas/PageMeta"}}}]},
+      "TokenScope": {"type": "string", "enum": ["articles:read", "articles:write", "articles:publish", "articles:delete", "taxonomy:write", "media:read", "media:write", "media:delete", "content:export", "content:import", "comments:read", "comments:write", "settings:read", "settings:write"]},
+      "TokenCreateRequest": {"type": "object", "required": ["name", "scopes"], "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 64}, "scopes": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/components/schemas/TokenScope"}}, "expires_in_days": {"type": "integer", "minimum": 0, "maximum": 365, "default": 90, "description": "0 or omitted means 90 days."}}},
+      "TokenMetadata": {"type": "object", "required": ["id", "owner_id", "name", "scopes", "expires_at", "created_at"], "properties": {"id": {"type": "integer"}, "owner_id": {"type": "integer"}, "name": {"type": "string"}, "scopes": {"type": "array", "items": {"$ref": "#/components/schemas/TokenScope"}}, "expires_at": {"type": "string", "format": "date-time"}, "revoked_at": {"type": ["string", "null"], "format": "date-time"}, "created_at": {"type": "string", "format": "date-time"}}},
+      "TokenCreateResponse": {"allOf": [{"$ref": "#/components/schemas/TokenMetadata"}, {"type": "object", "required": ["token"], "properties": {"token": {"type": "string", "pattern": "^mye_"}}}]},
+      "TokenListEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/TokenMetadata"}}}}]},
+      "TokenCreateEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/TokenCreateResponse"}}}]},
+      "EmptyEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "null"}}}]},
+      "RevisionSummary": {"type": "object", "properties": {"id": {"type": "integer"}, "title": {"type": "string"}, "slug": {"type": "string"}, "created_at": {"type": "string", "format": "date-time"}, "actor": {"$ref": "#/components/schemas/UserSummary"}}},
+      "Revision": {"type": "object", "properties": {"id": {"type": "integer"}, "article_id": {"type": "integer"}, "created_at": {"type": "string", "format": "date-time"}, "actor_id": {"type": "integer"}, "title": {"type": "string"}, "slug": {"type": "string"}, "type": {"$ref": "#/components/schemas/ArticleType"}, "content_format": {"type": "string", "enum": ["markdown", "html"]}, "summary": {"type": "string"}, "seo_title": {"type": "string"}, "seo_description": {"type": "string"}, "share_image": {"type": "string"}, "content": {"type": "string"}}},
+      "RevisionListEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/RevisionSummary"}}}}]},
+      "RevisionEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/Revision"}}}]},
+      "Preview": {"type": "object", "required": ["preview_url", "expires_at"], "properties": {"preview_url": {"type": "string"}, "expires_at": {"type": "string", "format": "date-time"}}},
+      "PreviewEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/Preview"}}}]},
+      "ReviewRequest": {"type": "object", "required": ["action"], "properties": {"action": {"type": "string", "enum": ["approve", "reject"]}, "note": {"type": "string", "maxLength": 500, "description": "Required and non-empty when rejecting."}}},
+      "Review": {"type": "object", "properties": {"id": {"type": "integer"}, "created_at": {"type": "string", "format": "date-time"}, "actor": {"$ref": "#/components/schemas/UserSummary"}, "submission_id": {"type": "integer"}, "action": {"type": "string"}, "from_status": {"$ref": "#/components/schemas/ArticleStatus"}, "to_status": {"$ref": "#/components/schemas/ArticleStatus"}, "note": {"type": "string"}}},
+      "ReviewListEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Review"}}}}]},
+      "SubmissionWorkbench": {"type": "object", "properties": {"submission": {"$ref": "#/components/schemas/ArticleSubmission"}, "article": {"$ref": "#/components/schemas/Article"}}},
+      "SubmissionWorkbenchEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/SubmissionWorkbench"}}}]},
+      "SubmissionPageEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/SubmissionWorkbench"}}, "meta": {"$ref": "#/components/schemas/PageMeta"}}}]},
+      "UserListEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/UserSummary"}}}}]},
+      "Category": {"type": "object", "properties": {"id": {"type": "integer"}, "uid": {"type": "string"}, "name": {"type": "string"}, "type": {"type": "integer", "enum": [1, 2]}, "father_uid": {"type": "string"}}},
+      "CategoryCreateRequest": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1, "maxLength": 64}, "father_uid": {"type": "string"}}},
+      "CategoryUpdateRequest": {"type": "object", "minProperties": 1, "properties": {"name": {"type": "string", "maxLength": 64}, "father_uid": {"type": "string"}}},
+      "CategoryEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/Category"}}}]},
+      "CategoryListEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Category"}}}}]},
+      "TagRequest": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string", "minLength": 1}}},
+      "TagEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/Tag"}}}]},
+      "TagListEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Tag"}}}}]},
+      "File": {"type": "object", "properties": {"id": {"type": "integer"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}, "full_name": {"type": "string"}, "uuid": {"type": "string"}, "extension_name": {"type": "string"}, "md5": {"type": "string"}, "url": {"type": "string"}, "note": {"type": "string"}, "uploader_id": {"type": "integer"}, "alt_text": {"type": "string"}, "caption": {"type": "string"}, "width": {"type": "integer"}, "height": {"type": "integer"}, "thumbnail_url": {"type": "string"}}},
+      "FileUpdateRequest": {"type": "object", "required": ["full_name"], "properties": {"full_name": {"type": "string"}, "note": {"type": "string"}, "alt_text": {"type": "string"}, "caption": {"type": "string"}}},
+      "FileUsage": {"type": "object", "properties": {"type": {"type": "string"}, "id": {"type": "integer"}, "title": {"type": "string"}}},
+      "FileEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/File"}}}]},
+      "FilePageEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/File"}}, "meta": {"$ref": "#/components/schemas/PageMeta"}}}]},
+      "FileUsageListEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/FileUsage"}}}}]},
+      "Comment": {"type": "object", "properties": {"id": {"type": "integer"}, "article_uid": {"type": "string"}, "article_id": {"type": "integer"}, "article_title": {"type": "string"}, "author_name": {"type": "string"}, "author_email": {"type": "string"}, "author_ip": {"type": "string"}, "author_url": {"type": "string"}, "author_agent": {"type": "string"}, "content": {"type": "string"}, "status": {"type": "integer", "enum": [1, 2, 3, 4]}, "like_count": {"type": "integer"}, "parent_id": {"type": "integer"}, "user_id": {"type": "integer"}, "post_time": {"type": "string", "format": "date-time"}, "created_at": {"type": "string", "format": "date-time"}, "updated_at": {"type": "string", "format": "date-time"}}},
+      "CommentUpdateRequest": {"type": "object", "properties": {"author_name": {"type": "string"}, "author_email": {"type": "string"}, "author_url": {"type": "string"}, "content": {"type": "string"}, "parent_id": {"type": "integer", "minimum": 0}, "status": {"type": "integer", "enum": [1, 2, 3, 4]}}},
+      "CommentBatchRequest": {"type": "object", "required": ["ids"], "properties": {"ids": {"type": "array", "minItems": 1, "items": {"type": "integer", "minimum": 1}}, "action": {"type": "string", "enum": ["delete", "approve", "reject", "spam", "pending", "status", "update_status"]}, "status": {"type": "integer", "enum": [1, 2, 3, 4]}}},
+      "CommentReplyRequest": {"type": "object", "required": ["content"], "properties": {"content": {"type": "string", "minLength": 1, "maxLength": 2000}}},
+      "CommentEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/Comment"}}}]},
+      "CommentPageEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Comment"}}, "meta": {"$ref": "#/components/schemas/PageMeta"}}}]},
+      "Setting": {"type": "object", "properties": {"id": {"type": "integer"}, "key": {"type": "string"}, "value": {"type": "string"}, "type": {"type": "string"}, "description": {"type": "string"}, "is_system": {"type": "boolean"}, "is_public": {"type": "boolean"}}},
+      "SettingCreateRequest": {"type": "object", "required": ["key"], "properties": {"key": {"type": "string", "minLength": 1}, "value": {"type": "string"}, "type": {"type": "string"}, "description": {"type": "string"}, "is_public": {"type": ["boolean", "null"]}}},
+      "SettingUpdateRequest": {"type": "object", "properties": {"value": {"type": "string"}, "description": {"type": "string"}, "is_public": {"type": ["boolean", "null"]}}},
+      "SettingEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/Setting"}}}]},
+      "SettingListEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"type": "array", "items": {"$ref": "#/components/schemas/Setting"}}}}]},
+      "ContentImportPlan": {"type": "object", "required": ["filename", "slug", "type", "action", "changed_fields"], "properties": {"filename": {"type": "string"}, "slug": {"type": "string"}, "type": {"type": "string", "enum": ["post", "page"]}, "action": {"type": "string", "enum": ["create", "update", "conflict"]}, "current_version": {"type": "integer", "format": "uint64", "minimum": 1}, "expected_version": {"type": "integer", "format": "uint64", "minimum": 1}, "changed_fields": {"type": "array", "items": {"type": "string"}}}},
+      "ContentImportResult": {"type": "object", "properties": {"dry_run": {"type": "boolean"}, "applied": {"type": "boolean"}, "valid": {"type": "boolean"}, "files": {"type": "integer"}, "posts": {"type": "integer"}, "pages": {"type": "integer"}, "created": {"type": "integer"}, "updated": {"type": "integer"}, "categories_created": {"type": "integer"}, "tags_created": {"type": "integer"}, "conflicts": {"type": "array", "items": {"type": "string"}}, "authors": {"type": "array", "items": {"type": "string"}}, "unmapped_authors": {"type": "array", "items": {"type": "string"}}, "plans": {"type": "array", "items": {"$ref": "#/components/schemas/ContentImportPlan"}}}},
+      "ContentImportEnvelope": {"allOf": [{"$ref": "#/components/schemas/SuccessEnvelope"}, {"type": "object", "properties": {"data": {"$ref": "#/components/schemas/ContentImportResult"}}}]}
+    }
+  }
+}

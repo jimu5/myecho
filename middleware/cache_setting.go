@@ -14,6 +14,7 @@ var passCacheRoutePathPrefix = []string{
 	"/mos",
 	"/status",
 	"/theme-preview",
+	"/article-preview/",
 	"/articles/",
 	"/posts/",
 	"/pages/",
@@ -56,6 +57,7 @@ func isThemeIndependentCachePath(path string) bool {
 }
 
 func isPathSkipCache(path string) bool {
+	path = strings.ToLower(path)
 	for i := range passCacheRoutePathPrefix {
 		if strings.HasPrefix(path, passCacheRoutePathPrefix[i]) {
 			return true

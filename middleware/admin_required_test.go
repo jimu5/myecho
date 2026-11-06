@@ -55,3 +55,37 @@ func TestAdminRequired(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthorAndEditorRequired(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		middleware fiber.Handler
+		role       int8
+		want       int
+	}{
+		{name: "author route accepts author", middleware: AuthorRequired, role: model.Author, want: fiber.StatusNoContent},
+		{name: "author route accepts editor", middleware: AuthorRequired, role: model.Editor, want: fiber.StatusNoContent},
+		{name: "author route accepts admin", middleware: AuthorRequired, role: model.Admin, want: fiber.StatusNoContent},
+		{name: "editor route rejects author", middleware: EditorRequired, role: model.Author, want: fiber.StatusForbidden},
+		{name: "editor route accepts editor", middleware: EditorRequired, role: model.Editor, want: fiber.StatusNoContent},
+		{name: "editor route accepts admin", middleware: EditorRequired, role: model.Admin, want: fiber.StatusNoContent},
+		{name: "author route rejects unknown role", middleware: AuthorRequired, role: 9, want: fiber.StatusForbidden},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Use(func(c *fiber.Ctx) error {
+				c.Locals("user", &model.User{PermissionType: tt.role})
+				return c.Next()
+			})
+			app.Use(tt.middleware)
+			app.Get("/", func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
+			resp, err := app.Test(httptest.NewRequest(fiber.MethodGet, "/", nil))
+			if err != nil {
+				t.Fatalf("app.Test() error = %v", err)
+			}
+			if resp.StatusCode != tt.want {
+				t.Fatalf("status = %d, want %d", resp.StatusCode, tt.want)
+			}
+		})
+	}
+}

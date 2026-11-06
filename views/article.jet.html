@@ -5,13 +5,22 @@
   <title>{{ Settings.GetStringValue("SiteTitle") }} - {{ if Data.SEOTitle }}{{ Data.SEOTitle }}{{ else }}{{ Data.Title }}{{ end }}</title>
   {{ include "components/common_head" }}
   <link type="text/css" rel="stylesheet" href="/static/lib/prism/prism.css">
+  {{ if IsArticlePreview }}
+  {{ else }}
   <script src="/static/lib/prism/prism.js" defer></script>
+  {{ end }}
 </head>
 
 <body>
   <div class="reading-progress" aria-hidden="true"><span></span></div>
   {{ include "components/header" }}
   <main class="container article-shell">
+    {{ if IsArticlePreview }}
+    <aside class="article-preview-banner" role="status" style="border: 1px solid currentColor; border-radius: 0.75rem; margin-bottom: 1.25rem; padding: 0.85rem 1rem;">
+      <strong style="display: block; font-size: 1rem; margin-bottom: 0.25rem;">草稿预览</strong>
+      <span>此只读分享链接将于 {{ ArticlePreviewExpiresAt }} 过期。</span>
+    </aside>
+    {{ end }}
     <article class="article">
       <header class="article-hero">
         <p class="page-kicker">Article</p>
@@ -38,10 +47,14 @@
         {{ Data.Detail.Content | raw }}
       </div>
 
+      {{ if IsArticlePreview }}
+      {{ else }}
       <div class="article-end-actions">
         <button class="article-share-button" id="article-share-button" type="button">分享文章</button>
         <span class="article-action-message" id="article-action-message" role="status" aria-live="polite" aria-atomic="true"></span>
       </div>
+
+      {{ end }}
 
       {{ if HasArticleNeighbors }}
       <nav class="article-neighbors" aria-label="相邻文章">
@@ -90,6 +103,8 @@
       {{ end }}
     </article>
 
+    {{ if IsArticlePreview }}
+    {{ else }}
     <section class="comments-section" id="comments">
       <div class="comments-heading">
         <p class="page-kicker">Comments</p>
@@ -163,10 +178,13 @@
       <p class="comments-closed">本文未开放评论。</p>
       {{ end }}
     </section>
+    {{ end }}
   </main>
 
   {{ include "components/footer" RequestTimeDuration }}
 
+  {{ if IsArticlePreview }}
+  {{ else }}
   <aside class="toc-container" id="article-toc" aria-labelledby="article-toc-title" tabindex="-1">
     <div class="toc-title" id="article-toc-title">目录</div>
     <button class="toc-close" type="button" aria-label="关闭文章目录">×</button>
@@ -564,5 +582,6 @@
       }
     });
   </script>
+  {{ end }}
 </body>
 </html>

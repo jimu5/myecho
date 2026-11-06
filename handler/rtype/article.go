@@ -1,6 +1,7 @@
 package rtype
 
 import (
+	"encoding/json"
 	stdhtml "html"
 	"regexp"
 	"strings"
@@ -18,23 +19,25 @@ type ArticleDisplayListQueryParam struct {
 }
 
 type ArticleRequest struct {
-	Title          string                     `json:"title"`
-	Slug           string                     `json:"slug"`
-	SEOTitle       string                     `json:"seo_title"`
-	SEODescription string                     `json:"seo_description"`
-	ShareImage     string                     `json:"share_image"`
-	Type           model.ArticleType          `json:"type"`
-	ContentFormat  model.ArticleContentFormat `json:"content_format"`
-	Summary        string                     `json:"summary"`
-	Content        string                     `json:"content"`
-	CategoryUID    string                     `json:"category_uid"`
-	IsAllowComment *bool                      `json:"is_allow_comment"`
-	PostTime       time.Time                  `json:"post_time"`
-	Status         int8                       `json:"status"`
-	Visibility     int8                       `json:"visibility"`
-	Password       string                     `json:"password"`
-	ClearPassword  bool                       `json:"clear_password"`
-	TagUIDs        []string                   `json:"tag_uids"`
+	Title               string                     `json:"title"`
+	Slug                string                     `json:"slug"`
+	SEOTitle            string                     `json:"seo_title"`
+	SEODescription      string                     `json:"seo_description"`
+	ShareImage          string                     `json:"share_image"`
+	Type                model.ArticleType          `json:"type"`
+	ContentFormat       model.ArticleContentFormat `json:"content_format"`
+	Summary             string                     `json:"summary"`
+	Content             string                     `json:"content"`
+	CategoryUID         string                     `json:"category_uid"`
+	IsAllowComment      *bool                      `json:"is_allow_comment"`
+	PostTime            time.Time                  `json:"post_time"`
+	Status              int8                       `json:"status"`
+	ExpectedEditVersion *uint64                    `json:"expected_edit_version"`
+	Autosave            bool                       `json:"autosave"`
+	Visibility          int8                       `json:"visibility"`
+	Password            string                     `json:"password"`
+	ClearPassword       bool                       `json:"clear_password"`
+	TagUIDs             []string                   `json:"tag_uids"`
 }
 
 type ArticleBatchReq struct {
@@ -86,8 +89,30 @@ func (a *ArticleRequest) PreHandle() {
 }
 
 type User struct {
-	ID       uint   `json:"id"`
-	NickName string `json:"nick_name"`
+	ID        uint   `json:"id"`
+	NickName  string `json:"nick_name"`
+	Slug      string `json:"slug"`
+	AvatarURL string `json:"avatar_url"`
+}
+
+type ArticleSubmissionSnapshotResponse struct {
+	model.ArticleSubmissionSnapshot
+	PasswordHash        string `json:"password_hash,omitempty"`
+	IsPasswordProtected bool   `json:"is_password_protected"`
+}
+
+type ArticleSubmissionResponse struct {
+	ID              uint                              `json:"id"`
+	BaseEditVersion uint64                            `json:"base_edit_version"`
+	Status          model.ArticleSubmissionStatus     `json:"status"`
+	Submitter       *User                             `json:"submitter"`
+	Reviewer        *User                             `json:"reviewer"`
+	Note            string                            `json:"note"`
+	SubmittedAt     *time.Time                        `json:"submitted_at"`
+	ReviewedAt      *time.Time                        `json:"reviewed_at"`
+	CreatedAt       time.Time                         `json:"created_at"`
+	UpdatedAt       time.Time                         `json:"updated_at"`
+	Snapshot        ArticleSubmissionSnapshotResponse `json:"snapshot"`
 }
 
 type Category struct {
@@ -107,6 +132,7 @@ type ArticleResponse struct {
 	Type                model.ArticleType          `json:"type"`
 	ContentFormat       model.ArticleContentFormat `json:"content_format"`
 	Summary             string                     `json:"summary"`
+	EditVersion         uint64                     `json:"edit_version"`
 	DetailUID           string                     `json:"-"`
 	Detail              *model.ArticleDetail       `json:"detail"`
 	CategoryUID         string                     `json:"category_uid"`
@@ -120,6 +146,7 @@ type ArticleResponse struct {
 	Visibility          int8                       `json:"visibility"` // 1: 置顶 2: 公开 3: 私密
 	IsPasswordProtected bool                       `json:"is_password_protected"`
 	Tags                []*model.Tag               `json:"tags" gorm:"many2many:article_tags;joinForeignKey:ArticleID"`
+	Submission          *ArticleSubmissionResponse `json:"submission,omitempty"`
 }
 
 func ModelToUser(user *model.User) *User {
@@ -127,9 +154,29 @@ func ModelToUser(user *model.User) *User {
 		return nil
 	}
 	return &User{
-		ID:       user.ID,
-		NickName: user.NickName,
+		ID: user.ID, NickName: user.NickName, Slug: user.Slug, AvatarURL: user.AvatarURL,
 	}
+}
+
+func ModelToArticleSubmissionResponse(submission *model.ArticleSubmission) (*ArticleSubmissionResponse, error) {
+	if submission == nil {
+		return nil, nil
+	}
+	var snapshot model.ArticleSubmissionSnapshot
+	err := json.Unmarshal([]byte(submission.Snapshot), &snapshot)
+	if err != nil {
+		return nil, err
+	}
+	isPasswordProtected := snapshot.PasswordHash != ""
+	snapshot.PasswordHash = ""
+	return &ArticleSubmissionResponse{
+		ID: submission.ID, Status: submission.Status, Submitter: ModelToUser(submission.Submitter),
+		BaseEditVersion: submission.BaseEditVersion,
+		Reviewer:        ModelToUser(submission.Reviewer), Note: submission.Note,
+		SubmittedAt: submission.SubmittedAt, ReviewedAt: submission.ReviewedAt,
+		CreatedAt: submission.CreatedAt, UpdatedAt: submission.UpdatedAt,
+		Snapshot: ArticleSubmissionSnapshotResponse{ArticleSubmissionSnapshot: snapshot, IsPasswordProtected: isPasswordProtected},
+	}, nil
 }
 
 func ModelToCategory(category *model.Category) *Category {
@@ -163,6 +210,7 @@ func ModelToArticleResponse(article *mysql.ArticleModel) *ArticleResponse {
 		Type:                article.Type,
 		ContentFormat:       model.NormalizeArticleContentFormat(article.ContentFormat),
 		Summary:             article.Summary,
+		EditVersion:         article.EditVersion,
 		DetailUID:           article.DetailUID,
 		Detail:              detail,
 		CategoryUID:         article.CategoryUID,

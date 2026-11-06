@@ -3,6 +3,7 @@ package api
 import (
 	"net/mail"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"myecho/dal/connect"
@@ -78,7 +79,7 @@ func PasswordUpdate(c *fiber.Ctx) error {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
 	user.Password = hashedPassword
-	user.Token = model.GenerateRandomString(32)
+	user.RotateToken(time.Now())
 	if err := connect.Database.Save(user).Error; err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
@@ -90,10 +91,14 @@ func Logout(c *fiber.Ctx) error {
 	if !ok || user == nil {
 		return UnauthorizedErrorResponse(c)
 	}
-	token := model.GenerateRandomString(32)
+	previousToken := user.Token
+	user.RotateToken(time.Now())
 	if err := connect.Database.Model(user).
-		Where("token = ?", user.Token).
-		Update("token", token).Error; err != nil {
+		Where("token = ?", previousToken).
+		Updates(map[string]interface{}{
+			"token":            user.Token,
+			"token_expires_at": user.TokenExpiresAt,
+		}).Error; err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
 	return handler.Success(c, fiber.Map{"logged_out": true})

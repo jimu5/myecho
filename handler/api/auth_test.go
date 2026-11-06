@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"github.com/gofiber/fiber/v2"
@@ -83,13 +84,14 @@ func TestLoginMigratesLegacyPassword(t *testing.T) {
 	var wrapped struct {
 		Code int `json:"code"`
 		Data struct {
-			Token string `json:"token"`
+			Token          string    `json:"token"`
+			TokenExpiresAt time.Time `json:"token_expires_at"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&wrapped); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if wrapped.Code != 0 || wrapped.Data.Token == "" {
+	if wrapped.Code != 0 || wrapped.Data.Token == "" || wrapped.Data.TokenExpiresAt.IsZero() || !wrapped.Data.TokenExpiresAt.After(time.Now()) {
 		t.Fatalf("unexpected response: %+v", wrapped)
 	}
 	var updated model.User
@@ -98,6 +100,9 @@ func TestLoginMigratesLegacyPassword(t *testing.T) {
 	}
 	if updated.Password == legacyPassword || !strings.HasPrefix(updated.Password, "$2") {
 		t.Fatalf("legacy password was not migrated: %q", updated.Password)
+	}
+	if updated.Token != wrapped.Data.Token || !updated.TokenExpiresAt.Equal(wrapped.Data.TokenExpiresAt) {
+		t.Fatalf("rotated token was not persisted: token=%q expiry=%v", updated.Token, updated.TokenExpiresAt)
 	}
 }
 
@@ -116,6 +121,30 @@ func TestLoginRejectsWrongPassword(t *testing.T) {
 
 	body := bytes.NewBufferString(`{"name":"admin","password":"bad"}`)
 	req := httptest.NewRequest(fiber.MethodPost, "/login", body)
+	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatalf("app.Test() error = %v", err)
+	}
+	if resp.StatusCode != fiber.StatusForbidden {
+		t.Fatalf("status = %d, want %d", resp.StatusCode, fiber.StatusForbidden)
+	}
+}
+
+func TestLoginRejectsDisabledUser(t *testing.T) {
+	setupAuthTestDB(t)
+	hashedPassword, err := HashPassword("secret")
+	if err != nil {
+		t.Fatalf("HashPassword() error = %v", err)
+	}
+	user := &model.User{Name: "disabled", Email: "disabled@example.com", Password: hashedPassword, Disabled: true}
+	if err := connect.Database.Select("*").Create(user).Error; err != nil {
+		t.Fatalf("create user: %v", err)
+	}
+	app := fiber.New()
+	app.Post("/login", Login)
+
+	req := httptest.NewRequest(fiber.MethodPost, "/login", bytes.NewBufferString(`{"name":"disabled","password":"secret"}`))
 	req.Header.Set(fiber.HeaderContentType, fiber.MIMEApplicationJSON)
 	resp, err := app.Test(req)
 	if err != nil {

@@ -46,6 +46,9 @@ func Login(c *fiber.Ctx) error {
 	if result.Error != nil {
 		return LoginErrorResponse(c, LoginErrorMsg)
 	}
+	if user.Disabled {
+		return LoginErrorResponse(c, LoginErrorMsg)
+	}
 	ok, shouldUpgrade := CheckPassword(user.Password, l.Password)
 	if !ok {
 		return LoginErrorResponse(c, LoginErrorMsg)
@@ -57,7 +60,9 @@ func Login(c *fiber.Ctx) error {
 		}
 		user.Password = hashedPassword
 	}
-	user.LastLogin = time.Now()
+	now := time.Now()
+	user.LastLogin = now
+	user.RotateToken(now)
 	if err := connect.Database.Save(&user).Error; err != nil {
 		return InternalErrorResponse(c, InternalSQLError, err.Error())
 	}
@@ -137,7 +142,9 @@ func userToLoginResponse(user model.User) rtype.LoginResponse {
 		NickName:       user.NickName,
 		LastLogin:      user.LastLogin,
 		PermissionType: user.PermissionType,
+		CanPublish:     user.CanPublish,
 		Token:          user.Token,
+		TokenExpiresAt: user.TokenExpiresAt,
 	}
 }
 

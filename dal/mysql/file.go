@@ -42,36 +42,48 @@ func (fr *FileRepo) Delete(id uint) error {
 }
 
 func (fr *FileRepo) UpdateBasicInfo(file *FileModel) error {
-	err := db.Model(file).Select("name", "extension_name", "note").Updates(file).Error
+	err := db.Model(file).Select("name", "extension_name", "note", "alt_text", "caption").Updates(file).Error
 	return err
 }
 
-func (fr *FileRepo) PageQueryByName(param *PageFindParam, name string) ([]*FileModel, error) {
+func (fr *FileRepo) PageQueryByName(param *PageFindParam, name string, uploaderID ...*uint) ([]*FileModel, error) {
 	var err error
 	result := make([]*FileModel, 0)
+	query := db.Model(&FileModel{}).Scopes(Paginate(param))
+	if len(uploaderID) != 0 && uploaderID[0] != nil {
+		query = query.Where("uploader_id = ?", *uploaderID[0])
+	}
 	if len(name) != 0 {
-		err = db.Model(&FileModel{}).Scopes(Paginate(param)).Where("name like ?", "%"+name+"%").Order("created_at desc").Find(&result).Error
+		err = query.Where("name like ?", "%"+name+"%").Order("created_at desc").Find(&result).Error
 	} else {
-		err = db.Model(&FileModel{}).Scopes(Paginate(param)).Order("created_at desc").Find(&result).Error
+		err = query.Order("created_at desc").Find(&result).Error
 	}
 	return result, err
 }
 
-func (fr *FileRepo) CountByName(name string) (int64, error) {
+func (fr *FileRepo) CountByName(name string, uploaderID ...*uint) (int64, error) {
 	var (
 		total int64
 		err   error
 	)
+	query := db.Model(&FileModel{})
+	if len(uploaderID) != 0 && uploaderID[0] != nil {
+		query = query.Where("uploader_id = ?", *uploaderID[0])
+	}
 	if len(name) != 0 {
-		err = db.Model(&FileModel{}).Where("name like ?", "%"+name+"%").Count(&total).Error
+		err = query.Where("name like ?", "%"+name+"%").Count(&total).Error
 	} else {
-		err = db.Model(&FileModel{}).Count(&total).Error
+		err = query.Count(&total).Error
 	}
 	return total, err
 }
 
-func (fr *FileRepo) FindFilesByMD5s(md5 []string) ([]*FileModel, error) {
+func (fr *FileRepo) FindFilesByMD5s(md5 []string, uploaderID ...uint) ([]*FileModel, error) {
 	result := make([]*FileModel, 0)
-	err := db.Model(&FileModel{}).Where("md5 in (?)", md5).Find(&result).Error
+	query := db.Model(&FileModel{}).Where("md5 in (?)", md5)
+	if len(uploaderID) > 0 {
+		query = query.Where("uploader_id = ?", uploaderID[0])
+	}
+	err := query.Find(&result).Error
 	return result, err
 }

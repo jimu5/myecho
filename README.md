@@ -160,3 +160,5 @@ Every page template receives `NavigationStaticPages`. A theme that overrides `te
 ## AI Development Notes
 
 AI coding agents should start with `AGENTS.md`. It contains the project map, layer boundaries, verification commands, and submodule guidance.
+
+For scoped agent credentials, content API workflows, and the `myecho` CLI, see [docs/agent-content.md](docs/agent-content.md). The canonical machine-readable contract is served at `/api/openapi.json`.

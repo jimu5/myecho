@@ -54,6 +54,8 @@ func setupAPITestDB(t *testing.T) {
 		&model.Setting{},
 		&model.Category{},
 		&model.User{},
+		&model.AgentToken{},
+		&model.ArticleCreateRequest{},
 		&model.Tag{},
 		&model.ArticleDetail{},
 		&model.Comment{},
@@ -62,6 +64,9 @@ func setupAPITestDB(t *testing.T) {
 		&model.ArticleRevision{},
 		&model.ArticleSlugRedirect{},
 		&model.ArticleDailyStat{},
+		&model.ArticleReview{},
+		&model.ArticleSubmission{},
+		&model.ArticlePreview{},
 		&model.Link{},
 		&model.Theme{},
 	); err != nil {
@@ -324,8 +329,15 @@ func TestArticleHandlersVisibilityAndCRUD(t *testing.T) {
 		t.Fatalf("batch delete status = %d, want 200", resp.StatusCode)
 	}
 	resp = doJSONRequest(t, app, fiber.MethodDelete, "/articles/3", admin.Token, "")
-	if resp.StatusCode != fiber.StatusNotFound {
-		t.Fatalf("delete status = %d, want 404 after batch delete", resp.StatusCode)
+	if resp.StatusCode != fiber.StatusOK {
+		t.Fatalf("repeated trash status = %d, want 200", resp.StatusCode)
+	}
+	var trashed mysql.ArticleModel
+	if err := connect.Database.Preload("Detail").First(&trashed, 3).Error; err != nil {
+		t.Fatalf("trashed article must remain recoverable: %v", err)
+	}
+	if trashed.Status != int8(mysql.ARTICLE_STATUS_RECYCLE) || trashed.Detail == nil || trashed.Detail.Content != "new body" {
+		t.Fatalf("trash must preserve the saved article and body: %+v", trashed)
 	}
 }
 

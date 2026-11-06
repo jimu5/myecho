@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"myecho/model"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -27,26 +26,6 @@ func unauthorizedErrorResponse(c *fiber.Ctx) error {
 
 func forbiddenErrorResponse(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusForbidden).JSON(Error{Code: Forbidden, Msg: ForbiddenErrorMsg})
-}
-
-func Authentication(c *fiber.Ctx) (err error) {
-	auth := c.Get("Authorization")
-	if auth == "" {
-		return unauthorizedErrorResponse(c)
-	}
-	fields := strings.Fields(auth)
-	if len(fields) != 2 || strings.ToLower(fields[0]) != "token" {
-		return unauthorizedErrorResponse(c)
-	}
-	token := fields[1]
-	user, err := GetUserByToken(token)
-	if err != nil {
-		return unauthorizedErrorResponse(c)
-	}
-
-	// 将用户信息保存下来
-	c.Locals("user", &user)
-	return c.Next()
 }
 
 func AdminRequired(c *fiber.Ctx) error {

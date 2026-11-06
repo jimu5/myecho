@@ -13,7 +13,7 @@ func SetupThemeRouter(app *fiber.App) {
 	publicThemeGroup := app.Group("/api/themes")
 	{
 		// 获取当前激活的主题
-		publicThemeGroup.Get("/active", theme.GetActiveTheme)
+		publicThemeGroup.Get("/active", middleware.OptionalAuthentication, theme.GetActiveTheme)
 	}
 
 	// 创建主题API分组，需要认证
