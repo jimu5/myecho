@@ -12,7 +12,7 @@ Scopes do not change the account role or ownership rules. Public article reads r
 
 ## Article editing
 
-Use `GET /api/all_articles?page=1&page_size=50` to list manageable articles and `GET /api/articles/{id}` to read one. Lists are paginated; `page_size` is capped at 100. Authors see only their own items. The detail response contains `edit_version` and, when available to that account, its latest editable submission snapshot.
+Use `GET /api/all_articles?page=1&page_size=50` to list manageable articles and `GET /api/articles/{id}` to read one. Lists are paginated by default. The CLI accepts `--page-size` values from 1 to 100. Authors see only their own items. The detail response contains `edit_version` and, when available to that account, its latest editable submission snapshot.
 
 Create with `POST /api/articles`. The request needs `title` and `content`; `type` is `1` for a post or `2` for a page. Use `content_format: "markdown"` or `"html"` (`markdown` is the default). Omitted status defaults to `4` (draft). Other status values are `1` published, `2` pinned, `3` private, `5` submit for review, and `6` recycle bin. `post_time` is an RFC 3339 timestamp. Category and tag references use `category_uid` and `tag_uids`.
 
